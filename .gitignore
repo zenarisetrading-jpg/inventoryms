@@ -1,0 +1,23 @@
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.production
+.env.*
+
+# Exception: example files are safe to commit
+!.env.example
+!.env.local.example
+
+# Node
+node_modules/
+dist/
+.next/
+
+# macOS
+.DS_Store
+
+# Supabase local
+supabase/.temp/
+everything-claude-code/
+.claude/
+everything-claude-code/
