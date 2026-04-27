@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
 import type { CommandCenterResponse, InventoryNode, ActionFlag } from '../types'
 import { navigate } from '../lib/router'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { ActionFlagBadge } from '../components/shared/ActionFlagBadge'
 import { DrillDownModal } from '../components/DrillDownModal'
-import { LayoutDashboard, AlertCircle, TrendingUp, Package, MoveRight, Receipt, PlusCircle, AlertTriangle, ShieldAlert, Activity, Download } from 'lucide-react'
+import { LayoutDashboard, AlertCircle, TrendingUp, Package, MoveRight, Receipt, PlusCircle, AlertTriangle, ShieldAlert, Activity, Download, ChevronUp, ChevronDown } from 'lucide-react'
 
 const NODE_LABEL: Record<InventoryNode, string> = {
   amazon_fba: 'Amazon FBA',
@@ -186,12 +186,20 @@ function SectionCard({
   extra?: React.ReactNode
   onDoubleClick?: () => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scroll = (dir: 'up' | 'down') => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ top: dir === 'up' ? -150 : 150, behavior: 'smooth' })
+    }
+  }
+
   return (
     <div 
       onDoubleClick={onDoubleClick}
-      className="bg-card border border-border-color rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-default select-none"
+      className="bg-card border border-border-color rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-default select-none relative group/card"
     >
-      <div className={`px-5 py-4 border-b border-border-color border-l-[6px] ${accentColor} bg-slate-50/50 flex items-center justify-between`}>
+      <div className={`px-4 py-2.5 border-b border-border-color border-l-[6px] ${accentColor} bg-slate-50/50 flex items-center justify-between`}>
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg bg-white shadow-sm`}>
             <Icon className={`w-4 h-4 ${accentColor.replace('border-l-', 'text-')}`} />
@@ -208,7 +216,28 @@ function SectionCard({
           </span>
         </div>
       </div>
-      {children}
+      
+      <div ref={scrollRef} className="overflow-x-auto overflow-y-auto max-h-[400px] custom-scrollbar relative">
+        {children}
+      </div>
+
+      {/* Floating Scroll Controls */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 opacity-0 group-hover/card:opacity-100 transition-all translate-y-2 group-hover/card:translate-y-0 z-30">
+        <button 
+          onClick={(e) => { e.stopPropagation(); scroll('up') }}
+          className="p-1.5 bg-white/90 backdrop-blur shadow-lg border border-border-color rounded-full text-muted hover:text-brand-blue hover:scale-110 transition-all active:scale-95"
+          title="Scroll Up"
+        >
+          <ChevronUp className="w-4 h-4" />
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); scroll('down') }}
+          className="p-1.5 bg-white/90 backdrop-blur shadow-lg border border-border-color rounded-full text-muted hover:text-brand-blue hover:scale-110 transition-all active:scale-95"
+          title="Scroll Down"
+        >
+          <ChevronDown className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -241,7 +270,7 @@ function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; mes
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-5 py-4 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}
+      className={`px-4 py-3 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}
     >
       {children}
     </th>
@@ -641,7 +670,7 @@ export default function CommandCenter() {
             </button>
           )}
         >
-          <div className="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
+          <>
             <table className="w-full text-sm">
               <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
@@ -654,26 +683,26 @@ export default function CommandCenter() {
               </thead>
               <tbody className="divide-y divide-border-color/50 bg-white">
                 {loading ? <SkeletonRow cols={5} /> : (data?.alerts.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
-                  data?.alerts.slice(0, 5).map(a => (
+                  data?.alerts.map(a => (
                     <tr key={a.sku} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-2.5">
                         <div className="flex flex-col">
                           <SKULink sku={a.sku} />
-                          <span className="text-[10px] font-medium text-muted mt-1 truncate max-w-[180px]">{a.name}</span>
+                          <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[180px]">{a.name}</span>
                         </div>
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-2.5">
                         <span className="text-[10px] font-black text-muted uppercase">
                           {getMarketplace(a.coverage_amazon ?? 99, a.coverage_noon ?? 99)}
                         </span>
                       </td>
-                      <td className={`px-5 py-4 text-right font-data text-[11px] ${coverageColor(a.coverage_amazon)}`}>
+                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(a.coverage_amazon)}`}>
                         {formatCovDays(a.coverage_amazon)}
                       </td>
-                      <td className={`px-5 py-4 text-right font-data text-[11px] ${coverageColor(a.coverage_noon)}`}>
+                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(a.coverage_noon)}`}>
                         {formatCovDays(a.coverage_noon)}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-2.5">
                         <ActionFlagBadge flag={a.action_flag as ActionFlag} />
                       </td>
                     </tr>
@@ -681,7 +710,7 @@ export default function CommandCenter() {
                 )}
               </tbody>
             </table>
-          </div>
+          </>
         </SectionCard>
 
         {/* SHIP NOW */}
@@ -706,8 +735,8 @@ export default function CommandCenter() {
             </button>
           )}
         >
-          <div className="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
-            <table className="w-full text-sm">
+          <>
+            <table className="w-full text-xs">
               <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>SKU</Th>
@@ -719,35 +748,35 @@ export default function CommandCenter() {
               </thead>
               <tbody className="divide-y divide-border-color/50 bg-white">
                 {loading ? <SkeletonRow cols={5} /> : shipNowRows.length === 0 ? <EmptyRow cols={5} /> : (
-                  shipNowRows.slice(0, 5).map((row, idx) => {
+                  shipNowRows.map((row, idx) => {
                     const sku = String(row.sku ?? '')
                     const sugAmz = toSafeNumber(row.suggested_boxes_amazon, 0)
                     const sugNoon = toSafeNumber(row.suggested_boxes_noon, 0)
                     return (
                       <tr key={`${sku}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-4">
+                        <td className="px-4 py-2.5">
                           <div className="flex flex-col">
                             <SKULink sku={sku} />
-                            <span className="text-[10px] font-medium text-muted mt-1 truncate max-w-[150px]">{String(row.name)}</span>
+                            <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[150px]">{String(row.name)}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-right font-data text-[11px] font-bold text-primary">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-primary">
                           {toSafeNumber(row.blended_sv).toFixed(1)}
                         </td>
-                        <td className="px-5 py-4 text-right font-data text-[11px] font-black text-brand-blue">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-brand-blue">
                           {toSafeNumber(row.total_units_to_ship)}
                         </td>
-                        <td className="px-5 py-4 text-right font-data text-[11px] text-muted">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
                           {sugAmz + sugNoon}
                         </td>
-                        <td className="px-5 py-4"><ActionTag action="SHIP" /></td>
+                        <td className="px-4 py-2.5"><ActionTag action="SHIP" /></td>
                       </tr>
                     )
                   })
                 )}
               </tbody>
             </table>
-          </div>
+          </>
         </SectionCard>
 
         {/* REORDER NOW */}
@@ -772,24 +801,28 @@ export default function CommandCenter() {
             </button>
           )}
         >
-          <div className="overflow-x-auto">
+          <>
             <table className="w-full text-sm">
               <thead className="bg-slate-50/50">
                 <tr>
                   <Th>SKU</Th>
                   <Th right>Req. Units</Th>
+                  <Th right>Cost</Th>
                   <Th right>Coverage</Th>
                   <Th>Action</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-color/50 bg-white">
                 {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
-                  data?.reorder_now.slice(0, 5).map(r => (
+                  data?.reorder_now.map(r => (
                     <tr key={r.sku} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-4"><SKULink sku={r.sku} /></td>
-                      <td className="px-5 py-4 text-right font-data text-[11px] font-black text-primary">{r.suggested_units}</td>
-                      <td className={`px-5 py-4 text-right font-data text-[11px] ${coverageColor(r.projected_coverage)}`}>{formatCovDays(r.projected_coverage)}</td>
-                      <td className="px-5 py-4">
+                      <td className="px-4 py-2.5"><SKULink sku={r.sku} /></td>
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-primary">{r.suggested_units}</td>
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-emerald-600">
+                        {Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(r.projected_coverage)}`}>{formatCovDays(r.projected_coverage)}</td>
+                      <td className="px-4 py-2.5">
                         <button onClick={() => navigate('/po')} className="text-[9px] font-black uppercase text-brand-blue hover:underline">Draft PO</button>
                       </td>
                     </tr>
@@ -797,7 +830,7 @@ export default function CommandCenter() {
                 )}
               </tbody>
             </table>
-          </div>
+          </>
         </SectionCard>
 
         {/* INCOMING SUPPLY */}
@@ -822,7 +855,7 @@ export default function CommandCenter() {
             </button>
           )}
         >
-          <div className="overflow-x-auto">
+          <>
             <table className="w-full text-sm">
               <thead className="bg-slate-50/50">
                 <tr>
@@ -839,18 +872,18 @@ export default function CommandCenter() {
                     sku: li.sku,
                     units: li.units_ordered,
                     eta: b.eta
-                  }))).slice(0, 5).map((row: any) => (
+                  }))).map((row: any) => (
                     <tr key={`${row.po}-${row.sku}`} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-4 font-data text-[10px] font-bold text-muted">{row.po}</td>
-                      <td className="px-5 py-4"><SKULink sku={row.sku} /></td>
-                      <td className="px-5 py-4 text-right font-data text-[11px] text-primary">{row.units}</td>
-                      <td className="px-5 py-4 text-[10px] font-bold text-muted">{formatDate(row.eta)}</td>
+                      <td className="px-4 py-2.5 font-data text-[10px] font-bold text-muted">{row.po}</td>
+                      <td className="px-4 py-2.5"><SKULink sku={row.sku} /></td>
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] text-primary">{row.units}</td>
+                      <td className="px-4 py-2.5 text-[10px] font-bold text-muted">{formatDate(row.eta)}</td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
-          </div>
+          </>
         </SectionCard>
       </div>
 

@@ -55,6 +55,7 @@ export interface CommandCenterResponse {
     cogs: number | null
     blended_sv: number
     projected_coverage: number
+    total_cost_aed?: number
     lead_time_days: number
   }[]
   transfers: {

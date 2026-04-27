@@ -415,7 +415,7 @@ export default function SKUCatalog() {
                     style={{ width: col.width, minWidth: col.width }}
                     onClick={() => handleSort(col.key)}
                     className={`
-                      px-6 py-5 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
+                      px-4 py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
                       ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
                       ${col.align === 'right' ? 'text-right' : 'text-left'}
                     `}
@@ -454,7 +454,7 @@ export default function SKUCatalog() {
                         style={{ width: col.width, minWidth: col.width }}
                         onClick={() => i < 4 && navigate('/sku/' + sku.sku)}
                         className={`
-                          px-6 py-4 h-[64px] border-zinc-50
+                          px-4 py-2 h-[48px] border-zinc-50
                           ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
                           ${col.align === 'right' ? 'text-right' : 'text-left'}
                           ${i < 4 ? 'cursor-pointer' : ''}

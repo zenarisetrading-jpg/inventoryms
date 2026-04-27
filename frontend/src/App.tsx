@@ -9,6 +9,7 @@ import UploadPage from './pages/upload'
 import HealthPage from './pages/health'
 import InventoryPage from './pages/inventory'
 import AnalyticsPage from './pages/analytics'
+import PerformanceInsightsPage from './pages/performance-insights'
 import PONewPage from './pages/po_new'
 import SKUNewPage from './pages/skus_new'
 import { navigate } from './lib/router'
@@ -24,6 +25,7 @@ type Route =
   | { name: 'health' }
   | { name: 'inventory' }
   | { name: 'analytics' }
+  | { name: 'insights' }
   | { name: 'skus_new' }
 
 function parseRoute(): Route {
@@ -37,6 +39,7 @@ function parseRoute(): Route {
   if (path === '/health') return { name: 'health' }
   if (path === '/inventory') return { name: 'inventory' }
   if (path === '/analytics') return { name: 'analytics' }
+  if (path === '/insights') return { name: 'insights' }
   if (path === '/skus/new') return { name: 'skus_new' }
   return { name: 'dashboard' }
 }
@@ -87,6 +90,7 @@ export default function App() {
           <SidebarLink icon={Activity} label="Data Health" path="/health" current={route.name === 'health'} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} />
           <SidebarLink icon={BarChart2} label="Analytics" path="/analytics" current={route.name === 'analytics'} />
+          <SidebarLink icon={Activity} label="Insights" path="/insights" current={route.name === 'insights'} />
         </nav>
 
         <div className="p-4 border-t border-white/5">
@@ -163,6 +167,7 @@ export default function App() {
               {route.name === 'health' && <HealthPage />}
               {route.name === 'inventory' && <InventoryPage />}
               {route.name === 'analytics' && <AnalyticsPage />}
+              {route.name === 'insights' && <PerformanceInsightsPage />}
             </ErrorBoundary>
           </div>
         </main>

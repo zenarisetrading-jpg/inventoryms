@@ -116,6 +116,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   <>
                     <HeaderCell right>Velocity</HeaderCell>
                     <HeaderCell right>Order Units</HeaderCell>
+                    <HeaderCell right>Reorder Cost</HeaderCell>
                     <HeaderCell right>MOQ</HeaderCell>
                     <HeaderCell>Lead Time</HeaderCell>
                   </>
@@ -217,6 +218,9 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-amber">
                         {item.suggested_units}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-emerald-600">
+                        {Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-muted">
                         {item.moq || '—'}

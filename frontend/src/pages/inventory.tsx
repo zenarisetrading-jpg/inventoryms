@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers } from 'lucide-react'
+import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers, Archive, Box, ShoppingCart, Send } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
 
@@ -100,6 +100,28 @@ export default function InventoryPage() {
     return list
   }, [data, searchQuery, sortKey, sortDir, category, subCategory])
 
+  const totals = useMemo(() => {
+    const t: Record<string, number> = {}
+    const keysToTotal = [
+      'fba_units', 'fbn_units', 'locad_units', 'locad_boxes', 'stock_in_hand', 
+      'shortfall', 'moq', 'suggested_reorder_qty', 'total_reorder_cost',
+      'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes',
+      'current_fba_stock_units', 'current_fbn_stock_units', 'stock_in_hand_units',
+      'shortfall_units', 'suggested_units', 'total_cost_aed', 'units_to_ship',
+      'suggested_units_amazon', 'suggested_units_noon', 'suggested_boxes_amazon', 'suggested_boxes_noon'
+    ]
+
+    processedData.forEach(row => {
+      keysToTotal.forEach(k => {
+        const val = (row as any)[k]
+        if (typeof val === 'number') {
+          t[k] = (t[k] || 0) + val
+        }
+      })
+    })
+    return t
+  }, [processedData])
+
   if (loading && !data) return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
@@ -171,6 +193,57 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      {/* ── SUMMARY STATS ────────────────────────────────────────────── */}
+      {!error && processedData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+          <InventoryStatCard 
+            title="Channel Stock" 
+            icon={Archive}
+            accent="text-indigo-600"
+            items={[
+              { label: 'FBA Units', value: renderCell('fba_units', totals['fba_units'] || totals['current_fba_stock_units']) },
+              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) }
+            ]}
+          />
+          <InventoryStatCard 
+            title="Warehouse Stock" 
+            icon={Box}
+            accent="text-emerald-600"
+            items={[
+              { label: 'Units', value: renderCell('locad_units', totals['locad_units'] || totals['stock_in_hand_units']) },
+              { label: 'Boxes', value: renderCell('locad_boxes', totals['locad_boxes'] || totals['boxes_in_hand']) }
+            ]}
+          />
+          <InventoryStatCard 
+            title="Reorder" 
+            icon={ShoppingCart}
+            accent="text-amber-600"
+            items={[
+              { label: 'Suggested Qty', value: renderCell('suggested_units', totals['suggested_reorder_qty'] || totals['suggested_units']) },
+              { label: 'Total Cost', value: `AED ${renderCell('total_reorder_cost', totals['total_reorder_cost'] || totals['total_cost_aed'])}` }
+            ]}
+          />
+          <InventoryStatCard 
+            title="Send to FBA" 
+            icon={Send}
+            accent="text-brand-blue"
+            items={[
+              { label: 'Send Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
+              { label: 'Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) }
+            ]}
+          />
+          <InventoryStatCard 
+            title="Send to FBN" 
+            icon={Send}
+            accent="text-brand-amber"
+            items={[
+              { label: 'Send Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
+              { label: 'Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
+            ]}
+          />
+        </div>
+      )}
+
       {/* ── GRID SYSTEM ────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-210px)]">
         {error && (
@@ -194,7 +267,7 @@ export default function InventoryPage() {
                         else { setSortKey(col.key); setSortDir('desc') }
                       }}
                       className={`
-                        px-6 py-5 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
+                        px-4 py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
                         ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
                       `}
                     >
@@ -216,7 +289,7 @@ export default function InventoryPage() {
                         key={col.key}
                         style={{ width: col.width, minWidth: col.width }}
                         className={`
-                          px-6 py-4 border-zinc-50 h-[60px]
+                          px-4 py-2 border-zinc-50 h-[48px]
                           ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
                         `}
                       >
@@ -231,6 +304,26 @@ export default function InventoryPage() {
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="sticky bottom-0 z-30 bg-zinc-900 border-t-2 border-brand-amber">
+                <tr className="h-[48px]">
+                  {columns.map((col, i) => (
+                    <td
+                      key={col.key}
+                      style={{ width: col.width, minWidth: col.width }}
+                      className={`
+                        px-4 py-2 bg-zinc-900 border-zinc-800
+                        ${i === 0 ? 'sticky left-0 z-40 border-r border-zinc-800 shadow-[2px_0_10px_rgba(0,0,0,0.3)]' : ''}
+                      `}
+                    >
+                      <span className={`text-[13px] font-black uppercase truncate block ${
+                        i === 0 ? 'text-brand-amber' : 'text-white'
+                      }`}>
+                        {i === 0 ? 'TOTALS' : (totals[col.key] != null ? renderCell(col.key, totals[col.key]) : '')}
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
@@ -270,10 +363,29 @@ export default function InventoryPage() {
 }
 
 function renderCell(key: string, val: any) {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '0'
   if (typeof val === 'number') {
     if (val % 1 !== 0) return val.toFixed(2)
     return val.toLocaleString()
   }
   return String(val)
+}
+
+function InventoryStatCard({ title, items, icon: Icon, accent }: { title: string, items: { label: string, value: any }[], icon: any, accent: string }) {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-5 group">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <h3 className="text-xs font-black text-sidebar uppercase tracking-[0.15em]">{title}</h3>
+        <Icon className={`w-5 h-5 ${accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
+      </div>
+      <div className="grid grid-cols-2 gap-6">
+        {items.map((item, i) => (
+          <div key={i} className="flex flex-col gap-1">
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">{item.label}</span>
+            <span className="text-2xl font-black text-sidebar tracking-tighter leading-none">{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
