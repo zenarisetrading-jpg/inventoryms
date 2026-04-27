@@ -1,5 +1,5 @@
 export type SKUCategory = 'A' | 'B' | 'C'
-export type POStatus = 'draft' | 'ordered' | 'shipped' | 'in_transit' | 'arrived' | 'closed'
+export type POStatus = 'draft' | 'ordered' | 'shipped' | 'arrived' | 'closed' | 'cancelled'
 export type InventoryNode = 'amazon_fba' | 'noon_fbn' | 'locad_warehouse'
 export type ActionFlag = 'CRITICAL_OOS_RISK' | 'OOS_RISK' | 'SHIP_NOW' | 'REORDER' | 'TRANSFER' | 'EXCESS' | 'OK'
 export type SalesChannel = 'amazon' | 'noon' | 'noon_minutes'

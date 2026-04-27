@@ -560,9 +560,9 @@ export default function AnalyticsPage() {
                     draft: '#94a3b8',
                     ordered: '#3b82f6',
                     shipped: '#f59e0b',
-                    in_transit: '#8b5cf6',
                     arrived: '#22c55e',
                     closed: '#d1d5db',
+                    cancelled: '#ef4444',
                   }
 
                   return (

@@ -7,7 +7,7 @@ import { StatusBadge } from '../components/shared/StatusBadge'
 import { Autocomplete } from '../components/shared/Autocomplete'
 import { ActionDropdown } from '../components/ActionDropdown'
 
-const PO_STATUS_SEQUENCE: POStatus[] = ['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed']
+const PO_STATUS_SEQUENCE: POStatus[] = ['draft', 'ordered', 'shipped', 'arrived', 'closed', 'cancelled']
 
 function nextStatus(current: POStatus): POStatus | null {
   const idx = PO_STATUS_SEQUENCE.indexOf(current)
@@ -25,9 +25,9 @@ const STATUS_TABS: { label: string; value: string }[] = [
   { label: 'Draft', value: 'draft' },
   { label: 'Ordered', value: 'ordered' },
   { label: 'Shipped', value: 'shipped' },
-  { label: 'In Transit', value: 'in_transit' },
   { label: 'Arrived', value: 'arrived' },
   { label: 'Closed', value: 'closed' },
+  { label: 'Cancelled', value: 'cancelled' },
 ]
 
 interface LineItemInput {
@@ -365,14 +365,14 @@ export default function POPage() {
                             setAdvancingId(null);
                             setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
                           }}
-                          options={['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed']}
+                          options={['draft', 'ordered', 'shipped', 'arrived', 'closed', 'cancelled']}
                           colors={{
                             draft: 'bg-slate-100 text-slate-500 border-slate-200',
                             ordered: 'bg-blue-50 text-blue-600 border-blue-200',
                             shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-                            in_transit: 'bg-indigo-50 text-indigo-600 border-indigo-200',
                             arrived: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-                            closed: 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                            closed: 'bg-zinc-100 text-zinc-500 border-zinc-200',
+                            cancelled: 'bg-red-50 text-red-600 border-red-200'
                           }}
                         />
                       </td>
@@ -456,7 +456,7 @@ export default function POPage() {
                 <p><span className="font-data text-zinc-500">po_number, supplier, order_date, eta, status, notes, sku, units_ordered, units_received</span></p>
                 <ul className="mt-1.5 space-y-0.5 list-disc list-inside text-zinc-500">
                   <li>Repeat <span className="font-data">po_number</span> for each SKU in the same PO</li>
-                  <li><span className="font-data">status</span>: draft, ordered, shipped, in_transit, arrived, closed (defaults to draft)</li>
+                  <li><span className="font-data">status</span>: draft, ordered, shipped, arrived, closed, cancelled (defaults to draft)</li>
                   <li>Existing PO numbers are skipped (no overwrite)</li>
                   <li>Unknown SKUs within a PO are skipped; rest still imports</li>
                 </ul>
