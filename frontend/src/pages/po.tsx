@@ -5,6 +5,7 @@ import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { Autocomplete } from '../components/shared/Autocomplete'
+import { ActionDropdown } from '../components/ActionDropdown'
 
 const PO_STATUS_SEQUENCE: POStatus[] = ['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed']
 
@@ -356,17 +357,24 @@ export default function POPage() {
                       <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
                       <td className="px-4 py-2.5"><StatusBadge status={po.status} /></td>
                       <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
-                        {next ? (
-                          <button
-                            onClick={() => handleAdvance(po)}
-                            disabled={advancingId === po.id}
-                            className="text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded px-2 py-1 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {advancingId === po.id ? '…' : `→ ${next.replace(/_/g, ' ')}`}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-zinc-400">Closed</span>
-                        )}
+                        <ActionDropdown 
+                          currentStatus={po.status}
+                          onStatusChange={async (newStatus) => {
+                            setAdvancingId(po.id);
+                            await api.updatePO(po.id, { status: newStatus as any });
+                            setAdvancingId(null);
+                            setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
+                          }}
+                          options={['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed']}
+                          colors={{
+                            draft: 'bg-slate-100 text-slate-500 border-slate-200',
+                            ordered: 'bg-blue-50 text-blue-600 border-blue-200',
+                            shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
+                            in_transit: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+                            arrived: 'bg-emerald-50 text-emerald-600 border-emerald-200',
+                            closed: 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                          }}
+                        />
                       </td>
                     </tr>
 

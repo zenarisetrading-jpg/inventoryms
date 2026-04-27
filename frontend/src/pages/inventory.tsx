@@ -220,7 +220,7 @@ export default function InventoryPage() {
             accent="text-amber-600"
             items={[
               { label: 'Suggested Qty', value: renderCell('suggested_units', totals['suggested_reorder_qty'] || totals['suggested_units']) },
-              { label: 'Total Cost', value: `AED ${renderCell('total_reorder_cost', totals['total_reorder_cost'] || totals['total_cost_aed'])}` }
+              { label: 'Total Cost (AED)', value: renderCell('total_reorder_cost', totals['total_reorder_cost'] || totals['total_cost_aed']) }
             ]}
           />
           <InventoryStatCard 
@@ -373,16 +373,16 @@ function renderCell(key: string, val: any) {
 
 function InventoryStatCard({ title, items, icon: Icon, accent }: { title: string, items: { label: string, value: any }[], icon: any, accent: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-5 group">
-      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-        <h3 className="text-xs font-black text-sidebar uppercase tracking-[0.15em]">{title}</h3>
-        <Icon className={`w-5 h-5 ${accent} opacity-60 group-hover:opacity-100 transition-opacity`} />
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 group min-w-0">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+        <h3 className="text-[11px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
+        <Icon className={`w-4 h-4 ${accent} opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
       </div>
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-3">
         {items.map((item, i) => (
-          <div key={i} className="flex flex-col gap-1">
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">{item.label}</span>
-            <span className="text-2xl font-black text-sidebar tracking-tighter leading-none">{item.value}</span>
+          <div key={i} className="flex flex-col gap-1 min-w-0">
+            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider truncate">{item.label}</span>
+            <span className="text-[19px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
           </div>
         ))}
       </div>

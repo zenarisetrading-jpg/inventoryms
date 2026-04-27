@@ -1,4 +1,6 @@
-import { X, Download } from 'lucide-react'
+import { X, Download, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+import { ActionDropdown } from './ActionDropdown'
 import type { ActionFlag, InventoryNode } from '../types'
 import { navigate } from '../lib/router'
 
@@ -11,6 +13,7 @@ interface DrillDownProps {
 }
 
 export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDownProps) {
+  const [rowStatuses, setRowStatuses] = useState<Record<string, string>>({})
   if (!isOpen) return null
 
   // Ensure data is an array
@@ -110,6 +113,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     <HeaderCell right>AMZ Boxes</HeaderCell>
                     <HeaderCell right>Noon Boxes</HeaderCell>
                     <HeaderCell>Logic</HeaderCell>
+                    <HeaderCell>Action</HeaderCell>
                   </>
                 )}
                 {type === 'reorder_now' && (
@@ -125,6 +129,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   <>
                     <HeaderCell>PO # / Supplier</HeaderCell>
                     <HeaderCell>Status</HeaderCell>
+                    <HeaderCell>Action</HeaderCell>
                     <HeaderCell right>Total Units</HeaderCell>
                     <HeaderCell>ETA</HeaderCell>
                   </>
@@ -208,6 +213,12 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase">
                         {item.allocation_logic}
                       </td>
+                      <td className="py-3 px-2">
+                        <ActionDropdown 
+                          currentStatus={rowStatuses[`${item.sku}-${i}`] || 'shipped'} 
+                          onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
+                        />
+                      </td>
                     </>
                   )}
 
@@ -243,6 +254,12 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                          <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-tighter">
                             {item.status}
                          </span>
+                      </td>
+                      <td className="py-3 px-2">
+                        <ActionDropdown 
+                          currentStatus={rowStatuses[`${item.sku}-${i}`] || item.status || 'shipped'} 
+                          onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
+                        />
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-black text-primary">
                         {item.total_units}

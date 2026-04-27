@@ -5,7 +5,8 @@ import { navigate } from '../lib/router'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { ActionFlagBadge } from '../components/shared/ActionFlagBadge'
 import { DrillDownModal } from '../components/DrillDownModal'
-import { LayoutDashboard, AlertCircle, TrendingUp, Package, MoveRight, Receipt, PlusCircle, AlertTriangle, ShieldAlert, Activity, Download, ChevronUp, ChevronDown } from 'lucide-react'
+import { Search, Download, RefreshCw, PlusCircle, ShieldAlert, AlertCircle, TrendingUp, Activity, Package, MoveRight, ChevronDown, ChevronUp, Clock, Calendar, DownloadCloud, CheckCircle, ArrowRight, LayoutDashboard, AlertTriangle, Receipt } from 'lucide-react'
+import { ActionDropdown } from '../components/ActionDropdown'
 
 const NODE_LABEL: Record<InventoryNode, string> = {
   amazon_fba: 'Amazon FBA',
@@ -310,6 +311,7 @@ export default function CommandCenter() {
   const [refreshing, setRefreshing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [approvedPlans, setApprovedPlans] = useState<Set<string>>(new Set())
+  const [rowStatuses, setRowStatuses] = useState<Record<string, string>>({})
   const [drillModal, setDrillModal] = useState<{ isOpen: boolean; title: string; type: any; data: any[] }>({
     isOpen: false,
     title: '',
@@ -769,7 +771,12 @@ export default function CommandCenter() {
                         <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
                           {sugAmz + sugNoon}
                         </td>
-                        <td className="px-4 py-2.5"><ActionTag action="SHIP" /></td>
+                        <td className="px-4 py-2.5">
+                          <ActionDropdown 
+                            currentStatus={rowStatuses[`${sku}-${idx}`] || 'shipped'} 
+                            onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
+                          />
+                        </td>
                       </tr>
                     )
                   })
