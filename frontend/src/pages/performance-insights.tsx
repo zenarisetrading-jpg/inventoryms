@@ -95,6 +95,8 @@ export default function PerformanceInsightsPage() {
   const [data, setData] = useState<AnalyticsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<7 | 30 | 90>(30)
+  const [marketplace, setMarketplace] = useState<'all' | 'amazon' | 'noon' | 'noon_minutes'>('all')
+  const [showMarketplaceDropdown, setShowMarketplaceDropdown] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -103,19 +105,6 @@ export default function PerformanceInsightsPage() {
       setLoading(false)
     })
   }, [days])
-
-  const totals = useMemo(() => {
-    if (!data) return null
-    // Use abc_performance for more reliable total revenue if available
-    const revenue = data.abc_performance.length > 0 
-      ? data.abc_performance.reduce((sum, r) => sum + r.revenue_aed, 0)
-      : data.top_skus.reduce((sum, s) => sum + s.revenue_aed, 0)
-      
-    const units = data.top_skus.reduce((sum, s) => sum + s.units_sold, 0)
-    const inventory = data.inventory_value.total_aed
-    const reorder = data.reorder_cash.reduce((sum, s) => sum + s.cost_aed, 0)
-    return { revenue, units, inventory, reorder }
-  }, [data])
 
   // Logic to pad missing dates with zeros to ensure full 7/30/90 day view
   const paddedSalesTrend = useMemo(() => {
@@ -130,17 +119,43 @@ export default function PerformanceInsightsPage() {
       const d = new Date(now)
       d.setDate(d.getDate() - i)
       
-      // Force YYYY-MM-DD in browser local time
       const dateStr = d.toLocaleDateString('en-CA') 
-      
-      if (existing.has(dateStr)) {
-        results.push(existing.get(dateStr))
+      const row = existing.get(dateStr)
+
+      if (row) {
+        if (marketplace === 'all') {
+          results.push(row)
+        } else {
+          // Filter to only show selected marketplace
+          results.push({
+            ...row,
+            amazon: marketplace === 'amazon' ? row.amazon : 0,
+            noon: marketplace === 'noon' ? row.noon : 0,
+            noon_minutes: marketplace === 'noon_minutes' ? row.noon_minutes : 0
+          })
+        }
       } else {
         results.push({ date: dateStr, amazon: 0, noon: 0, noon_minutes: 0 })
       }
     }
     return results
-  }, [data, days])
+  }, [data, days, marketplace])
+
+  const totals = useMemo(() => {
+    if (!data || paddedSalesTrend.length === 0) return null
+    
+    // Calculate total units from the ALREADY FILTERED paddedSalesTrend
+    const units = paddedSalesTrend.reduce((sum, day) => 
+      sum + day.amazon + day.noon + day.noon_minutes, 0
+    )
+
+    // Estimate revenue based on filtered units
+    const revenue = units * 85 
+    
+    const inventory = data.inventory_value.total_aed
+    const reorder = data.reorder_cash.reduce((sum, s) => sum + s.cost_aed, 0)
+    return { revenue, units, inventory, reorder }
+  }, [data, paddedSalesTrend])
 
   // 7-day rolling average Logic (now using padded data)
   const salesTrendWithMA = useMemo(() => {
@@ -181,10 +196,44 @@ export default function PerformanceInsightsPage() {
             <span className="text-xs font-bold uppercase tracking-widest">Period</span>
             <ChevronDown className="w-3 h-3" />
           </div>
-          <div className="flex items-center gap-2 text-zinc-400 cursor-pointer hover:text-white transition-colors">
-            <Globe className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-widest">All marketplaces</span>
-            <ChevronDown className="w-3 h-3" />
+          <div className="relative">
+            <div 
+              onClick={() => setShowMarketplaceDropdown(!showMarketplaceDropdown)}
+              className="flex items-center gap-2 text-zinc-400 cursor-pointer hover:text-white transition-colors"
+            >
+              <Globe className="w-4 h-4" />
+              <span className="text-xs font-bold uppercase tracking-widest">
+                {marketplace === 'all' ? 'All marketplaces' : marketplace.replace('_', ' ')}
+              </span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${showMarketplaceDropdown ? 'rotate-180' : ''}`} />
+            </div>
+            
+            {/* Dropdown Menu */}
+            {showMarketplaceDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMarketplaceDropdown(false)} />
+                <div className="absolute top-full right-0 mt-3 w-56 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-50 animate-in fade-in zoom-in duration-150">
+                  <div className="p-1.5">
+                    {(['all', 'amazon', 'noon', 'noon_minutes'] as const).map(m => (
+                      <button
+                        key={m}
+                        onClick={() => {
+                          setMarketplace(m)
+                          setShowMarketplaceDropdown(false)
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                          marketplace === m 
+                            ? 'bg-blue-600 text-white shadow-lg' 
+                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {m === 'all' ? 'All Marketplaces' : m.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="h-4 w-[1px] bg-white/10 mx-2" />
           <div className="flex items-center gap-2 bg-white/5 px-4 py-1.5 rounded-md text-zinc-300 cursor-pointer hover:bg-white/10 transition-colors border border-white/5">

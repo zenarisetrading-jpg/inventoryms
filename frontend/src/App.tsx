@@ -67,8 +67,12 @@ export default function App() {
       `}>
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-brand-amber flex items-center justify-center text-sidebar font-black text-lg shadow-lg">S</div>
-            <span className="text-white font-black tracking-tighter text-lg uppercase">S2C <span className="text-white/40 font-normal">PLANNER</span></span>
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-black font-black text-lg italic">Z</span>
+            </div>
+            <span className="text-white font-black tracking-tight text-xl">
+              Zen<span className="text-blue-400">Ventory </span>
+            </span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white">
             <X className="w-6 h-6" />
@@ -112,7 +116,7 @@ export default function App() {
 
       {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -122,7 +126,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-full">
         <header className="h-14 bg-white/50 backdrop-blur-sm border-b border-white/10 flex items-center justify-between px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(true)}
               className="p-2 -ml-2 text-muted hover:bg-slate-100 rounded-lg lg:hidden transition-colors"
             >
@@ -130,9 +134,9 @@ export default function App() {
             </button>
             <div className="hidden sm:flex items-center gap-4 bg-white/50 px-3 py-1.5 rounded-lg border border-zinc-200 w-48 lg:w-80 overflow-hidden">
               <Search className="w-4 h-4 text-muted shrink-0" />
-              <input 
-                type="text" 
-                placeholder="SEARCH..." 
+              <input
+                type="text"
+                placeholder="SEARCH..."
                 className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary placeholder:text-muted/60 focus:ring-0 w-full uppercase"
               />
             </div>
@@ -180,11 +184,10 @@ function SidebarLink({ icon: Icon, label, path, current }: { icon: any; label: s
   return (
     <button
       onClick={() => navigate(path)}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${
-        current 
-          ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' 
-          : 'text-white/50 hover:text-white hover:bg-white/5'
-      }`}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all ${current
+        ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
+        : 'text-white/50 hover:text-white hover:bg-white/5'
+        }`}
     >
       <Icon className={`w-4 h-4 ${current ? 'text-white' : 'text-white/40'}`} />
       <span className="uppercase tracking-[0.15em] text-[10px] font-black">{label}</span>
