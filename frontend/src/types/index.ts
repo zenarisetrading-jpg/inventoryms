@@ -176,6 +176,7 @@ export interface POLineItem {
   dimensions?: string
   cogs_per_unit?: number
   shipping_cost_per_unit?: number
+  notes?: string
 }
 
 export interface PO {

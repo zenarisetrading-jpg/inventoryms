@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { X, Upload } from 'lucide-react'
+import { X, Upload, Check, Edit2 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
@@ -39,6 +39,7 @@ interface LineItemInput {
   dimensions: string
   cogs_per_unit: number
   shipping_cost_per_unit: number
+  notes: string
 }
 
 interface NewPOForm {
@@ -69,7 +70,8 @@ function emptyForm(): NewPOForm {
       box_count: 0, 
       dimensions: '', 
       cogs_per_unit: 0, 
-      shipping_cost_per_unit: 0 
+      shipping_cost_per_unit: 0,
+      notes: ''
     }],
   }
 }
@@ -83,6 +85,70 @@ function SkeletonRow({ cols }: { cols: number }) {
         </td>
       ))}
     </tr>
+  )
+}
+
+function InlineEdit({
+  value,
+  onSave,
+  type = 'text',
+  placeholder = '—',
+  className = '',
+  inputClassName = 'w-16 text-xs'
+}: {
+  value: string | number | null | undefined
+  onSave: (val: string) => Promise<void>
+  type?: 'text' | 'number'
+  placeholder?: string
+  className?: string
+  inputClassName?: string
+}) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(value?.toString() ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    e?.stopPropagation()
+    setSaving(true)
+    try {
+      await onSave(val)
+      setEditing(false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <form onClick={e => e.stopPropagation()} onSubmit={handleSave} className="flex items-center gap-1">
+        <input
+          autoFocus
+          type={type}
+          step={type === 'number' ? 'any' : undefined}
+          className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setVal(value?.toString() ?? '') } }}
+        />
+        <button type="submit" disabled={saving} className="p-0.5 text-emerald-600 hover:bg-emerald-50 rounded shrink-0">
+          {saving ? <span className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin block" /> : <Check className="h-3 w-3" />}
+        </button>
+        <button type="button" onClick={() => { setEditing(false); setVal(value?.toString() ?? '') }} className="p-0.5 text-zinc-400 hover:bg-zinc-100 rounded shrink-0">
+          <X className="h-3 w-3" />
+        </button>
+      </form>
+    )
+  }
+
+  return (
+    <div 
+      className={`group/edit cursor-pointer flex items-center gap-1 w-full ${className}`}
+      onClick={(e) => { e.stopPropagation(); setEditing(true); setVal(value?.toString() ?? '') }}
+    >
+      <span>{value !== null && value !== undefined && value !== '' ? value : <span className="text-zinc-300 italic">{placeholder}</span>}</span>
+      <Edit2 className="h-2.5 w-2.5 text-zinc-300 opacity-0 group-hover/edit:opacity-100 transition-opacity hover:text-amber-500 shrink-0" />
+    </div>
   )
 }
 
@@ -178,7 +244,7 @@ export default function POPage() {
       ...prev, 
       line_items: [
         ...prev.line_items, 
-        { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0 }
+        { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
       ] 
     }))
   }
@@ -349,7 +415,16 @@ export default function POPage() {
                       </td>
                       <td className="px-4 py-2.5 font-data text-xs text-zinc-500">
                         {po.po_number}
-                        {po.po_name && <div className="text-[10px] text-zinc-400 mt-0.5">{po.po_name}</div>}
+                        <InlineEdit 
+                          value={po.po_name} 
+                          placeholder="+ Add Name"
+                          className="text-[10px] text-zinc-400 mt-0.5 font-sans"
+                          inputClassName="w-24 text-[10px]"
+                          onSave={async (val) => {
+                            await api.updatePO(po.id, { po_name: val })
+                            setPOs(prev => prev.map(p => p.id === po.id ? { ...p, po_name: val } : p))
+                          }}
+                        />
                       </td>
                       <td className="px-4 py-2.5 text-sm text-zinc-900">{po.supplier}</td>
                       <td className="px-4 py-2.5 text-right font-data text-sm text-zinc-600">{po.line_items.length}</td>
@@ -383,17 +458,18 @@ export default function POPage() {
                       <tr key={`${po.id}-expanded`} className="bg-zinc-50">
                         <td colSpan={8} className="px-8 py-4">
                           <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Line Items</div>
-                          <table className="w-full text-sm">
+                          <table className="w-full table-fixed text-sm">
                             <thead>
                               <tr className="border-b border-zinc-200">
-                                <th className="text-left pb-2 font-medium text-xs text-zinc-500 pr-4">SKU</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Ord.</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Recv.</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500 pr-4">U/Box</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Boxes</th>
-                                <th className="text-left pb-2 font-medium text-xs text-zinc-500 pr-4">Dims</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500 pr-4">COGS</th>
-                                <th className="text-right pb-2 font-medium text-xs text-zinc-500">Ship</th>
+                                <th className="w-[20%] text-left pb-2 font-medium text-xs text-zinc-500 pr-4">SKU</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Ord.</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Recv.</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">U/Box</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Boxes</th>
+                                <th className="w-[12%] text-left pb-2 font-medium text-xs text-zinc-500 pr-4">Dims</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">COGS</th>
+                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Ship</th>
+                                <th className="w-[20%] text-left pb-2 font-medium text-xs text-zinc-500">Notes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100">
@@ -407,24 +483,134 @@ export default function POPage() {
                                       {li.sku}
                                     </button>
                                   </td>
-                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">{li.units_ordered}</td>
-                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-500">{li.units_received}</td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">{li.units_per_box || '—'}</td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">{li.box_count || '—'}</td>
-                                  <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">{li.dimensions || '—'}</td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">{li.cogs_per_unit || '—'}</td>
-                                  <td className="py-2 text-right font-data text-xs text-zinc-500">{li.shipping_cost_per_unit || '—'}</td>
+                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.units_ordered} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, units_ordered: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-500">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.units_received} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, units_received: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.units_per_box} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, units_per_box: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.box_count} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, box_count: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">
+                                    <InlineEdit 
+                                      value={li.dimensions} 
+                                      inputClassName="w-20 text-[10px]"
+                                      onSave={async (val) => {
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, dimensions: val }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.cogs_per_unit} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, cogs_per_unit: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                    <InlineEdit 
+                                      type="number"
+                                      value={li.shipping_cost_per_unit} 
+                                      className="justify-end"
+                                      onSave={async (val) => {
+                                        const num = val ? Number(val) : 0
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, shipping_cost_per_unit: num }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-2 text-left font-data text-[10px] text-zinc-400">
+                                    <InlineEdit 
+                                      value={li.notes} 
+                                      inputClassName="w-24 text-[10px]"
+                                      onSave={async (val) => {
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, notes: val }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
-                          <div className="flex gap-8 mt-3 text-xs text-zinc-500">
+                          <div className="flex flex-col gap-2 mt-3 text-xs text-zinc-500">
                             {po.tracking_number && (
-                              <div><span className="font-medium text-zinc-600">Tracking: </span>{po.tracking_number}</div>
+                              <div className="flex items-center gap-2"><span className="font-medium text-zinc-600">Tracking: </span>{po.tracking_number}</div>
                             )}
-                            {po.notes && (
-                              <div><span className="font-medium text-zinc-600">Notes: </span>{po.notes}</div>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-zinc-600">Notes: </span>
+                              <InlineEdit 
+                                value={po.notes} 
+                                placeholder="+ Add Note"
+                                inputClassName="w-64 text-xs"
+                                onSave={async (val) => {
+                                  await api.updatePO(po.id, { notes: val })
+                                  setPOs(prev => prev.map(p => p.id === po.id ? { ...p, notes: val } : p))
+                                }}
+                              />
+                            </div>
                           </div>
                         </td>
                       </tr>
