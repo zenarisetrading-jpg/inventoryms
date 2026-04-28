@@ -108,7 +108,8 @@ export default function InventoryPage() {
       'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes',
       'current_fba_stock_units', 'current_fbn_stock_units', 'stock_in_hand_units',
       'shortfall_units', 'suggested_units', 'total_cost_aed', 'units_to_ship',
-      'suggested_units_amazon', 'suggested_units_noon', 'suggested_boxes_amazon', 'suggested_boxes_noon'
+      'suggested_units_amazon', 'suggested_units_noon', 'suggested_boxes_amazon', 'suggested_boxes_noon',
+      'already_ordered', 'pending_qty_to_reorder'
     ]
 
     processedData.forEach(row => {
@@ -220,6 +221,8 @@ export default function InventoryPage() {
             accent="text-amber-600"
             items={[
               { label: 'Suggested Qty', value: renderCell('suggested_units', totals['suggested_reorder_qty'] || totals['suggested_units']) },
+              { label: 'Already Ordered', value: renderCell('already_ordered', totals['already_ordered']) },
+              { label: 'Pending Reorder', value: renderCell('pending_qty_to_reorder', totals['pending_qty_to_reorder']) },
               { label: 'Total Cost (AED)', value: renderCell('total_reorder_cost', totals['total_reorder_cost'] || totals['total_cost_aed']) }
             ]}
           />
