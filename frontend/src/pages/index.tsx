@@ -460,12 +460,12 @@ export default function CommandCenter() {
       {/* Premium Dashboard Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between border-b border-sidebar/10 pb-6 mb-2 gap-4">
         <div className="flex flex-col">
-          <h1 className="text-3xl font-black text-sidebar tracking-tighter uppercase">Command Center</h1>
+          <h1 className="text-2xl lg:text-3xl font-black text-sidebar tracking-tighter uppercase">Command Center</h1>
           <div className="flex items-center gap-2 mt-2">
             <LayoutDashboard className="w-3.5 h-3.5 text-brand-blue" />
-            <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Regional Logistics Controller</span>
+            <span className="text-[9px] lg:text-[10px] font-black text-muted uppercase tracking-[0.2em]">Regional Logistics Controller</span>
             {data?.last_synced && (
-              <span className="text-[10px] font-bold text-muted/60 flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
+              <span className="text-[9px] lg:text-[10px] font-bold text-muted/60 flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
                 Systems Sync: {formatRelativeTime(data.last_synced)}
               </span>
             )}

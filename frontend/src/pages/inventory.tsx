@@ -134,12 +134,12 @@ export default function InventoryPage() {
       {/* ── TOP CONTROL PANEL ────────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black">
-            <Layers className="w-6 h-6" />
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black shrink-0">
+            <Layers className="w-5 h-5 lg:w-6 lg:h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Inventory Matrix</h1>
-            <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-2 opacity-60">fact_inventory_planning • RAW DATA FEED</p>
+            <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Inventory Matrix</h1>
+            <p className="text-[9px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 lg:mt-2 opacity-60">fact_inventory_planning • RAW DATA FEED</p>
           </div>
         </div>
 

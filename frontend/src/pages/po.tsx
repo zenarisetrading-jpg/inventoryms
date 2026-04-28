@@ -277,7 +277,7 @@ export default function POPage() {
 
       {/* Filter and Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-0 border-b border-zinc-200 overflow-x-auto custom-scrollbar">
+        <div className="flex flex-nowrap gap-0 border-b border-zinc-200 overflow-x-auto custom-scrollbar">
           {STATUS_TABS.map(tab => (
             <button
               key={tab.value}

@@ -172,7 +172,7 @@ export default function HealthPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">System Data Health</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-zinc-900 tracking-tight">System Data Health</h1>
           <p className="text-sm text-zinc-500">Monitor data freshness and synchronization status across all connectors</p>
         </div>
         <div className="flex items-center gap-3">

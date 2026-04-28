@@ -187,7 +187,7 @@ export default function PONewPage() {
               <label className="text-xs font-bold text-zinc-500 uppercase">PO Name / Project</label>
               <input value={form.po_name} onChange={e => handleFormChange('po_name', e.target.value)} placeholder="e.g. Q2 Restock" className={inputCls} />
             </div>
-            <div className="col-span-2">
+            <div className="md:col-span-2">
               <Autocomplete
                 label="Supplier"
                 required
@@ -210,7 +210,7 @@ export default function PONewPage() {
               <label className="text-xs font-bold text-zinc-500 uppercase">Tracking Number</label>
               <input value={form.tracking_number} onChange={e => handleFormChange('tracking_number', e.target.value)} placeholder="Carrier tracking info..." className={inputCls} />
             </div>
-            <div className="col-span-2 space-y-1.5">
+            <div className="md:col-span-2 space-y-1.5">
               <label className="text-xs font-bold text-zinc-500 uppercase">Notes</label>
               <textarea rows={2} value={form.notes} onChange={e => handleFormChange('notes', e.target.value)} placeholder="Internal remarks..." className={`${inputCls} resize-none`} />
             </div>
@@ -242,8 +242,8 @@ export default function PONewPage() {
                   <Trash2 className="h-4 w-4" />
                 </button>
 
-                <div className="grid grid-cols-6 gap-6">
-                  <div className="col-span-3">
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-6">
+                  <div className="md:col-span-3">
                     <Autocomplete
                       label="Select SKU"
                       required
@@ -254,7 +254,7 @@ export default function PONewPage() {
                       className={inputCls}
                     />
                   </div>
-                  <div className="col-span-3 space-y-1.5">
+                  <div className="md:col-span-3 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Shipping Dimensions</label>
                     <input
                       value={li.dimensions}
@@ -263,7 +263,7 @@ export default function PONewPage() {
                       className={inputCls}
                     />
                   </div>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Units Ordered</label>
                     <input
                       type="number"
@@ -274,7 +274,7 @@ export default function PONewPage() {
                       className={`${inputCls} font-data text-base`}
                     />
                   </div>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Units per Box</label>
                     <input
                       type="number"
@@ -283,7 +283,7 @@ export default function PONewPage() {
                       className={`${inputCls} font-data`}
                     />
                   </div>
-                  <div className="col-span-2 space-y-1.5">
+                  <div className="md:col-span-2 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Total Boxes</label>
                     <input
                       type="number"
@@ -293,7 +293,7 @@ export default function PONewPage() {
                       className={`${inputCls} font-data`}
                     />
                   </div>
-                  <div className="col-span-3 space-y-1.5">
+                  <div className="md:col-span-3 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">COGS per Unit (AED)</label>
                     <input
                       type="number"
@@ -303,7 +303,7 @@ export default function PONewPage() {
                       className={`${inputCls} font-data`}
                     />
                   </div>
-                  <div className="col-span-3 space-y-1.5">
+                  <div className="md:col-span-3 space-y-1.5">
                     <label className="text-xs font-bold text-zinc-500 uppercase">Total Shipping Cost (AED)</label>
                     <input
                       type="number"
