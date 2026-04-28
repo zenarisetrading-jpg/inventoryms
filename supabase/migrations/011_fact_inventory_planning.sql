@@ -2,46 +2,38 @@
 
 DROP TABLE IF EXISTS fact_inventory_planning CASCADE;
 
-CREATE TABLE fact_inventory_planning (
-    sku TEXT PRIMARY KEY,
-    category TEXT,
-    sub_category TEXT,
-    action_flag TEXT,
-
-    fba_units NUMERIC,
-    amazon_sv NUMERIC,
-    fbn_units NUMERIC,
-    noon_sv NUMERIC,
-
-    locad_units NUMERIC,
-    locad_boxes NUMERIC,
-    units_per_box NUMERIC,
-
-    blended_sv NUMERIC,
-    required_30d NUMERIC,
-    stock_in_hand NUMERIC,
-    shortfall NUMERIC,
-    moq NUMERIC,
-
-    amazon_coverage NUMERIC,
-    noon_coverage NUMERIC,
-    total_coverage NUMERIC,
-
-    cogs NUMERIC,
-
-    suggested_reorder_qty NUMERIC,
-    already_ordered NUMERIC,
-    pending_qty_to_reorder NUMERIC,
-    total_reorder_cost NUMERIC,
-
-    send_to_fba_units NUMERIC,
-    send_to_fbn_units NUMERIC,
-
-    fba_boxes NUMERIC,
-    fbn_boxes NUMERIC,
-
-    loaded_at TIMESTAMPTZ DEFAULT NOW()
-);
+create table public.fact_inventory_planning (
+  sku text not null,
+  category text null,
+  sub_category text null,
+  action_flag text null,
+  fba_units numeric null,
+  amazon_sv numeric null,
+  fbn_units numeric null,
+  noon_sv numeric null,
+  locad_units numeric null,
+  locad_boxes numeric null,
+  units_per_box numeric null,
+  blended_sv numeric null,
+  required_30d numeric null,
+  stock_in_hand numeric null,
+  shortfall numeric null,
+  moq numeric null,
+  amazon_coverage numeric null,
+  noon_coverage numeric null,
+  total_coverage numeric null,
+  cogs numeric null,
+  suggested_reorder_qty numeric null,
+  already_ordered numeric null,
+  pending_qty_to_reorder numeric null,
+  total_reorder_cost numeric null,
+  send_to_fba_units numeric null,
+  send_to_fbn_units numeric null,
+  fba_boxes numeric null,
+  fbn_boxes numeric null,
+  loaded_at timestamp with time zone null default now(),
+  constraint fact_inventory_planning_pkey primary key (sku)
+) TABLESPACE pg_default;
 
 -- Grant access to authenticated and service_role
 GRANT ALL ON fact_inventory_planning TO authenticated;
