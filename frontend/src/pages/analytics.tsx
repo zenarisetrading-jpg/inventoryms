@@ -218,7 +218,7 @@ export default function AnalyticsPage() {
                 axisLine={false}
                 interval={Math.floor(salesTrendWithMA.length / 6)}
               />
-              <YAxis tick={{ fontSize: 11, fill: '#71717a' }} tickLine={false} axisLine={false} width={32} />
+              <YAxis tick={{ fontSize: 11, fill: '#71717a' }} tickLine={false} axisLine={false} width={60} tickFormatter={(v) => fmt(v)} />
               <Tooltip
                 contentStyle={{ fontSize: 12, border: '1px solid #e4e4e7', borderRadius: 6 }}
                 labelFormatter={(d) => shortDate(String(d ?? ''))}
@@ -271,7 +271,7 @@ export default function AnalyticsPage() {
               <AreaChart data={data!.channel_mix} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
                 <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} interval={Math.floor((data!.channel_mix.length || 1) / 4)} />
-                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} width={28} unit="%" domain={[0, 100]} />
+                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} width={45} unit="%" domain={[0, 100]} />
                 <Tooltip contentStyle={{ fontSize: 11, border: '1px solid #e4e4e7', borderRadius: 6 }} labelFormatter={(d) => shortDate(String(d ?? ''))} formatter={(v) => `${v ?? 0}%`} />
                 <Area type="monotone" dataKey="amazon_pct" name="Amazon" stackId="1" stroke={C.amazon} fill={C.amazon} fillOpacity={0.15} />
                 <Area type="monotone" dataKey="noon_pct" name="Noon FBN" stackId="2" stroke={C.noon} fill={C.noon} fillOpacity={0.15} />
@@ -380,7 +380,7 @@ export default function AnalyticsPage() {
                   textAnchor="end"
                   interval={0}
                 />
-                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} width={30} />
+                <YAxis tick={{ fontSize: 10, fill: '#71717a' }} tickLine={false} axisLine={false} width={60} tickFormatter={(v) => fmt(v)} />
                 <Tooltip contentStyle={{ fontSize: 11, border: '1px solid #e4e4e7', borderRadius: 6 }} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="amazon" name="Amazon" fill={C.amazon} radius={[2, 2, 0, 0]} />

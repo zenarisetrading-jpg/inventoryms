@@ -181,31 +181,36 @@ BEGIN
         FROM base
     ),
 
+    allocation_step1 AS (
+        SELECT *,
+        
+        -- Calculate raw needed boxes to reach 30 days coverage
+        -- GREATEST(0, amazon_required_30 - fba_units) is the shortfall to reach 30 days of stock
+        CASE
+            WHEN fba_units <= 0 AND amazon_sv <= 0 THEN 1
+            WHEN fba_units < units_per_box AND amazon_sv > 0 THEN GREATEST(1, COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0))
+            ELSE COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0)
+        END AS fba_need_boxes,
+        
+        CASE
+            WHEN fbn_units <= 0 AND noon_sv <= 0 THEN 1
+            WHEN fbn_units < units_per_box AND noon_sv > 0 THEN GREATEST(1, COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0))
+            ELSE COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0)
+        END AS fbn_need_boxes
+        
+        FROM final_calc
+    ),
+
     allocation AS (
         SELECT *,
+        
+        -- Send to FBA: Take as much as needed from locad_boxes
+        LEAST(locad_boxes, fba_need_boxes) * units_per_box AS send_to_fba,
+        
+        -- Send to FBN: Take as much as needed from remaining locad_boxes
+        LEAST(GREATEST(0, locad_boxes - fba_need_boxes), fbn_need_boxes) * units_per_box AS send_to_fbn
 
-        CASE 
-            WHEN amazon_sv = 0 AND fba_units > 0 THEN 0
-            WHEN locad_units >= amazon_required_30
-            THEN CEIL(amazon_required_30 / NULLIF(units_per_box, 0)) * units_per_box
-            ELSE CEIL(locad_units / NULLIF(units_per_box, 0)) * units_per_box
-        END AS send_to_fba,
-
-        CASE 
-            WHEN amazon_sv = 0 THEN
-                CASE 
-                    WHEN noon_sv > 0 AND fbn_units < noon_required_30
-                    THEN CEIL((noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)) * units_per_box
-                    ELSE 0
-                END
-            WHEN locad_units >= (amazon_required_30 + noon_required_30)
-            THEN CEIL(noon_required_30 / NULLIF(units_per_box, 0)) * units_per_box
-            WHEN locad_units > amazon_required_30
-            THEN CEIL((locad_units - amazon_required_30) / NULLIF(units_per_box, 0)) * units_per_box
-            ELSE 0
-        END AS send_to_fbn
-
-        FROM final_calc
+        FROM allocation_step1
     )
 
     SELECT 

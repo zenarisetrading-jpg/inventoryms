@@ -119,10 +119,6 @@ export default function InventoryPage() {
           t[k] = (t[k] || 0) + val
         }
       })
-      const cogs = (row as any).cogs || 0;
-      t.fba_cogs = (t.fba_cogs || 0) + (((row as any).fba_units || (row as any).current_fba_stock_units || 0) * cogs);
-      t.fbn_cogs = (t.fbn_cogs || 0) + (((row as any).fbn_units || (row as any).current_fbn_stock_units || 0) * cogs);
-      t.locad_cogs = (t.locad_cogs || 0) + (((row as any).locad_units || (row as any).stock_in_hand_units || 0) * cogs);
     })
     return t
   }, [processedData])
@@ -207,9 +203,7 @@ export default function InventoryPage() {
             accent="text-indigo-600"
             items={[
               { label: 'FBA Units', value: renderCell('fba_units', totals['fba_units'] || totals['current_fba_stock_units']) },
-              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
-              { label: 'FBA COGS', value: renderCell('fba_cogs', totals['fba_cogs']) },
-              { label: 'FBN COGS', value: renderCell('fbn_cogs', totals['fbn_cogs']) }
+              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) }
             ]}
           />
           <InventoryStatCard 
@@ -218,8 +212,7 @@ export default function InventoryPage() {
             accent="text-emerald-600"
             items={[
               { label: 'Units', value: renderCell('locad_units', totals['locad_units'] || totals['stock_in_hand_units']) },
-              { label: 'Boxes', value: renderCell('locad_boxes', totals['locad_boxes'] || totals['boxes_in_hand']) },
-              { label: 'WH COGS', value: renderCell('locad_cogs', totals['locad_cogs']) }
+              { label: 'Boxes', value: renderCell('locad_boxes', totals['locad_boxes'] || totals['boxes_in_hand']) }
             ]}
           />
           <InventoryStatCard 
