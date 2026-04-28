@@ -1,6 +1,8 @@
 -- Migration: Create fact_inventory_planning table and refresh function
 
-CREATE TABLE IF NOT EXISTS fact_inventory_planning (
+DROP TABLE IF EXISTS fact_inventory_planning CASCADE;
+
+CREATE TABLE fact_inventory_planning (
     sku TEXT PRIMARY KEY,
     category TEXT,
     sub_category TEXT,
@@ -25,7 +27,11 @@ CREATE TABLE IF NOT EXISTS fact_inventory_planning (
     noon_coverage NUMERIC,
     total_coverage NUMERIC,
 
+    cogs NUMERIC,
+
     suggested_reorder_qty NUMERIC,
+    already_ordered NUMERIC,
+    pending_qty_to_reorder NUMERIC,
     total_reorder_cost NUMERIC,
 
     send_to_fba_units NUMERIC,
@@ -73,7 +79,11 @@ BEGIN
         noon_coverage,
         total_coverage,
 
+        cogs,
+
         suggested_reorder_qty,
+        already_ordered,
+        pending_qty_to_reorder,
         total_reorder_cost,
 
         send_to_fba_units,
@@ -114,6 +124,15 @@ BEGIN
         GROUP BY sku
     ),
 
+    po_agg AS (
+        SELECT 
+            sku,
+            SUM(units_ordered) AS units_ordered
+        FROM fact_purchase
+        WHERE status != 'closed'
+        GROUP BY sku
+    ),
+
     base AS (
         SELECT 
             i.sku,
@@ -147,6 +166,7 @@ BEGIN
 
     final_calc AS (
         SELECT *,
+
             (fba_units + fbn_units + locad_units) AS stock_in_hand,
 
             GREATEST(
@@ -172,7 +192,6 @@ BEGIN
     allocation AS (
         SELECT *,
 
-        -- FBA logic
         CASE 
             WHEN amazon_sv = 0 AND fba_units > 0 THEN 0
             WHEN locad_units >= amazon_required_30
@@ -180,7 +199,6 @@ BEGIN
             ELSE CEIL(locad_units / NULLIF(units_per_box, 0)) * units_per_box
         END AS send_to_fba,
 
-        -- FBN logic
         CASE 
             WHEN amazon_sv = 0 THEN
                 CASE 
@@ -188,13 +206,10 @@ BEGIN
                     THEN CEIL((noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)) * units_per_box
                     ELSE 0
                 END
-
             WHEN locad_units >= (amazon_required_30 + noon_required_30)
             THEN CEIL(noon_required_30 / NULLIF(units_per_box, 0)) * units_per_box
-
             WHEN locad_units > amazon_required_30
             THEN CEIL((locad_units - amazon_required_30) / NULLIF(units_per_box, 0)) * units_per_box
-
             ELSE 0
         END AS send_to_fbn
 
@@ -202,9 +217,9 @@ BEGIN
     )
 
     SELECT 
-        sku,
-        category,
-        sub_category,
+        a.sku,
+        a.category,
+        a.sub_category,
 
         CASE 
             WHEN blended_sv = 0 THEN 'NO SALES'
@@ -233,8 +248,14 @@ BEGIN
         ROUND(noon_coverage,2),
         ROUND(total_coverage,2),
 
+        cogs,
+
         suggested_reorder_qty,
-        ROUND(suggested_reorder_qty * cogs,2),
+
+        COALESCE(p.units_ordered, 0) AS already_ordered,
+        GREATEST(suggested_reorder_qty - COALESCE(p.units_ordered, 0), 0) AS pending_qty_to_reorder,
+
+        ROUND(GREATEST(suggested_reorder_qty - COALESCE(p.units_ordered, 0), 0) * cogs, 2) AS total_reorder_cost,
 
         send_to_fba,
         send_to_fbn,
@@ -244,6 +265,9 @@ BEGIN
 
         NOW()
 
-    FROM allocation;
+    FROM allocation a
+    LEFT JOIN po_agg p 
+        ON a.sku = p.sku;
+
 END;
 $$ LANGUAGE plpgsql;
