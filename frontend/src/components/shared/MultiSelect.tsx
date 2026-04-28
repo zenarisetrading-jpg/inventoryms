@@ -38,27 +38,27 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
   }
 
   return (
-    <div ref={containerRef} className="relative min-w-[160px]">
+    <div ref={containerRef} className="relative w-full lg:w-auto lg:min-w-[160px]">
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 border border-zinc-100 rounded-xl cursor-pointer hover:border-brand-blue transition-all shadow-inner group"
+        className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-2 lg:py-2.5 bg-zinc-50 border border-zinc-100 rounded-lg lg:rounded-xl cursor-pointer hover:border-brand-blue transition-all shadow-inner group"
       >
-        {Icon && <Icon className={`w-4 h-4 transition-colors ${selected.length > 0 ? 'text-brand-blue' : 'text-zinc-400'}`} />}
+        {Icon && <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-colors ${selected.length > 0 ? 'text-brand-blue' : 'text-zinc-400'}`} />}
         <div className="flex-1 flex items-center gap-1 overflow-hidden">
           {selected.length === 0 ? (
-            <span className="text-sm font-bold text-zinc-400 uppercase truncate">{placeholder}</span>
+            <span className="text-[10px] lg:text-sm font-bold text-zinc-400 uppercase truncate">{placeholder}</span>
           ) : (
-            <span className="text-sm font-black text-zinc-900 uppercase truncate">
+            <span className="text-[10px] lg:text-sm font-black text-zinc-900 uppercase truncate">
               {selected.length === 1 ? options.find(o => o.value === selected[0])?.label : `${selected.length} SELECTED`}
             </span>
           )}
         </div>
         {selected.length > 0 && (
-          <button onClick={clearAll} className="p-0.5 hover:bg-zinc-200 rounded-md transition-colors">
+          <button onClick={clearAll} className="p-0.5 hover:bg-zinc-200 rounded-md transition-colors shrink-0">
             <X className="w-3 h-3 text-zinc-400" />
           </button>
         )}
-        <ChevronDown className={`w-4 h-4 text-zinc-300 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 lg:w-4 lg:h-4 text-zinc-300 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (

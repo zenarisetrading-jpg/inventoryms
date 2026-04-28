@@ -69,6 +69,28 @@ export default function PONewPage() {
       console.log('Processed suggestions:', suggestions.length)
       setSkuSuggestions(suggestions)
     })
+    
+    api.getPOs().then(res => {
+      const pos = (res as any).pos || []
+      const today = new Date()
+      const todayStr = today.getFullYear() + String(today.getMonth() + 1).padStart(2, '0') + String(today.getDate()).padStart(2, '0')
+      const prefix = `PO${todayStr}`
+      
+      const todayPOs = pos.filter((p: any) => p.po_number?.startsWith(prefix))
+      let maxNum = 0
+      todayPOs.forEach((p: any) => {
+        const numPart = p.po_number.slice(prefix.length)
+        const parsed = parseInt(numPart, 10)
+        if (!isNaN(parsed) && parsed > maxNum) {
+          maxNum = parsed
+        }
+      })
+      
+      const nextNum = String(maxNum + 1).padStart(3, '0')
+      const generatedPO = `${prefix}${nextNum}`
+      
+      setForm(prev => ({ ...prev, po_number: prev.po_number || generatedPO }))
+    })
   }, [])
 
   const handleFormChange = (field: keyof NewPOForm, value: string) => {

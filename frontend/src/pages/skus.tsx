@@ -342,19 +342,19 @@ export default function SKUCatalog() {
       </div>
 
       {/* ── FILTERS & TOC ────────────────────────────────────────────────── */}
-      <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm flex flex-col xl:flex-row items-center gap-4">
+      <div className="bg-white p-3 lg:p-4 rounded-2xl border border-zinc-200 shadow-sm flex flex-col xl:flex-row items-center gap-3 lg:gap-4">
           <div className="relative group flex-1 w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
+            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 lg:h-4 lg:w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
             <input
               type="text"
               placeholder="QUICK SCAN SKU OR NAME..."
-              className="w-full pl-11 pr-4 py-3 bg-zinc-50 border-transparent rounded-xl text-[13px] font-bold uppercase focus:ring-0 outline-none transition-all placeholder:text-zinc-300"
+              className="w-full pl-9 lg:pl-11 pr-4 py-2 lg:py-3 bg-zinc-50 border-transparent rounded-lg lg:rounded-xl text-[11px] lg:text-[13px] font-bold uppercase focus:ring-0 outline-none transition-all placeholder:text-zinc-300"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-2 lg:gap-3 w-full xl:w-auto">
             <MultiSelect
               label="Markets"
               placeholder="ALL MARKETS"
@@ -394,7 +394,7 @@ export default function SKUCatalog() {
              <select
                 value={showInactive}
                 onChange={e => setShowInactive(e.target.value)}
-                className="px-4 py-2 bg-zinc-50 border border-zinc-100 rounded-xl text-[11px] font-black uppercase text-zinc-700 outline-none cursor-pointer appearance-none min-w-[140px]"
+                className="col-span-2 lg:col-span-1 px-3 lg:px-4 py-2 lg:py-2.5 bg-zinc-50 border border-zinc-100 rounded-lg lg:rounded-xl text-[10px] lg:text-[11px] font-black uppercase text-zinc-700 outline-none cursor-pointer appearance-none lg:min-w-[140px]"
               >
                 <option value="active">ACTIVE ONLY</option>
                 <option value="inactive">INACTIVE ONLY</option>
@@ -415,7 +415,7 @@ export default function SKUCatalog() {
                     style={{ width: col.width, minWidth: col.width }}
                     onClick={() => handleSort(col.key)}
                     className={`
-                      px-4 py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
+                      px-3 py-2 lg:px-4 lg:py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
                       ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
                       ${col.align === 'right' ? 'text-right' : 'text-left'}
                     `}
@@ -454,7 +454,7 @@ export default function SKUCatalog() {
                         style={{ width: col.width, minWidth: col.width }}
                         onClick={() => i < 4 && navigate('/sku/' + sku.sku)}
                         className={`
-                          px-4 py-2 h-[48px] border-zinc-50
+                          px-3 py-1.5 h-10 lg:px-4 lg:py-2 lg:h-[48px] border-zinc-50
                           ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
                           ${col.align === 'right' ? 'text-right' : 'text-left'}
                           ${i < 4 ? 'cursor-pointer' : ''}
@@ -507,7 +507,7 @@ export default function SKUCatalog() {
 
 function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onActiveToggle: any, onCogsSaved: any) {
   if (key === 'sku') return <span className="font-black text-brand-blue text-[13px] hover:underline underline-offset-4">{sku.sku}</span>
-  if (key === 'name') return <span className="text-[13px] font-bold text-sidebar line-clamp-1">{sku.name}</span>
+  if (key === 'name') return <span className="text-[12px] lg:text-[13px] font-bold text-sidebar truncate block max-w-[120px] sm:max-w-[200px] lg:max-w-[300px]">{sku.name}</span>
   if (key === 'asin') return <span className="text-[11px] font-bold text-zinc-400 font-data">{sku.asin || '—'}</span>
   if (key === 'fnsku') return <span className="text-[11px] font-bold text-zinc-400 font-data">{sku.fnsku || '—'}</span>
   if (key === 'category') return (
