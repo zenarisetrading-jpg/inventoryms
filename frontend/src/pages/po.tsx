@@ -7,7 +7,7 @@ import { StatusBadge } from '../components/shared/StatusBadge'
 import { Autocomplete } from '../components/shared/Autocomplete'
 import { ActionDropdown } from '../components/ActionDropdown'
 
-const PO_STATUS_SEQUENCE: POStatus[] = ['draft', 'ordered', 'shipped', 'arrived', 'closed', 'cancelled']
+const PO_STATUS_SEQUENCE: POStatus[] = ['draft', 'ordered', 'shipped', 'closed', 'cancelled']
 
 function nextStatus(current: POStatus): POStatus | null {
   const idx = PO_STATUS_SEQUENCE.indexOf(current)
@@ -25,7 +25,6 @@ const STATUS_TABS: { label: string; value: string }[] = [
   { label: 'Draft', value: 'draft' },
   { label: 'Ordered', value: 'ordered' },
   { label: 'Shipped', value: 'shipped' },
-  { label: 'Arrived', value: 'arrived' },
   { label: 'Closed', value: 'closed' },
   { label: 'Cancelled', value: 'cancelled' },
 ]
@@ -377,17 +376,17 @@ export default function POPage() {
 
       {/* Table */}
       <div className="bg-white border border-zinc-200 rounded-xl overflow-x-auto shadow-sm custom-scrollbar">
-        <table className="w-full text-sm min-w-[1000px] lg:min-w-0">
+        <table className="w-full table-fixed text-sm min-w-[1000px] lg:min-w-0">
           <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
-              <th className="w-8 px-3 py-2.5" />
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">PO #</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Supplier</th>
-              <th className="text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">SKUs</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Order Date</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">ETA</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
+              <th className="w-[4%] px-3 py-2.5" />
+              <th className="w-[18%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">PO #</th>
+              <th className="w-[24%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Supplier</th>
+              <th className="w-[8%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">SKUs</th>
+              <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Order Date</th>
+              <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">ETA</th>
+              <th className="w-[10%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+              <th className="w-[12%] px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -413,13 +412,13 @@ export default function POPage() {
                       <td className="px-3 py-2.5 text-center text-zinc-400 text-xs">
                         {isExpanded ? '▼' : '▶'}
                       </td>
-                      <td className="px-4 py-2.5 font-data text-xs text-zinc-500">
+                      <td className="px-4 py-2.5 font-data text-sm font-semibold text-zinc-900">
                         {po.po_number}
                         <InlineEdit 
                           value={po.po_name} 
                           placeholder="+ Add Name"
-                          className="text-[10px] text-zinc-400 mt-0.5 font-sans"
-                          inputClassName="w-24 text-[10px]"
+                          className="text-xs font-semibold text-zinc-500 mt-0.5 font-sans"
+                          inputClassName="w-32 text-xs font-semibold text-zinc-900"
                           onSave={async (val) => {
                             await api.updatePO(po.id, { po_name: val })
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, po_name: val } : p))
@@ -440,12 +439,11 @@ export default function POPage() {
                             setAdvancingId(null);
                             setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
                           }}
-                          options={['draft', 'ordered', 'shipped', 'arrived', 'closed', 'cancelled']}
+                          options={['draft', 'ordered', 'shipped', 'closed', 'cancelled']}
                           colors={{
                             draft: 'bg-slate-100 text-slate-500 border-slate-200',
                             ordered: 'bg-blue-50 text-blue-600 border-blue-200',
                             shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-                            arrived: 'bg-emerald-50 text-emerald-600 border-emerald-200',
                             closed: 'bg-zinc-100 text-zinc-500 border-zinc-200',
                             cancelled: 'bg-red-50 text-red-600 border-red-200'
                           }}
