@@ -116,13 +116,30 @@ export default function PONewPage() {
             units_per_box: skuData.units_per_box || 0,
             cogs_per_unit: skuData.cogs || 0,
             dimensions: skuData.dimensions || '',
-            // You might want to auto-calculate boxes if units_ordered > 0
           }
+          
+          const uo = items[i].units_ordered || 0
+          const upb = items[i].units_per_box || 0
+          if (upb > 0 && uo > 0) {
+            items[i].box_count = Math.ceil(uo / upb)
+          }
+          
           return { ...prev, line_items: items }
         }
       }
 
       items[i] = { ...items[i], [field]: val as any }
+      
+      if (field === 'units_ordered' || field === 'units_per_box') {
+        const uo = items[i].units_ordered || 0
+        const upb = items[i].units_per_box || 0
+        if (upb > 0 && uo > 0) {
+          items[i].box_count = Math.ceil(uo / upb)
+        } else if (upb <= 0 || uo <= 0) {
+          items[i].box_count = 0
+        }
+      }
+
       return { ...prev, line_items: items }
     })
   }
