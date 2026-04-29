@@ -41,12 +41,12 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
         onChange(localSelected)
       }
     } else {
-      // Wait 2.5 seconds while open before auto-applying
+      // Wait 10 seconds while open before auto-applying
       timer = setTimeout(() => {
         if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
           onChange(localSelected)
         }
-      }, 2500)
+      }, 10000)
     }
     
     return () => clearTimeout(timer)

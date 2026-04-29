@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers, Archive, Box, ShoppingCart, Send } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
+import { MultiSelect } from '../components/shared/MultiSelect'
 
 export default function InventoryPage() {
   const [data, setData] = useState<PlanningResponse | null>(null)
@@ -11,8 +12,8 @@ export default function InventoryPage() {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [error, setError] = useState<string | null>(null)
-  const [category, setCategory] = useState<string>('')
-  const [subCategory, setSubCategory] = useState<string>('')
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
 
   const fetchData = async () => {
     setLoading(true)
@@ -81,12 +82,12 @@ export default function InventoryPage() {
       )
     }
 
-    if (category) {
-      list = list.filter(item => (item as any).category === category || (item as any).abc_class === category)
+    if (selectedCategories.length > 0) {
+      list = list.filter(item => selectedCategories.includes((item as any).category || (item as any).abc_class))
     }
 
-    if (subCategory) {
-      list = list.filter(item => (item as any).sub_category === subCategory)
+    if (selectedSubCategories.length > 0) {
+      list = list.filter(item => selectedSubCategories.includes((item as any).sub_category))
     }
 
     if (sortKey) {
@@ -98,7 +99,7 @@ export default function InventoryPage() {
       })
     }
     return list
-  }, [data, searchQuery, sortKey, sortDir, category, subCategory])
+  }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedSubCategories])
 
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
@@ -157,20 +158,23 @@ export default function InventoryPage() {
             />
           </div>
 
-          {/* ABC Filter */}
-          <div className="flex items-center gap-3 px-4 py-2 bg-zinc-50 rounded-xl border border-zinc-100 shadow-inner">
-            <Filter className="w-4 h-4 text-zinc-400" />
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="py-1 bg-transparent text-sm font-bold uppercase text-zinc-900 outline-none cursor-pointer appearance-none min-w-[100px]"
-            >
-              <option value="">ALL TIERS</option>
-              <option value="A">TIER A</option>
-              <option value="B">TIER B</option>
-              <option value="C">TIER C</option>
-            </select>
-          </div>
+          <MultiSelect
+            label="Tiers"
+            placeholder="ALL TIERS"
+            icon={Filter}
+            options={[{label: 'TIER A', value: 'A'}, {label: 'TIER B', value: 'B'}, {label: 'TIER C', value: 'C'}]}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
+
+          <MultiSelect
+            label="SubCategory"
+            placeholder="ALL SUB-CAT"
+            icon={Layers}
+            options={Array.from(new Set((data?.raw_data || []).map((r: any) => r.sub_category).filter(Boolean))).sort().map((c: any) => ({ label: c.toUpperCase(), value: c }))}
+            selected={selectedSubCategories}
+            onChange={setSelectedSubCategories}
+          />
 
           {/* Actions */}
           <div className="flex items-center gap-3">

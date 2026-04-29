@@ -212,7 +212,7 @@ export default function SKUCatalog() {
   const [selectedTiers, setSelectedTiers] = useState<string[]>([])
   const [sortKey, setSortKey] = useState<SortKey>('sku')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [showInactive, setShowInactive] = useState<string>('active')
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>([])
@@ -225,8 +225,13 @@ export default function SKUCatalog() {
   const filteredSkus = useMemo(() => {
     let fetched = [...rawSkus]
     
-    if (showInactive === 'active') fetched = fetched.filter(s => s.is_active)
-    else if (showInactive === 'inactive') fetched = fetched.filter(s => !s.is_active)
+    if (selectedStatus.length > 0) {
+      fetched = fetched.filter(s => {
+        if (selectedStatus.includes('active') && s.is_active) return true
+        if (selectedStatus.includes('inactive') && !s.is_active) return true
+        return false
+      })
+    }
     
     if (selectedTiers.length > 0) {
       fetched = fetched.filter(s => s.category && selectedTiers.includes(s.category))
@@ -239,9 +244,25 @@ export default function SKUCatalog() {
     if (selectedSubCategories.length > 0) {
       fetched = fetched.filter(s => s.sub_category && selectedSubCategories.includes(s.sub_category))
     }
+
+    if (selectedMarketplaces.length > 0) {
+      // Placeholder logic for marketplace filtering - assuming it's related to some SKU property
+      // For now, if both are selected, show all. If only one, it's a no-op as we don't have per-sku marketplace data yet.
+      // But we can filter by the 'is_live' status if we want, or just leave it for future data.
+    }
+
+    if (search) {
+      const q = search.toLowerCase()
+      fetched = fetched.filter(s => 
+        s.sku.toLowerCase().includes(q) || 
+        s.name.toLowerCase().includes(q) || 
+        s.asin?.toLowerCase().includes(q) || 
+        s.fnsku?.toLowerCase().includes(q)
+      )
+    }
     
     return fetched
-  }, [rawSkus, selectedTiers, showInactive, selectedCategories, selectedSubCategories])
+  }, [rawSkus, selectedTiers, selectedStatus, selectedCategories, selectedSubCategories, selectedMarketplaces, search])
 
   const sortedSkus = useMemo(() => {
     return [...filteredSkus].sort((a, b) => {
@@ -392,15 +413,14 @@ export default function SKUCatalog() {
               onChange={setSelectedTiers}
             />
 
-             <select
-                value={showInactive}
-                onChange={e => setShowInactive(e.target.value)}
-                className="col-span-2 lg:col-span-1 px-3 lg:px-4 py-2 lg:py-2.5 bg-zinc-50 border border-zinc-100 rounded-lg lg:rounded-xl text-[10px] lg:text-[11px] font-black uppercase text-zinc-700 outline-none cursor-pointer appearance-none lg:min-w-[140px]"
-              >
-                <option value="active">ACTIVE ONLY</option>
-                <option value="inactive">INACTIVE ONLY</option>
-                <option value="all">ALL STATUS</option>
-              </select>
+            <MultiSelect
+              label="Status"
+              placeholder="ALL STATUS"
+              icon={Layers}
+              options={[{label: 'ACTIVE', value: 'active'}, {label: 'INACTIVE', value: 'inactive'}]}
+              selected={selectedStatus}
+              onChange={setSelectedStatus}
+            />
           </div>
       </div>
 
@@ -505,7 +525,7 @@ export default function SKUCatalog() {
 }
 
 function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onActiveToggle: any, onCogsSaved: any, rowNum: number) {
-  if (key === 'row_num') return <span className="text-[13px] font-black text-sidebar font-data opacity-40">{rowNum}</span>
+  if (key === 'row_num') return <span className="text-[13px] font-black text-sidebar font-data">{rowNum}</span>
   if (key === 'sku') return <span className="font-black text-brand-blue text-[13px] hover:underline underline-offset-4">{sku.sku}</span>
   if (key === 'name') return <span className="text-[12px] lg:text-[13px] font-bold text-sidebar truncate block max-w-[120px] sm:max-w-[200px] lg:max-w-[300px]">{sku.name}</span>
   if (key === 'asin') return <span className="text-[13px] font-black text-sidebar font-data">{sku.asin || '—'}</span>
