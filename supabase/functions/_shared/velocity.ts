@@ -94,54 +94,9 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
   const fmt = (d: Date) => d.toISOString().split('T')[0]
 
   // 1. Identify and update active/inactive status
-  // FETCH current state of all SKUs
-  const { data: allSkus, error: allError } = await supabase
-    .from('sku_master')
-    .select('sku, created_at, is_active')
-
-  if (allError || !allSkus) {
-    console.error('refreshAllMetrics: failed to fetch all SKUs', allError)
-    return
-  }
-
-  // FETCH 60-day sales totals for all SKUs
-  const { data: sales60d, error: salesError } = await supabase
-    .from('sales_snapshot')
-    .select('sku, units_sold')
-    .gte('date', fmt(date60dAgo))
-
-  const salesMap = new Map<string, number>()
-  for (const s of sales60d ?? []) {
-    salesMap.set(s.sku, (salesMap.get(s.sku) ?? 0) + (s.units_sold ?? 0))
-  }
-
-  // Determine which SKUs to deactivate or reactivate
-  const toDeactivate: string[] = []
-  const toActivate: string[] = []
-
-  for (const sku of allSkus) {
-    const hasSales = (salesMap.get(sku.sku) ?? 0) > 0
-    const isOldEnough = new Date(sku.created_at) < date60dAgo
-
-    if (!hasSales && isOldEnough && sku.is_active) {
-      toDeactivate.push(sku.sku)
-    } else if (hasSales && !sku.is_active) {
-      toActivate.push(sku.sku)
-    }
-  }
-
-  // Bulk update SKUs in database
-  if (toDeactivate.length > 0) {
-    console.log(`refreshAllMetrics: deactivating ${toDeactivate.length} SKUs due to 60d inactivity`)
-    await supabase.from('sku_master').update({ is_active: false }).in('sku', toDeactivate)
-    // Also clear demand_metrics for inactive SKUs to remove them from OOS reports immediately
-    await supabase.from('demand_metrics').delete().in('sku', toDeactivate)
-  }
-  if (toActivate.length > 0) {
-    console.log(`refreshAllMetrics: reactivating ${toActivate.length} SKUs with recent sales`)
-    await supabase.from('sku_master').update({ is_active: true }).in('sku', toActivate)
-  }
-
+  // --- REMOVED: Automatic deactivation/reactivation based on sales ---
+  // We now rely on manual status control from the SKU Catalog UI as requested.
+  
   // 2. Fetch resulting active SKUs for metric computation
   const { data: skus, error: skuError } = await supabase
     .from('sku_master')
