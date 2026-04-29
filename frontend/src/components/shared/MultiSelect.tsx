@@ -12,8 +12,15 @@ interface MultiSelectProps {
 
 export function MultiSelect({ label, options, selected, onChange, icon: Icon, placeholder = 'Select...' }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [localSelected, setLocalSelected] = useState<string[]>(selected)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Sync with external selected state when it changes
+  useEffect(() => {
+    setLocalSelected(selected)
+  }, [selected])
+
+  // Handle clicking outside to close
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -24,16 +31,38 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const toggleOption = (val: string) => {
-    if (selected.includes(val)) {
-      onChange(selected.filter(s => s !== val))
+  // Apply changes when dropdown closes OR after a 2.5s debounce while open
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    
+    if (!isOpen) {
+      // Instantly apply when closed
+      if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
+        onChange(localSelected)
+      }
     } else {
-      onChange([...selected, val])
+      // Wait 2.5 seconds while open before auto-applying
+      timer = setTimeout(() => {
+        if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
+          onChange(localSelected)
+        }
+      }, 2500)
+    }
+    
+    return () => clearTimeout(timer)
+  }, [isOpen, localSelected, selected, onChange])
+
+  const toggleOption = (val: string) => {
+    if (localSelected.includes(val)) {
+      setLocalSelected(localSelected.filter(s => s !== val))
+    } else {
+      setLocalSelected([...localSelected, val])
     }
   }
 
   const clearAll = (e: React.MouseEvent) => {
     e.stopPropagation()
+    setLocalSelected([])
     onChange([])
   }
 
@@ -45,15 +74,15 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
       >
         {Icon && <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-colors ${selected.length > 0 ? 'text-brand-blue' : 'text-zinc-400'}`} />}
         <div className="flex-1 flex items-center gap-1 overflow-hidden">
-          {selected.length === 0 ? (
+          {localSelected.length === 0 ? (
             <span className="text-[10px] lg:text-sm font-bold text-zinc-400 uppercase truncate">{placeholder}</span>
           ) : (
             <span className="text-[10px] lg:text-sm font-black text-zinc-900 uppercase truncate">
-              {selected.length === 1 ? options.find(o => o.value === selected[0])?.label : `${selected.length} SELECTED`}
+              {localSelected.length === 1 ? options.find(o => o.value === localSelected[0])?.label : `${localSelected.length} SELECTED`}
             </span>
           )}
         </div>
-        {selected.length > 0 && (
+        {localSelected.length > 0 && (
           <button onClick={clearAll} className="p-0.5 hover:bg-zinc-200 rounded-md transition-colors shrink-0">
             <X className="w-3 h-3 text-zinc-400" />
           </button>
@@ -65,15 +94,19 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
         <div className="absolute z-50 top-full left-0 mt-2 w-full min-w-[200px] bg-white border border-zinc-200 rounded-xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
           <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-0.5">
             {options.map(opt => {
-              const isActive = selected.includes(opt.value)
+              const isActive = localSelected.includes(opt.value)
               return (
                 <div
                   key={opt.value}
                   onClick={() => toggleOption(opt.value)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-brand-blue/10 text-brand-blue' : 'hover:bg-zinc-50 text-zinc-600'}`}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-brand-blue/5' : 'hover:bg-zinc-50'}`}
                 >
-                  <span className="text-[12px] font-black uppercase tracking-tight">{opt.label}</span>
-                  {isActive && <Check className="w-3.5 h-3.5 stroke-[3px]" />}
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isActive ? 'bg-brand-blue border-brand-blue' : 'border-zinc-300 bg-white'}`}>
+                    {isActive && <Check className="w-3 h-3 text-white stroke-[3px]" />}
+                  </div>
+                  <span className={`text-[12px] font-black uppercase tracking-tight ${isActive ? 'text-brand-blue' : 'text-zinc-600'}`}>
+                    {opt.label}
+                  </span>
                 </div>
               )
             })}

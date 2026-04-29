@@ -6,7 +6,7 @@ import { navigate } from '../lib/router'
 import { Toggle } from '../components/shared/Toggle'
 import { MultiSelect } from '../components/shared/MultiSelect'
 
-type SortKey = 'sku' | 'name' | 'asin' | 'fnsku' | 'product_category' | 'sub_category' | 'category' | 'units_per_box' | 'moq' | 'lead_time_days' | 'cogs' | 'blended_sv' | 'is_live' | 'is_active' | 'action_flag'
+type SortKey = 'row_num' | 'sku' | 'name' | 'asin' | 'fnsku' | 'product_category' | 'sub_category' | 'category' | 'units_per_box' | 'moq' | 'lead_time_days' | 'cogs' | 'blended_sv' | 'is_active' | 'action_flag'
 type SortDir = 'asc' | 'desc'
 
 const FLAG_ORDER: Record<string, number> = {
@@ -206,7 +206,7 @@ function CogsEdit({
 // ─── Main SKU Catalog Page ───────────────────────────────────────────────────
 
 export default function SKUCatalog() {
-  const [skus, setSkus] = useState<SKUListItem[]>([])
+  const [rawSkus, setRawSkus] = useState<SKUListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [selectedTiers, setSelectedTiers] = useState<string[]>([])
@@ -222,27 +222,46 @@ export default function SKUCatalog() {
     else { setSortKey(key); setSortDir('asc') }
   }
 
+  const filteredSkus = useMemo(() => {
+    let fetched = [...rawSkus]
+    
+    if (showInactive === 'active') fetched = fetched.filter(s => s.is_active)
+    else if (showInactive === 'inactive') fetched = fetched.filter(s => !s.is_active)
+    
+    if (selectedTiers.length > 0) {
+      fetched = fetched.filter(s => s.category && selectedTiers.includes(s.category))
+    }
+
+    if (selectedCategories.length > 0) {
+      fetched = fetched.filter(s => s.product_category && selectedCategories.includes(s.product_category))
+    }
+
+    if (selectedSubCategories.length > 0) {
+      fetched = fetched.filter(s => s.sub_category && selectedSubCategories.includes(s.sub_category))
+    }
+    
+    return fetched
+  }, [rawSkus, selectedTiers, showInactive, selectedCategories, selectedSubCategories])
+
   const sortedSkus = useMemo(() => {
-    return [...skus].sort((a, b) => {
+    return [...filteredSkus].sort((a, b) => {
       let cmp = 0
       if (sortKey === 'blended_sv') {
         cmp = (a.demand?.blended_sv ?? -1) - (b.demand?.blended_sv ?? -1)
       } else if (sortKey === 'action_flag') {
         cmp = (FLAG_ORDER[a.action_flag ?? ''] ?? 99) - (FLAG_ORDER[b.action_flag ?? ''] ?? 99)
-      } else if (sortKey === 'is_live') {
-        cmp = (b.is_live ? 1 : 0) - (a.is_live ? 1 : 0)
       } else if (sortKey === 'is_active') {
         cmp = (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0)
-      } else if (typeof a[sortKey] === 'number' && typeof b[sortKey] === 'number') {
-        cmp = (a[sortKey] as number) - (b[sortKey] as number)
+      } else if (typeof (a as any)[sortKey] === 'number' && typeof (b as any)[sortKey] === 'number') {
+        cmp = ((a as any)[sortKey] as number) - ((b as any)[sortKey] as number)
       } else {
-        const av = (a[sortKey] ?? '') as string
-        const bv = (b[sortKey] ?? '') as string
+        const av = ((a as any)[sortKey] ?? '') as string
+        const bv = ((b as any)[sortKey] ?? '') as string
         cmp = av.localeCompare(bv)
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [skus, sortKey, sortDir])
+  }, [filteredSkus, sortKey, sortDir])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -250,32 +269,10 @@ export default function SKUCatalog() {
       search: search || undefined,
     }).then(res => {
       const resAny = res as unknown as { error?: string; skus?: SKUListItem[] }
-      let fetched = resAny.skus ?? []
-      
-      // Local filtering for multi-select
-      if (showInactive === 'active') fetched = fetched.filter(s => s.is_active)
-      else if (showInactive === 'inactive') fetched = fetched.filter(s => !s.is_active)
-      
-      if (selectedTiers.length > 0) {
-        fetched = fetched.filter(s => s.category && selectedTiers.includes(s.category))
-      }
-
-      if (selectedCategories.length > 0) {
-        fetched = fetched.filter(s => s.product_category && selectedCategories.includes(s.product_category))
-      }
-
-      if (selectedSubCategories.length > 0) {
-        fetched = fetched.filter(s => s.sub_category && selectedSubCategories.includes(s.sub_category))
-      }
-      
-      if (selectedMarketplaces.length > 0) {
-        // filter logic if markers available
-      }
-      
-      setSkus(fetched)
+      setRawSkus(resAny.skus ?? [])
       setLoading(false)
     })
-  }, [search, selectedTiers, showInactive, selectedCategories, selectedSubCategories, selectedMarketplaces])
+  }, [search])
 
   useEffect(() => {
     const timeout = setTimeout(load, 300)
@@ -283,19 +280,20 @@ export default function SKUCatalog() {
   }, [load])
 
   const handleCategoryUpdate = (sku: string, next: string | null) => {
-    setSkus(prev => prev.map(s => s.sku === sku ? { ...s, category: next as any } : s))
+    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, category: next as any } : s))
   }
 
   const handleActiveToggle = async (sku: string, next: boolean) => {
-    setSkus(prev => prev.map(s => s.sku === sku ? { ...s, is_active: next } : s))
+    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, is_active: next } : s))
     await api.updateSKU(sku, { is_active: next })
   }
 
   const handleCogsUpdate = (sku: string, newCogs: number | null) => {
-    setSkus(prev => prev.map(s => s.sku === sku ? { ...s, cogs: newCogs } : s))
+    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, cogs: newCogs } : s))
   }
 
   const columns: { key: SortKey; label: string; align: 'left' | 'right'; note?: string; width: string }[] = [
+    { key: 'row_num', label: 'NO.', align: 'left', width: '50px' },
     { key: 'sku', label: 'SKU', align: 'left', width: '220px' },
     { key: 'name', label: 'NAME', align: 'left', width: '300px' },
     { key: 'asin', label: 'ASIN', align: 'left', width: '130px' },
@@ -305,16 +303,19 @@ export default function SKUCatalog() {
     { key: 'sub_category', label: 'SUB-CATEGORY', align: 'left', width: '150px' },
     { key: 'cogs', label: 'AED COGS', align: 'right', note: 'click to edit', width: '120px' },
     { key: 'is_active', label: 'ACTIVE', align: 'left', width: '100px' },
-    { key: 'is_live', label: 'LIVE', align: 'left', width: '100px' },
   ]
 
   const categoryOptions = useMemo(() => {
-     return Array.from(new Set(skus.map(s => s.product_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
-  }, [skus])
+     return Array.from(new Set(rawSkus.map(s => s.product_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
+  }, [rawSkus])
 
   const subCategoryOptions = useMemo(() => {
-    return Array.from(new Set(skus.map(s => s.sub_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
-  }, [skus])
+    let list = rawSkus
+    if (selectedCategories.length > 0) {
+      list = list.filter(s => s.product_category && selectedCategories.includes(s.product_category))
+    }
+    return Array.from(new Set(list.map(s => s.sub_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
+  }, [rawSkus, selectedCategories])
 
   return (
     <div className="flex flex-col gap-8 -mt-4 lg:-mt-8 pb-12">
@@ -417,6 +418,7 @@ export default function SKUCatalog() {
                     className={`
                       px-3 py-2 lg:px-4 lg:py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
                       ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
+                      ${i === 1 ? 'sticky left-[50px] z-40 bg-zinc-900 border-r border-zinc-800' : ''}
                       ${col.align === 'right' ? 'text-right' : 'text-left'}
                     `}
                   >
@@ -432,9 +434,9 @@ export default function SKUCatalog() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {loading ? (
-                [...Array(10)].map((_, i) => <SkeletonRow key={i} colCount={columns.length} />)
-              ) : sortedSkus.length === 0 ? (
+            {loading ? (
+               Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} colCount={columns.length} />)
+            ) : sortedSkus.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length} className="px-12 py-24 text-center">
                     <p className="text-[13px] font-black text-zinc-400 uppercase tracking-widest leading-loose">
@@ -443,7 +445,7 @@ export default function SKUCatalog() {
                   </td>
                 </tr>
               ) : (
-                sortedSkus.map((sku, idx) => (
+                sortedSkus.map((sku, rowIndex) => (
                   <tr
                     key={sku.sku}
                     className="group hover:bg-brand-blue/5 transition-colors"
@@ -452,15 +454,16 @@ export default function SKUCatalog() {
                       <td
                         key={col.key}
                         style={{ width: col.width, minWidth: col.width }}
-                        onClick={() => i < 4 && navigate('/sku/' + sku.sku)}
+                        onClick={() => i > 0 && i < 5 && navigate('/sku/' + sku.sku)}
                         className={`
                           px-3 py-1.5 h-10 lg:px-4 lg:py-2 lg:h-[48px] border-zinc-50
                           ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
+                          ${i === 1 ? 'sticky left-[50px] z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]' : ''}
                           ${col.align === 'right' ? 'text-right' : 'text-left'}
-                          ${i < 4 ? 'cursor-pointer' : ''}
+                          ${i > 0 && i < 5 ? 'cursor-pointer' : ''}
                         `}
                       >
-                        {renderValue(col.key, sku, handleCategoryUpdate, handleActiveToggle, handleCogsUpdate)}
+                        {renderValue(col.key, sku, handleCategoryUpdate, handleActiveToggle, handleCogsUpdate, rowIndex + 1)}
                       </td>
                     ))}
                   </tr>
@@ -473,11 +476,7 @@ export default function SKUCatalog() {
         {/* Footer Stats */}
         <div className="px-8 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between z-30 shrink-0">
            <div className="flex items-center gap-6">
-              <p className="text-[12px] font-black uppercase text-sidebar">Items Logged: {skus.length}</p>
-              <div className="flex items-center gap-2">
-                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm" />
-                 <p className="text-[12px] font-black uppercase text-emerald-600">LIVE FEED ACTIVE</p>
-              </div>
+              {/* Status items removed */}
            </div>
            <p className="text-[11px] font-bold uppercase text-zinc-400 tracking-widest opacity-60">
              Logistics Engine v2.4 • Buffer: {sortedSkus.length} Items
@@ -505,11 +504,12 @@ export default function SKUCatalog() {
   )
 }
 
-function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onActiveToggle: any, onCogsSaved: any) {
+function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onActiveToggle: any, onCogsSaved: any, rowNum: number) {
+  if (key === 'row_num') return <span className="text-[13px] font-black text-sidebar font-data opacity-40">{rowNum}</span>
   if (key === 'sku') return <span className="font-black text-brand-blue text-[13px] hover:underline underline-offset-4">{sku.sku}</span>
   if (key === 'name') return <span className="text-[12px] lg:text-[13px] font-bold text-sidebar truncate block max-w-[120px] sm:max-w-[200px] lg:max-w-[300px]">{sku.name}</span>
-  if (key === 'asin') return <span className="text-[11px] font-bold text-zinc-400 font-data">{sku.asin || '—'}</span>
-  if (key === 'fnsku') return <span className="text-[11px] font-bold text-zinc-400 font-data">{sku.fnsku || '—'}</span>
+  if (key === 'asin') return <span className="text-[13px] font-black text-sidebar font-data">{sku.asin || '—'}</span>
+  if (key === 'fnsku') return <span className="text-[13px] font-black text-sidebar font-data">{sku.fnsku || '—'}</span>
   if (key === 'category') return (
     <CategoryEdit
       sku={sku.sku}
@@ -532,16 +532,6 @@ function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onAct
       onChange={(next) => onActiveToggle(sku.sku, next)}
       label={sku.is_active ? 'Active' : 'Inactive'}
     />
-  )
-  if (key === 'is_live') return sku.is_live ? (
-    <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full uppercase">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm" />
-      Live
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-zinc-400 bg-zinc-50 border border-zinc-100 px-2.5 py-1 rounded-full uppercase opacity-50">
-      Closed
-    </span>
   )
   
   return <span className="text-[11px] font-bold text-zinc-600">{String((sku as any)[key] ?? '—')}</span>
