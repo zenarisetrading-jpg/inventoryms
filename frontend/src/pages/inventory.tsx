@@ -64,7 +64,26 @@ export default function InventoryPage() {
 
   const columns = useMemo(() => {
     if (!data?.raw_data?.length) return []
-    return Object.keys(data.raw_data[0]).map(key => ({
+    
+    // Explicit order as requested by user
+    const PREFERRED_ORDER = [
+      'sku', 'category', 'sub_category', 'action_flag',
+      'fba_units', 'amazon_sv', 'fbn_units', 'noon_sv', 
+      'minutes_units', 'minutes_sv', 
+      'locad_units', 'locad_boxes', 'units_per_box', 'blended_sv',
+      'required_30d', 'stock_in_hand', 'shortfall', 'moq',
+      'amazon_coverage', 'noon_coverage', 'total_coverage', 'cogs',
+      'suggested_reorder_qty', 'already_ordered', 'pending_qty_to_reorder', 'total_reorder_cost',
+      'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes'
+    ]
+
+    const existingKeys = Object.keys(data.raw_data[0])
+    const finalKeys = [
+      ...PREFERRED_ORDER.filter(k => existingKeys.includes(k)),
+      ...existingKeys.filter(k => !PREFERRED_ORDER.includes(k))
+    ]
+
+    return finalKeys.map(key => ({
       key,
       label: key.replace(/_/g, ' ').toUpperCase(),
       width: key === 'sku' ? '240px' : key === 'name' ? '350px' : '160px'
@@ -104,7 +123,8 @@ export default function InventoryPage() {
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
     const keysToTotal = [
-      'fba_units', 'fbn_units', 'locad_units', 'locad_boxes', 'stock_in_hand', 
+      'fba_units', 'fbn_units', 'minutes_units', 'locad_units', 'locad_boxes', 'stock_in_hand', 
+      'amazon_sv', 'noon_sv', 'minutes_sv', 'blended_sv',
       'shortfall', 'moq', 'suggested_reorder_qty', 'total_reorder_cost',
       'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes',
       'current_fba_stock_units', 'current_fbn_stock_units', 'stock_in_hand_units',
@@ -207,7 +227,8 @@ export default function InventoryPage() {
             accent="text-indigo-600"
             items={[
               { label: 'FBA Units', value: renderCell('fba_units', totals['fba_units'] || totals['current_fba_stock_units']) },
-              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) }
+              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
+              { label: 'Minutes', value: renderCell('minutes_units', totals['minutes_units']) }
             ]}
           />
           <InventoryStatCard 
@@ -217,6 +238,17 @@ export default function InventoryPage() {
             items={[
               { label: 'Units', value: renderCell('locad_units', totals['locad_units'] || totals['stock_in_hand_units']) },
               { label: 'Boxes', value: renderCell('locad_boxes', totals['locad_boxes'] || totals['boxes_in_hand']) }
+            ]}
+          />
+          <InventoryStatCard 
+            title="Sales Velocity" 
+            icon={ShoppingCart}
+            accent="text-rose-600"
+            items={[
+              { label: 'Amazon SV', value: renderCell('amazon_sv', totals['amazon_sv']) },
+              { label: 'Noon SV', value: renderCell('noon_sv', totals['noon_sv']) },
+              { label: 'Minutes SV', value: renderCell('minutes_sv', totals['minutes_sv']) },
+              { label: 'Total SV', value: renderCell('blended_sv', totals['blended_sv']) }
             ]}
           />
           <InventoryStatCard 
@@ -231,21 +263,12 @@ export default function InventoryPage() {
             ]}
           />
           <InventoryStatCard 
-            title="Send to FBA" 
+            title="Send to FBA/N" 
             icon={Send}
             accent="text-brand-blue"
             items={[
-              { label: 'Send Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
-              { label: 'Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) }
-            ]}
-          />
-          <InventoryStatCard 
-            title="Send to FBN" 
-            icon={Send}
-            accent="text-brand-amber"
-            items={[
-              { label: 'Send Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
-              { label: 'Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
+              { label: 'FBA Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
+              { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) }
             ]}
           />
         </div>

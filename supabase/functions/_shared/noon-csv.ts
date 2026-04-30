@@ -85,8 +85,14 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
       // Try alternative names
       if (col === 'partner_sku' && colIndex['seller_sku'] !== undefined) {
         colIndex['partner_sku'] = colIndex['seller_sku']
+      } else if (col === 'status' && colIndex['item_status'] !== undefined) {
+        colIndex['status'] = colIndex['item_status']
+      } else if (col === 'offer_price' && colIndex['price'] !== undefined) {
+        colIndex['offer_price'] = colIndex['price']
       } else if (col === 'order_timestamp' && colIndex['order_date'] !== undefined) {
         colIndex['order_timestamp'] = colIndex['order_date']
+      } else if (col === 'order_timestamp' && colIndex['order_timestamp'] === undefined) {
+        // Already covered by first check, but for clarity
       } else {
         errors.push({ row: 0, message: `Missing required column: "${col}"` })
       }

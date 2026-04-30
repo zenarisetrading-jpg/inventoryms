@@ -8,7 +8,7 @@ $env:VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJz
 
 # Step 1: Deploy latest logic
 Write-Host "Deploying latest Replenishment Logic..." -ForegroundColor Yellow
-npx supabase functions deploy sync upload-locad-report dashboard --project-ref eiezhzlpirdiqsotvogx
+npx supabase functions deploy sync upload-locad-report dashboard upload-noon upload-noon-inventory upload-noon-minutes upload-pos skus po planning analytics abc-classify --project-ref eiezhzlpirdiqsotvogx
 
 # Step 2: Trigger Sync
 Write-Host "Triggering Full System Sync (this may take 10-20 seconds)..." -ForegroundColor Yellow

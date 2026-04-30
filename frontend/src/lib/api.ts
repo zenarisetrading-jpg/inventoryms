@@ -135,6 +135,18 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as UploadNoonInventoryResponse))
   },
 
+  uploadNoonMinutesSales: (file: File): Promise<UploadNoonResponse> => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`${BASE}/upload-noon-minutes`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      body: form,
+    })
+      .then(r => handleResponse<UploadNoonResponse>(r))
+      .catch(err => ({ error: err.message } as unknown as UploadNoonResponse))
+  },
+
   uploadLocadXLSX: (file: File): Promise<UploadLocadResponse> => {
     const form = new FormData()
     form.append('file', file)

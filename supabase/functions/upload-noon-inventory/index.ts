@@ -13,6 +13,8 @@ function jsonResponse(data: unknown, status = 200): Response {
 interface NoonInvRow {
   sku: string
   available_qty: number
+  warehouse_code: string | null
+  inventory_type?: string | null
 }
 
 function parseNoonInventoryCSV(text: string): { rows: NoonInvRow[]; errors: { row: number; message: string }[] } {
@@ -28,6 +30,8 @@ function parseNoonInventoryCSV(text: string): { rows: NoonInvRow[]; errors: { ro
   if (skuIdx === -1) skuIdx = header.indexOf('product_id')
   if (skuIdx === -1) skuIdx = header.indexOf('sku')
   const qtyIdx = header.findIndex(h => h === 'available_qty' || h === 'available' || h === 'quantity' || h === 'qty')
+  const whIdx = header.findIndex(h => h === 'warehouse_code' || h === 'warehouse' || h === 'wh_code' || h === 'warehouse_id')
+  const typeIdx = header.findIndex(h => h === 'inventory_type' || h === 'type' || h === 'condition')
 
   if (skuIdx === -1 || qtyIdx === -1) {
     errors.push({ row: 0, message: `Missing required columns. Found: ${header.join(', ')}. Expected: partner_sku/sku and available_qty/available.` })
@@ -41,6 +45,8 @@ function parseNoonInventoryCSV(text: string): { rows: NoonInvRow[]; errors: { ro
     const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim())
     const rawSku = cols[skuIdx]
     const rawQty = cols[qtyIdx]
+    const rawWh = whIdx !== -1 ? cols[whIdx] : null
+    const rawType = typeIdx !== -1 ? cols[typeIdx] : null
 
     if (!rawSku) {
       errors.push({ row: i + 1, message: 'Empty SKU' })
@@ -53,7 +59,7 @@ function parseNoonInventoryCSV(text: string): { rows: NoonInvRow[]; errors: { ro
       continue
     }
 
-    rows.push({ sku: rawSku, available_qty: qty })
+    rows.push({ sku: rawSku, available_qty: qty, warehouse_code: rawWh, inventory_type: rawType })
   }
 
   return { rows, errors }
@@ -97,22 +103,16 @@ serve(async (req: Request) => {
     const validSkus = new Set<string>((skuMasterData ?? []).map((r: { sku: string }) => r.sku))
 
     // Build reverse map: NOON_SKU_UPPERCASE → internal_sku
-    // Noon omits trailing 's' that sku_master uses (e.g. "32OZNAVYBLUE" → "32OZNAVYBLUES")
     const noonToInternal = new Map<string, string>()
     for (const internalSku of validSkus) {
       if (/s$/i.test(internalSku)) {
         noonToInternal.set(internalSku.slice(0, -1).toUpperCase(), internalSku)
       }
-      // Also index the sku itself (case-insensitive exact match)
       noonToInternal.set(internalSku.toUpperCase(), internalSku)
     }
 
+    // Aggregated map: sku|node|warehouse_name -> available
     const aggregated = new Map<string, number>()
-    // Initialize all master SKUs as 0 available on Noon
-    // Any SKU not found in the inventory sheet is by definition OOS
-    for (const internal of validSkus) {
-      aggregated.set(internal, 0)
-    }
 
     const matched: NoonInvRow[] = []
     const unmatchedSkus: string[] = []
@@ -120,26 +120,51 @@ serve(async (req: Request) => {
     for (const row of rows) {
       const internal = noonToInternal.get(row.sku.trim().toUpperCase())
       if (internal) {
-        aggregated.set(internal, (aggregated.get(internal) ?? 0) + row.available_qty)
-        matched.push({ sku: internal, available_qty: row.available_qty })
+        // Logic: if warehouse code contains DS or ID -> Minutes, else -> noon_fbn
+        const whCode = row.warehouse_code || 'FBN_GENERIC'
+        // Extra strict check: Must start with city code + (DS|ID) + digits
+        const isMinutes = /^(AJM|AUH|DXB|SHJ)(DS|ID)\d+/i.test(whCode)
+        const node = isMinutes ? 'Minutes' : 'noon_fbn'
+        const warehouse_name = whCode
+
+        const key = `${internal}|${node}|${warehouse_name}`
+        aggregated.set(key, (aggregated.get(key) || 0) + row.available_qty)
+        matched.push({ ...row, sku: internal })
       } else {
         unmatchedSkus.push(row.sku)
       }
     }
 
-    // Upsert all SKUs (found ones + OOS ones)
-    const upsertRows = Array.from(aggregated.entries()).map(([sku, available]) => ({
-      sku,
-      node: 'noon_fbn',
-      warehouse_name: null,
-      available,
-      inbound: 0,
-      reserved: 0,
-      snapshot_date: today,
-      synced_at: new Date().toISOString(),
-    }))
+    // Prepare upsert rows
+    const upsertRows = Array.from(aggregated.entries()).map(([key, available]) => {
+      const [sku, node, warehouse_name] = key.split('|')
+      return {
+        sku,
+        node,
+        warehouse_name,
+        available,
+        inbound: 0,
+        reserved: 0,
+        snapshot_date: today,
+        synced_at: new Date().toISOString(),
+      }
+    })
 
-    // Use chunks to avoid request size limits if many SKUs
+    // Before upserting, we should clear OLD snapshots for THIS node/date to avoid orphans?
+    // Actually, upsert with onConflict handles it. 
+    // But wait! If a SKU was in WH1 and now it's only in WH2, WH1 will still have a row from today if we uploaded twice.
+    // Usually, we should delete all noon_fbn/Minutes rows for today before upserting fresh ones.
+    const { error: deleteError } = await supabase
+      .from('inventory_snapshot')
+      .delete()
+      .in('node', ['noon_fbn', 'Minutes'])
+      .eq('snapshot_date', today)
+
+    if (deleteError) {
+      console.error('upload-noon-inventory: delete error', deleteError)
+    }
+
+    // Use chunks to avoid request size limits
     const CHUNK_SIZE = 100
     for (let i = 0; i < upsertRows.length; i += CHUNK_SIZE) {
       const chunk = upsertRows.slice(i, i + CHUNK_SIZE)
@@ -164,7 +189,7 @@ serve(async (req: Request) => {
       rows_processed: rows.length,
       rows_matched: matched.length,
       rows_unmatched: unmatchedSkus.length,
-      unmatched_skus: unmatchedSkus.slice(0, 20),
+      unmatched_skus: [...new Set(unmatchedSkus)].slice(0, 20),
     })
   } catch (err) {
     console.error('upload-noon-inventory: unhandled error', err)

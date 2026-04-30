@@ -253,6 +253,10 @@ export default function UploadPage() {
   const [noonInvResult, setNoonInvResult] = useState<UploadNoonInventoryResponse | null>(null)
   const [noonInvError, setNoonInvError] = useState<string | null>(null)
 
+  const [minutesUploading, setMinutesUploading] = useState(false)
+  const [minutesResult, setMinutesResult] = useState<UploadNoonResponse | null>(null)
+  const [minutesError, setMinutesError] = useState<string | null>(null)
+
   const loadStatus = () => {
     setStatusLoading(true)
     api.getSyncStatus().then(res => {
@@ -295,6 +299,17 @@ export default function UploadPage() {
     const resAny = res as unknown as { error?: string }
     if (resAny.error) setNoonInvError(resAny.error)
     else { setNoonInvResult(res as unknown as UploadNoonInventoryResponse); loadStatus() }
+  }
+
+  const handleMinutesUpload = async (file: File) => {
+    setMinutesUploading(true)
+    setMinutesError(null)
+    setMinutesResult(null)
+    const res = await api.uploadNoonMinutesSales(file)
+    setMinutesUploading(false)
+    const resAny = res as unknown as { error?: string }
+    if (resAny.error) setMinutesError(resAny.error)
+    else { setMinutesResult(res as unknown as UploadNoonResponse); loadStatus() }
   }
 
   const locadXlsx = syncStatus?.locad_xlsx
@@ -402,6 +417,28 @@ export default function UploadPage() {
               )}
               {noonInvError && <p className="text-[10px] text-red-600 font-bold uppercase">{noonInvError}</p>}
               {noonInvResult && <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${noonInvResult.rows_matched} FBN SKUs updated`} color="text-green-600" />}
+            </div>
+
+            {/* 4. Noon Minutes Sales CSV */}
+            <div className="flex flex-col h-full space-y-4 p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:border-purple-500/30 transition-all group">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                  <Download className="h-4 w-4 text-purple-500" />
+                </div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Minutes Sales</h4>
+              </div>
+              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed min-h-[30px]">
+                Noon Seller Portal → Minutes Sales Export
+              </p>
+              {minutesUploading ? <UploadingZone /> : (
+                <DropZone
+                  accept=".csv,text/csv"
+                  label="Drop Minutes Sales CSV"
+                  onFile={handleMinutesUpload}
+                />
+              )}
+              {minutesError && <p className="text-[10px] text-red-600 font-bold uppercase">{minutesError}</p>}
+              {minutesResult && <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${minutesResult.rows_processed} minutes orders processed`} color="text-green-600" />}
             </div>
         </div>
       </SectionCard>

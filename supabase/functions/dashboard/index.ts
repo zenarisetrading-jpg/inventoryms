@@ -95,8 +95,8 @@ interface CommandCenterResponse {
   oos_count_amazon: number
   oos_count_noon: number
   oos_count_total: number
-  oos_skus_amazon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number }[]
-  oos_skus_noon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number }[]
+  oos_skus_amazon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number; fba_units: number; fbn_units: number; minutes_units: number }[]
+  oos_skus_noon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number; fba_units: number; fbn_units: number; minutes_units: number }[]
   latest_snapshot_amazon: string | null
   latest_snapshot_noon: string | null
   latest_snapshot_locad: string | null
@@ -258,7 +258,10 @@ serve(async (req: Request) => {
           name: skuMeta.name,
           blended_sv,
           coverage_amazon: 0,
-          coverage_noon: noon_cov
+          coverage_noon: noon_cov,
+          fba_units,
+          fbn_units,
+          minutes_units: Number(r.minutes_units || 0)
         })
       }
 
@@ -270,7 +273,10 @@ serve(async (req: Request) => {
           name: skuMeta.name,
           blended_sv,
           coverage_amazon: amz_cov,
-          coverage_noon: 0
+          coverage_noon: 0,
+          fba_units,
+          fbn_units,
+          minutes_units: Number(r.minutes_units || 0)
         })
       }
 

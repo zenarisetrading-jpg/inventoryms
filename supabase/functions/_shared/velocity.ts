@@ -16,7 +16,7 @@ import { refreshABCCategories } from './abc.ts'
 export async function computeVelocity(
   sku: string,
   supabase: SupabaseClient
-): Promise<{ sv_7: number; sv_90: number; blended_sv: number; amazon_sv: number; noon_sv: number }> {
+): Promise<{ sv_7: number; sv_90: number; blended_sv: number; amazon_sv: number; noon_sv: number; minutes_sv: number }> {
   const today = new Date()
   const date7dAgo = new Date(today)
   date7dAgo.setDate(today.getDate() - 7)
@@ -36,7 +36,7 @@ export async function computeVelocity(
     .lte('date', fmt(today))
 
   if (error || !data || data.length === 0) {
-    return { sv_7: 0, sv_90: 0, blended_sv: 0, amazon_sv: 0, noon_sv: 0 }
+    return { sv_7: 0, sv_90: 0, blended_sv: 0, amazon_sv: 0, noon_sv: 0, minutes_sv: 0 }
   }
 
   // Determine earliest data date to detect sparse history
@@ -66,7 +66,13 @@ export async function computeVelocity(
 
   const units30dNoon = data
     .filter((r: { date: string; channel?: string; units_sold: number }) =>
-      r.date >= fmt(date30dAgo) && (r.channel === 'noon' || r.channel === 'noon_minutes')
+      r.date >= fmt(date30dAgo) && r.channel === 'noon'
+    )
+    .reduce((sum: number, r: { units_sold: number }) => sum + (r.units_sold ?? 0), 0)
+
+  const units30dMinutes = data
+    .filter((r: { date: string; channel?: string; units_sold: number }) =>
+      r.date >= fmt(date30dAgo) && r.channel === 'noon_minutes'
     )
     .reduce((sum: number, r: { units_sold: number }) => sum + (r.units_sold ?? 0), 0)
 
@@ -76,9 +82,10 @@ export async function computeVelocity(
   // Total daily velocity across all channels — used for coverage, reorder, and allocation.
   const amazon_sv = daysCovered < 7 ? 0 : units30dAmazon / 30
   const noon_sv = daysCovered < 7 ? 0 : units30dNoon / 30
-  const blended_sv = amazon_sv + noon_sv
+  const minutes_sv = daysCovered < 7 ? 0 : units30dMinutes / 30
+  const blended_sv = amazon_sv + noon_sv + minutes_sv
 
-  return { sv_7, sv_90, blended_sv, amazon_sv, noon_sv }
+  return { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv }
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +132,7 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
     await Promise.all(batch.map(async (sku: SKU) => {
       try {
         // Velocity
-        const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv } = await computeVelocity(sku.sku, supabase)
+        const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase)
 
         // Coverage
         const coverage = await computeCoverage(sku, blended_sv, supabase)
@@ -152,6 +159,7 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
             blended_sv,
             amazon_sv,
             noon_sv,
+            minutes_sv,
             coverage_amazon: coverage.by_node.amazon_fba.coverage_days,
             coverage_noon: coverage.by_node.noon_fbn.coverage_days,
             coverage_warehouse: coverage.by_node.locad_warehouse.coverage_days,

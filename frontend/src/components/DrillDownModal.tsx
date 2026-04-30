@@ -276,7 +276,9 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                         {Number(item.blended_sv || 0).toFixed(2)}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-black text-red-600">
-                         0
+                        {type === 'oos_amazon' ? (item.fba_units || 0) : 
+                         type === 'oos_noon' ? ((item.fbn_units || 0) + (item.minutes_units || 0)) : 
+                         ((item.fba_units || 0) + (item.fbn_units || 0) + (item.minutes_units || 0))}
                       </td>
                       <td className={`py-3 px-2 text-right font-data text-[11px] ${coverageColor(item.coverage_amazon)}`}>
                         {formatCov(item.coverage_amazon)}
