@@ -17,6 +17,7 @@ import type {
 const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 const HEADERS = {
   Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+  apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
   'Content-Type': 'application/json',
 }
 
@@ -35,7 +36,16 @@ async function handleResponse<T>(res: Response): Promise<T> {
     }
     throw new Error(message)
   }
-  return res.json() as Promise<T>
+  
+  // Handle empty or 204 No Content responses
+  const text = await res.text()
+  if (!text) return {} as T
+  
+  try {
+    return JSON.parse(text) as T
+  } catch (err) {
+    return {} as T
+  }
 }
 
 function buildQuery(params: Record<string, string | undefined>): string {
@@ -79,20 +89,23 @@ export const api = {
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
-  updatePO: async (id: string, data: Partial<PO>): Promise<PO> => {
-    // We use RPC instead of edge function for updates to bypass Docker deployment issues
+  updatePO: async (id: string, data: Partial<PO>, poNumber?: string): Promise<PO> => {
     const rpcBase = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1`
+    
+    // We send the stable poNumber if we have it, otherwise fallback to id
+    const identifier = poNumber || id
+
     await fetch(`${rpcBase}/rpc/update_po_group`, {
       method: 'POST',
       headers: {
         ...HEADERS,
         'Prefer': 'params=single-object'
       },
-      body: JSON.stringify({ p_po_id: id, p_payload: data }),
+      body: JSON.stringify({ p_id_or_number: identifier, p_payload: data }),
     }).then(r => handleResponse(r))
     
-    // Refresh the PO detail to get the updated list
-    return api.getPO(id)
+    // Refresh using the stable po_number
+    return api.getPO(identifier)
   },
 
   getPO: (idOrPo: string): Promise<PO> =>

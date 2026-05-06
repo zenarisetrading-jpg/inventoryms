@@ -501,9 +501,12 @@ export default function POPage() {
                                   try {
                                     // Only save to DB items that have a SKU
                                     const toSave = newItems.filter(it => it.sku && it.sku.trim() !== '')
-                                    const res = await api.updatePO(po.id, { line_items: toSave })
+                                    const res = await api.updatePO(po.id, { line_items: toSave }, po.po_number)
                                     const resAny = res as any
                                     if (resAny.error) throw new Error(resAny.error)
+                                    
+                                    // Update local state with the FRESH data from server (including new IDs)
+                                    setPOs(prev => prev.map(p => p.po_number === po.po_number ? res : p))
                                   } catch (err: any) {
                                     alert('Failed to save changes: ' + err.message)
                                     // Revert local state on failure
@@ -673,7 +676,7 @@ export default function POPage() {
                                 placeholder="+ Add Note"
                                 inputClassName="w-64 text-xs"
                                 onSave={async (val) => {
-                                  await api.updatePO(po.id, { notes: val })
+                                  await api.updatePO(po.id, { notes: val }, po.po_number)
                                   setPOs(prev => prev.map(p => p.id === po.id ? { ...p, notes: val } : p))
                                 }}
                               />
