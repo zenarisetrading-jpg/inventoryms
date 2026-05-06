@@ -477,175 +477,182 @@ export default function POPage() {
                       <tr key={`${po.id}-expanded`} className="bg-zinc-50">
                         <td colSpan={8} className="px-8 py-4">
                           <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Line Items</div>
-                          <table className="w-full table-fixed text-sm">
+                          <table className="w-full text-left border-collapse">
                             <thead>
-                              <tr className="border-b border-zinc-200">
-                                <th className="w-[20%] text-left pb-2 font-medium text-xs text-zinc-500 pr-4">SKU</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Ord.</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Recv.</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">U/Box</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Boxes</th>
-                                <th className="w-[12%] text-left pb-2 font-medium text-xs text-zinc-500 pr-4">Dims</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">COGS</th>
-                                <th className="w-[8%] text-right pb-2 font-medium text-xs text-zinc-500 pr-4">Ship</th>
-                                <th className="w-[20%] text-left pb-2 font-medium text-xs text-zinc-500">Notes</th>
+                              <tr className="border-b border-zinc-100">
+                                <th className="py-2 pr-4 text-[10px] font-black text-zinc-400 uppercase tracking-wider w-[20%]">SKU</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Ord.</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Recv.</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">U/Box</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Boxes</th>
+                                <th className="py-2 pr-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-wider w-24">Dims</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">COGS</th>
+                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Ship</th>
+                                <th className="py-2 text-left text-[10px] font-black text-zinc-400 uppercase tracking-wider">Notes</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100">
-                              {po.line_items.map((li, i) => (
-                                <tr key={i} className="group/item">
-                                  <td className="py-2 pr-4">
-                                    <InlineEdit 
-                                      value={li.sku} 
-                                      suggestions={skuSuggestions}
-                                      inputClassName="w-full"
-                                      autoEdit={li.sku === '' && i === po.line_items.length - 1}
-                                      onSave={async (val) => {
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, sku: val }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.units_ordered} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, units_ordered: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-sm text-zinc-500">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.units_received} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, units_received: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.units_per_box} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, units_per_box: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.box_count} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, box_count: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">
-                                    <InlineEdit 
-                                      value={li.dimensions} 
-                                      inputClassName="w-32 text-[10px]"
-                                      onSave={async (val) => {
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, dimensions: val }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.cogs_per_unit} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, cogs_per_unit: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
-                                    <InlineEdit 
-                                      type="number"
-                                      value={li.shipping_cost_per_unit} 
-                                      className="justify-end"
-                                      onSave={async (val) => {
-                                        const num = val ? Number(val) : 0
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, shipping_cost_per_unit: num }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-2 text-left font-data text-[10px] text-zinc-400 relative">
-                                    <InlineEdit 
-                                      value={li.notes} 
-                                      inputClassName="w-48 text-[10px]"
-                                      onSave={async (val) => {
-                                        const newItems = [...po.line_items]
-                                        newItems[i] = { ...li, notes: val }
-                                        await api.updatePO(po.id, { line_items: newItems })
-                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                      }}
-                                    />
-                                    <button
-                                      onClick={async () => {
-                                        if (confirm('Remove this item from the PO?')) {
-                                          const newItems = po.line_items.filter((_, idx) => idx !== i)
-                                          await api.updatePO(po.id, { line_items: newItems })
-                                          setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                        }
-                                      }}
-                                      className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
+                              {(() => {
+                                const saveItems = async (newItems: any[]) => {
+                                  // Update local state immediately
+                                  setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                  // Only save to DB items that have a SKU
+                                  const toSave = newItems.filter(it => it.sku && it.sku.trim() !== '')
+                                  // We always call updatePO so that deletions are also synced (even if toSave is empty)
+                                  await api.updatePO(po.id, { line_items: toSave })
+                                }
+
+                                return (
+                                  <>
+                                    {po.line_items.map((li, i) => (
+                                      <tr key={i} className="group/item">
+                                        <td className="py-2 pr-4">
+                                          <InlineEdit 
+                                            value={li.sku} 
+                                            suggestions={skuSuggestions}
+                                            inputClassName="w-full"
+                                            autoEdit={li.sku === '' && i === po.line_items.length - 1}
+                                            onSave={async (val) => {
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, sku: val }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.units_ordered} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, units_ordered: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-sm text-zinc-500">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.units_received} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, units_received: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.units_per_box} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, units_per_box: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.box_count} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, box_count: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">
+                                          <InlineEdit 
+                                            value={li.dimensions} 
+                                            inputClassName="w-32 text-[10px]"
+                                            onSave={async (val) => {
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, dimensions: val }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.cogs_per_unit} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, cogs_per_unit: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                          <InlineEdit 
+                                            type="number"
+                                            value={li.shipping_cost_per_unit} 
+                                            className="justify-end"
+                                            onSave={async (val) => {
+                                              const num = val ? Number(val) : 0
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, shipping_cost_per_unit: num }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                        </td>
+                                        <td className="py-2 text-left font-data text-[10px] text-zinc-400 relative">
+                                          <InlineEdit 
+                                            value={li.notes} 
+                                            inputClassName="w-48 text-[10px]"
+                                            onSave={async (val) => {
+                                              const newItems = [...po.line_items]
+                                              newItems[i] = { ...li, notes: val }
+                                              await saveItems(newItems)
+                                            }}
+                                          />
+                                          <button
+                                            onClick={async () => {
+                                              if (confirm('Remove this item from the PO?')) {
+                                                const newItems = po.line_items.filter((_, idx) => idx !== i)
+                                                await saveItems(newItems)
+                                              }
+                                            }}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                          >
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                    <tr className="border-t border-zinc-100">
+                                      <td colSpan={9} className="py-3">
+                                        <button
+                                          onClick={() => {
+                                            const newItem = { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
+                                            const newItems = [...po.line_items, newItem]
+                                            // Only update local state, don't save to DB until they enter a SKU
+                                            setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                          }}
+                                          className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 hover:bg-blue-100 text-[10px] font-black uppercase tracking-widest transition-colors"
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                          Add New Item
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  </>
+                                )
+                              })()}
                             </tbody>
                           </table>
-                          <div className="mt-3 flex items-center justify-between">
-                            <button
-                              onClick={async () => {
-                                const newItem = { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
-                                const newItems = [...po.line_items, newItem]
-                                await api.updatePO(po.id, { line_items: newItems })
-                                setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                              }}
-                              className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 hover:bg-blue-100 text-[10px] font-black uppercase tracking-widest transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                              Add New Item
-                            </button>
-                          </div>
                           <div className="flex flex-col gap-2 mt-4 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
                             {po.tracking_number && (
                               <div className="flex items-center gap-2"><span className="font-medium text-zinc-600">Tracking: </span>{po.tracking_number}</div>

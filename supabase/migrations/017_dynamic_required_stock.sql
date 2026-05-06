@@ -82,9 +82,8 @@ BEGIN
         SELECT 
             sku,
             SUM(units_ordered - units_received) AS pending_ordered
-        FROM po_line_items li
-        JOIN po_register r ON li.po_id = r.id
-        WHERE r.status IN ('ordered', 'shipped', 'in_transit')
+        FROM fact_purchase
+        WHERE status IN ('ordered', 'shipped', 'in_transit')
         GROUP BY sku
     ),
 

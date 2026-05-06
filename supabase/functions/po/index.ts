@@ -213,17 +213,64 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
   const supabase = getSupabaseAdmin()
 
   // Find the po_number first to update all rows for that PO
-  const { data } = await supabase.from('fact_purchase').select('po_number').eq('id', id).maybeSingle()
-  if (!data) return errorResponse('Record not found', 404)
+  const { data: currentRows, error: fetchErr } = await supabase
+    .from('fact_purchase')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  
+  if (fetchErr || !currentRows) return errorResponse('Record not found', 404)
+  const po_number = currentRows.po_number
 
+  // If we are updating line_items, we need to handle it specially
+  if (body.line_items && Array.isArray(body.line_items)) {
+    const { line_items, ...rest } = body
+    
+    // Get full PO header from any existing row to preserve it
+    const { data: allRows } = await supabase.from('fact_purchase').select('*').eq('po_number', po_number)
+    const header = allRows?.[0] || currentRows
+
+    // 1. Delete all existing rows for this PO
+    const { error: delErr } = await supabase.from('fact_purchase').delete().eq('po_number', po_number)
+    if (delErr) return errorResponse('Failed to clear old items', 500, delErr.message)
+
+    // 2. Map new line items to rows, using header info
+    const newRows = line_items.map((li: any) => ({
+      po_number: po_number,
+      po_name: rest.po_name !== undefined ? rest.po_name : header.po_name,
+      supplier: rest.supplier !== undefined ? rest.supplier : header.supplier,
+      order_date: rest.order_date !== undefined ? rest.order_date : header.order_date,
+      eta: rest.eta !== undefined ? rest.eta : header.eta,
+      status: rest.status !== undefined ? rest.status : header.status,
+      tracking_number: rest.tracking_number !== undefined ? rest.tracking_number : header.tracking_number,
+      notes: rest.notes !== undefined ? rest.notes : header.notes,
+      sku: li.sku,
+      units_ordered: li.units_ordered,
+      units_received: li.units_received ?? 0,
+      units_per_box: li.units_per_box ?? null,
+      box_count: li.box_count ?? null,
+      dimensions: li.dimensions ?? null,
+      cogs_per_unit: li.cogs_per_unit ?? null,
+      shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
+      updated_at: new Date().toISOString()
+    }))
+
+    // 3. Insert new rows
+    const { error: insErr } = await supabase.from('fact_purchase').insert(newRows)
+    if (insErr) return errorResponse('Failed to insert new items', 500, insErr.message)
+
+    return handleDetail(po_number)
+  }
+
+  // Regular field update for all rows of this PO
   const { error } = await supabase
     .from('fact_purchase')
     .update({ ...body, updated_at: new Date().toISOString() })
-    .eq('po_number', data.po_number)
+    .eq('po_number', po_number)
 
   if (error) return errorResponse('Update failed', 500, error.message)
 
-  return handleDetail(data.po_number)
+  return handleDetail(po_number)
 }
 
 // DELETE /po/:id - close
