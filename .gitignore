@@ -18,6 +18,9 @@ dist/
 
 # Supabase local
 supabase/.temp/
-everything-claude-code/
 .claude/
-everything-claude-code/
+.gemini/
+brain/
+tmp/
+scratch/
+*.log

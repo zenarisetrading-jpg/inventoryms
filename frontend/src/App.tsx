@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Bell, Search, User, ChevronDown, Menu, X, Table } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Bell, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2 } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -14,6 +14,9 @@ import PONewPage from './pages/po_new'
 import SKUNewPage from './pages/skus_new'
 import { navigate } from './lib/router'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { supabase } from './lib/supabase'
+import LoginPage from './pages/login'
+import type { User as SupabaseUser } from '@supabase/supabase-js'
 
 type Route =
   | { name: 'dashboard' }
@@ -48,8 +51,25 @@ export default function App() {
   const [route, setRoute] = useState<Route>(parseRoute)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [user, setUser] = useState<SupabaseUser | null>(null)
+  const [sessionLoading, setSessionLoading] = useState(true)
   const isAdminRoute = ['skus', 'sku', 'po', 'po_new', 'upload', 'health', 'skus_new'].includes(route.name)
   const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminRoute)
+
+  useEffect(() => {
+    // Check active sessions and subscribe to auth changes
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setSessionLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
     const handler = () => {
@@ -65,6 +85,29 @@ export default function App() {
     window.addEventListener('popstate', handler)
     return () => window.removeEventListener('popstate', handler)
   }, [])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+  }
+
+  if (sessionLoading) {
+    return (
+      <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center animate-bounce">
+            <span className="text-black font-black text-xl italic">Z</span>
+          </div>
+          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 animate-[loading_1.5s_ease-in-out_infinite]" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <LoginPage />
+  }
 
   return (
     <div className="flex h-screen bg-body overflow-hidden relative">
@@ -110,21 +153,25 @@ export default function App() {
         </nav>
 
         <div className={`p-4 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
-          <div className={`bg-white/5 rounded-lg transition-all ${isSidebarCollapsed ? 'p-2' : 'p-3'}`}>
-            <div className={`flex items-center gap-3 ${isAdminExpanded && !isSidebarCollapsed ? 'mb-4' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+          <div className={`bg-white/5 rounded-xl border border-white/5 transition-all ${isSidebarCollapsed ? 'p-2' : 'p-4'}`}>
+            <div className={`flex items-center gap-4 ${isAdminExpanded && !isSidebarCollapsed ? 'mb-5' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
               <div 
-                className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white shrink-0 cursor-pointer"
+                className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shrink-0 cursor-pointer shadow-lg shadow-blue-900/20"
                 onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsAdminExpanded(!isAdminExpanded)}
               >
-                AU
+                {user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'US'}
               </div>
               {!isSidebarCollapsed && (
                 <div 
                   className="flex-1 min-w-0 cursor-pointer"
                   onClick={() => setIsAdminExpanded(!isAdminExpanded)}
                 >
-                  <p className="text-xs font-black text-white leading-none uppercase tracking-tight truncate">Admin User</p>
-                  <p className="text-[10px] font-bold text-white/40 mt-1 uppercase tracking-widest truncate">Operations Mgr</p>
+                  <p className="text-[13px] font-black text-white leading-tight uppercase tracking-tight truncate">
+                    {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                  </p>
+                  <p className="text-[10px] font-bold text-white/40 mt-1.5 uppercase tracking-widest truncate">
+                    {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
+                  </p>
                 </div>
               )}
               {!isSidebarCollapsed && (
@@ -144,12 +191,7 @@ export default function App() {
               </div>
             )}
 
-            {!isSidebarCollapsed && (
-              <button className="w-full flex items-center justify-center gap-2 py-1.5 text-[10px] font-black text-white/60 bg-white/5 hover:bg-white/10 rounded transition-colors uppercase tracking-widest">
-                <Settings className="w-3 h-3" />
-                Settings
-              </button>
-            )}
+            {/* Sign Out is now inside the Settings Modal (accessible via header profile) */}
           </div>
         </div>
       </aside>
@@ -197,11 +239,22 @@ export default function App() {
               </button>
             </div>
             <div className="w-px h-6 bg-slate-200 mx-1 lg:mx-2" />
-            <div className="flex items-center gap-2 group cursor-pointer">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <div 
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-3 group cursor-pointer hover:bg-slate-50 p-1.5 rounded-xl transition-colors"
+            >
+              <div className="hidden sm:flex flex-col items-end mr-1">
+                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight leading-none mb-1">
+                  {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                </p>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                  {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
+                </p>
+              </div>
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shadow-sm group-hover:shadow-indigo-200 transition-all">
                 <User className="w-4 h-4 text-indigo-600" />
               </div>
-              <ChevronDown className="hidden sm:block w-4 h-4 text-muted group-hover:translate-y-0.5 transition-transform" />
+              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-slate-300 group-hover:text-slate-600 group-hover:translate-y-0.5 transition-all" />
             </div>
           </div>
         </header>
@@ -223,6 +276,145 @@ export default function App() {
             </ErrorBoundary>
           </div>
         </main>
+      </div>
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <SettingsModal 
+          user={user} 
+          onClose={() => setIsSettingsOpen(false)} 
+          onUpdate={(newUser) => setUser(newUser)}
+        />
+      )}
+    </div>
+  )
+}
+
+function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClose: () => void; onUpdate: (u: SupabaseUser) => void }) {
+  const [fullName, setFullName] = useState(user.user_metadata?.full_name || '')
+  const [role, setRole] = useState(user.user_metadata?.role || 'Member')
+  const [loading, setLoading] = useState(false)
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+
+  const handleSave = async () => {
+    setLoading(true)
+    const { data, error } = await supabase.auth.updateUser({
+      data: { full_name: fullName, role: role }
+    })
+    
+    if (!error && data.user) {
+      onUpdate(data.user)
+      onClose()
+    }
+    setLoading(false)
+  }
+
+  const handleSignOut = () => {
+    supabase.auth.signOut()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Settings className="w-5 h-5 text-blue-400" />
+            </div>
+            <h3 className="text-lg font-black text-white uppercase tracking-wider">User Settings</h3>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        
+        <div className="p-6 space-y-6">
+          {!showSignOutConfirm ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium"
+                  placeholder="Enter your name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Professional Role</label>
+                <div className="relative">
+                  <select 
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium appearance-none cursor-pointer"
+                  >
+                    <option value="Member">Member</option>
+                    <option value="Operations Mgr">Operations Mgr</option>
+                    <option value="Supply Chain Lead">Supply Chain Lead</option>
+                    <option value="Inventory Analyst">Inventory Analyst</option>
+                    <option value="Administrator">Administrator</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="pt-4 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <button 
+                    onClick={onClose}
+                    className="flex-1 py-3 text-[10px] font-black text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors uppercase tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="flex-1 py-3 text-[10px] font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-900/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Changes'}
+                  </button>
+                </div>
+                
+                <div className="h-px bg-white/5 my-1" />
+                
+                <button 
+                  onClick={() => setShowSignOutConfirm(true)}
+                  className="w-full py-3 text-[10px] font-black text-red-400/80 bg-red-400/5 hover:bg-red-400/10 rounded-xl transition-colors uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign Out from Account
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="py-4 text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto">
+                <ShieldAlert className="w-8 h-8 text-red-400" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-white font-black uppercase tracking-widest">Confirm Sign Out</h4>
+                <p className="text-xs text-slate-400 font-medium">Are you sure you want to end your session?</p>
+              </div>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowSignOutConfirm(false)}
+                  className="flex-1 py-3 text-[10px] font-black text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors uppercase tracking-widest"
+                >
+                  No, Stay
+                </button>
+                <button 
+                  onClick={handleSignOut}
+                  className="flex-1 py-3 text-[10px] font-black text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg shadow-red-900/20 transition-all uppercase tracking-widest"
+                >
+                  Yes, Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

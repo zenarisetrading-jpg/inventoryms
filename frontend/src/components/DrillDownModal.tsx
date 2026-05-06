@@ -64,7 +64,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sidebar/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-white/20 scale-in-center transition-transform">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[98vw] 2xl:max-w-[90vw] max-h-[90vh] flex flex-col overflow-hidden border border-white/20 scale-in-center transition-transform">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div>
@@ -109,6 +109,8 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   <>
                     <HeaderCell right>Velocity</HeaderCell>
                     <HeaderCell right>Staged Units</HeaderCell>
+                    <HeaderCell right>FBA Units</HeaderCell>
+                    <HeaderCell right>FBN Units</HeaderCell>
                     <HeaderCell right>Total Boxes</HeaderCell>
                     <HeaderCell right>AMZ Boxes</HeaderCell>
                     <HeaderCell right>Noon Boxes</HeaderCell>
@@ -200,8 +202,14 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-blue">
                         {item.total_units_to_ship || item.units_to_ship}
                       </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-blue">
+                        {item.suggested_units_amazon ?? 0}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-amber">
+                        {item.suggested_units_noon ?? 0}
+                      </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-primary">
-                        {item.total_boxes_to_ship || (item.suggested_boxes_amazon + item.suggested_boxes_noon)}
+                        {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-blue">
                         {item.suggested_boxes_amazon ?? 0}
@@ -331,8 +339,14 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}
                   </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
+                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_units_amazon) || 0), 0).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-amber">
+                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_units_noon) || 0), 0).toLocaleString()}
+                  </td>
                   <td className="py-3 px-2 text-right font-data text-[11px] text-primary">
-                    {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || (item.suggested_boxes_amazon + item.suggested_boxes_noon)) || 0), 0).toLocaleString()}
+                    {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_amazon) || 0), 0).toLocaleString()}

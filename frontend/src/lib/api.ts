@@ -13,12 +13,19 @@ import type {
   PlanningResponse,
   AnalyticsResponse,
 } from '../types'
+import { supabase } from './supabase'
 
 const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-const HEADERS = {
-  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-  apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-  'Content-Type': 'application/json',
+
+async function getHeaders() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY
+  
+  return {
+    Authorization: `Bearer ${token}`,
+    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json',
+  }
 }
 
 interface SKUListResponse {
@@ -55,35 +62,35 @@ function buildQuery(params: Record<string, string | undefined>): string {
 }
 
 export const api = {
-  getCommandCenter: (): Promise<CommandCenterResponse> =>
-    fetch(`${BASE}/dashboard`, { headers: HEADERS })
+  getCommandCenter: async (): Promise<CommandCenterResponse> =>
+    fetch(`${BASE}/dashboard`, { headers: await getHeaders() })
       .then(r => handleResponse<CommandCenterResponse>(r))
       .catch(err => ({ error: err.message } as unknown as CommandCenterResponse)),
 
-  getSKUs: (params?: { search?: string; category?: string; flag?: string }): Promise<SKUListResponse> =>
-    fetch(`${BASE}/skus${buildQuery(params ?? {})}`, { headers: HEADERS })
+  getSKUs: async (params?: { search?: string; category?: string; flag?: string }): Promise<SKUListResponse> =>
+    fetch(`${BASE}/skus${buildQuery(params ?? {})}`, { headers: await getHeaders() })
       .then(r => handleResponse<SKUListResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUListResponse)),
 
-  getSKU: (sku: string): Promise<SKUDetailResponse> =>
-    fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, { headers: HEADERS })
+  getSKU: async (sku: string): Promise<SKUDetailResponse> =>
+    fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, { headers: await getHeaders() })
       .then(r => handleResponse<SKUDetailResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUDetailResponse)),
 
-  getPOs: (params?: { status?: string; sku?: string; supplier?: string }): Promise<{ pos: PO[] }> =>
-    fetch(`${BASE}/po${buildQuery(params ?? {})}`, { headers: HEADERS })
+  getPOs: async (params?: { status?: string; sku?: string; supplier?: string }): Promise<{ pos: PO[] }> =>
+    fetch(`${BASE}/po${buildQuery(params ?? {})}`, { headers: await getHeaders() })
       .then(r => handleResponse<{ pos: PO[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { pos: PO[] })),
 
-  getSuppliers: (): Promise<{ suppliers: string[] }> =>
-    fetch(`${BASE}/po/suppliers`, { headers: HEADERS })
+  getSuppliers: async (): Promise<{ suppliers: string[] }> =>
+    fetch(`${BASE}/po/suppliers`, { headers: await getHeaders() })
       .then(r => handleResponse<{ suppliers: string[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { suppliers: string[] })),
 
-  createPO: (data: CreatePOInput): Promise<PO> =>
+  createPO: async (data: CreatePOInput): Promise<PO> =>
     fetch(`${BASE}/po`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: await getHeaders(),
       body: JSON.stringify(data),
     })
       .then(r => handleResponse<PO>(r))
@@ -98,7 +105,7 @@ export const api = {
     await fetch(`${rpcBase}/rpc/update_po_group`, {
       method: 'POST',
       headers: {
-        ...HEADERS,
+        ...await getHeaders(),
         'Prefer': 'params=single-object'
       },
       body: JSON.stringify({ p_id_or_number: identifier, p_payload: data }),
@@ -108,136 +115,146 @@ export const api = {
     return api.getPO(identifier)
   },
 
-  getPO: (idOrPo: string): Promise<PO> =>
-    fetch(`${BASE}/po/${encodeURIComponent(idOrPo)}`, { headers: HEADERS })
+  getPO: async (idOrPo: string): Promise<PO> =>
+    fetch(`${BASE}/po/${encodeURIComponent(idOrPo)}`, { headers: await getHeaders() })
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
-  classifySkus: (): Promise<{ ok: true; total_classified: number; A: number; B: number; C: number }> =>
-    fetch(`${BASE}/skus/classify`, { method: 'POST', headers: HEADERS })
+  classifySkus: async (): Promise<{ ok: true; total_classified: number; A: number; B: number; C: number }> =>
+    fetch(`${BASE}/skus/classify`, { method: 'POST', headers: await getHeaders() })
       .then(r => handleResponse<{ ok: true; total_classified: number; A: number; B: number; C: number }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true; total_classified: number; A: number; B: number; C: number })),
 
-  createSKU: (data: any): Promise<{ ok: true }> =>
+  createSKU: async (data: any): Promise<{ ok: true }> =>
     fetch(`${BASE}/skus`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: await getHeaders(),
       body: JSON.stringify(data),
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
-  updateSKU: (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean }): Promise<{ ok: true }> =>
+  updateSKU: async (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean }): Promise<{ ok: true }> =>
     fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, {
       method: 'PATCH',
-      headers: HEADERS,
+      headers: await getHeaders(),
       body: JSON.stringify(data),
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
-  uploadNoonCSV: (file: File): Promise<UploadNoonResponse> => {
+  uploadNoonCSV: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
     form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type'] // Let browser set boundary for FormData
     return fetch(`${BASE}/upload-noon`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers,
       body: form,
     })
       .then(r => handleResponse<UploadNoonResponse>(r))
       .catch(err => ({ error: err.message } as unknown as UploadNoonResponse))
   },
 
-  uploadNoonInventory: (file: File): Promise<UploadNoonInventoryResponse> => {
+  uploadNoonInventory: async (file: File): Promise<UploadNoonInventoryResponse> => {
     const form = new FormData()
     form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type']
     return fetch(`${BASE}/upload-noon-inventory`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers,
       body: form,
     })
       .then(r => handleResponse<UploadNoonInventoryResponse>(r))
       .catch(err => ({ error: err.message } as unknown as UploadNoonInventoryResponse))
   },
 
-  uploadNoonMinutesSales: (file: File): Promise<UploadNoonResponse> => {
+  uploadNoonMinutesSales: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
     form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type']
     return fetch(`${BASE}/upload-noon-minutes`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers,
       body: form,
     })
       .then(r => handleResponse<UploadNoonResponse>(r))
       .catch(err => ({ error: err.message } as unknown as UploadNoonResponse))
   },
 
-  uploadLocadXLSX: (file: File): Promise<UploadLocadResponse> => {
+  uploadLocadXLSX: async (file: File): Promise<UploadLocadResponse> => {
     const form = new FormData()
     form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type']
     return fetch(`${BASE}/upload-locad-report`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers,
       body: form,
     })
       .then(r => handleResponse<UploadLocadResponse>(r))
       .catch(err => ({ error: err.message } as unknown as UploadLocadResponse))
   },
 
-  getLocadUnmatched: (): Promise<{ unmatched: { locad_sku: string; product_name: string }[] }> =>
-    fetch(`${BASE}/upload-locad-report/unmatched`, { headers: HEADERS })
+  getLocadUnmatched: async (): Promise<{ unmatched: { locad_sku: string; product_name: string }[] }> =>
+    fetch(`${BASE}/upload-locad-report/unmatched`, { headers: await getHeaders() })
       .then(r => handleResponse<{ unmatched: { locad_sku: string; product_name: string }[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { unmatched: { locad_sku: string; product_name: string }[] })),
 
-  mapLocadSKU: (locad_sku: string, internal_sku: string): Promise<{ ok: true }> =>
+  mapLocadSKU: async (locad_sku: string, internal_sku: string): Promise<{ ok: true }> =>
     fetch(`${BASE}/upload-locad-report/map`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: await getHeaders(),
       body: JSON.stringify({ locad_sku, internal_sku }),
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
-  getSyncStatus: (): Promise<SyncStatus> =>
-    fetch(`${BASE}/sync/status`, { headers: HEADERS })
+  getSyncStatus: async (): Promise<SyncStatus> =>
+    fetch(`${BASE}/sync/status`, { headers: await getHeaders() })
       .then(r => handleResponse<SyncStatus>(r))
       .catch(err => ({ error: err.message } as unknown as SyncStatus)),
 
-  triggerSync: (source: 'amazon' | 'locad' | 'all'): Promise<SyncResponse> =>
+  triggerSync: async (source: 'amazon' | 'locad' | 'all'): Promise<SyncResponse> =>
     fetch(`${BASE}/sync/${source}`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: await getHeaders(),
     })
       .then(r => handleResponse<SyncResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SyncResponse)),
 
-  refreshFactTable: (): Promise<{ status: string; message: string }> =>
+  refreshFactTable: async (): Promise<{ status: string; message: string }> =>
     fetch(`${BASE}/sync/refresh-fact`, {
       method: 'POST',
-      headers: HEADERS,
+      headers: await getHeaders(),
     })
       .then(r => handleResponse<{ status: string; message: string }>(r))
       .catch(err => ({ error: err.message } as unknown as { status: string; message: string })),
 
-  uploadPOCSV: (file: File): Promise<UploadPOResponse> => {
+  uploadPOCSV: async (file: File): Promise<UploadPOResponse> => {
     const form = new FormData()
     form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type']
     return fetch(`${BASE}/upload-pos`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+      headers,
       body: form,
     })
       .then(r => handleResponse<UploadPOResponse>(r))
       .catch(err => ({ error: err.message } as unknown as UploadPOResponse))
   },
 
-  getPlanning: (): Promise<PlanningResponse> =>
-    fetch(`${BASE}/planning`, { headers: HEADERS })
+  getPlanning: async (): Promise<PlanningResponse> =>
+    fetch(`${BASE}/planning`, { headers: await getHeaders() })
       .then(r => handleResponse<PlanningResponse>(r))
       .catch(err => ({ error: err.message } as unknown as PlanningResponse)),
 
-  getAnalytics: (days: 7 | 30 | 90 = 30): Promise<AnalyticsResponse> =>
-    fetch(`${BASE}/analytics?days=${days}`, { headers: HEADERS })
+  getAnalytics: async (days: 7 | 30 | 90 = 30): Promise<AnalyticsResponse> =>
+    fetch(`${BASE}/analytics?days=${days}`, { headers: await getHeaders() })
       .then(r => handleResponse<AnalyticsResponse>(r))
       .catch(err => ({ error: err.message } as unknown as AnalyticsResponse)),
 
