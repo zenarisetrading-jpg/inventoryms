@@ -79,12 +79,24 @@ export const api = {
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
-  updatePO: (id: string, data: Partial<PO>): Promise<PO> =>
-    fetch(`${BASE}/po/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: HEADERS,
-      body: JSON.stringify(data),
-    })
+  updatePO: async (id: string, data: Partial<PO>): Promise<PO> => {
+    // We use RPC instead of edge function for updates to bypass Docker deployment issues
+    const rpcBase = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1`
+    await fetch(`${rpcBase}/rpc/update_po_group`, {
+      method: 'POST',
+      headers: {
+        ...HEADERS,
+        'Prefer': 'params=single-object'
+      },
+      body: JSON.stringify({ p_po_id: id, p_payload: data }),
+    }).then(r => handleResponse(r))
+    
+    // Refresh the PO detail to get the updated list
+    return api.getPO(id)
+  },
+
+  getPO: (idOrPo: string): Promise<PO> =>
+    fetch(`${BASE}/po/${encodeURIComponent(idOrPo)}`, { headers: HEADERS })
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
