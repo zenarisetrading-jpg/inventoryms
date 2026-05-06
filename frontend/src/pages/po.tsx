@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Fragment } from 'react'
 import { X, Upload, Check, Edit2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
@@ -401,21 +401,22 @@ export default function POPage() {
           <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
               <th className="w-[4%] px-3 py-2.5" />
-              <th className="w-[18%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">PO #</th>
-              <th className="w-[24%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Supplier</th>
-              <th className="w-[8%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">SKUs</th>
+              <th className="w-[16%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">PO #</th>
+              <th className="w-[20%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Supplier</th>
+              <th className="w-[6%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">SKUs</th>
+              <th className="w-[10%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Units</th>
               <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Order Date</th>
               <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">ETA</th>
               <th className="w-[10%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
-              <th className="w-[12%] px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
+              <th className="w-[10%] px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {loading ? (
-              <><SkeletonRow cols={8} /><SkeletonRow cols={8} /><SkeletonRow cols={8} /></>
+              <><SkeletonRow cols={9} /><SkeletonRow cols={9} /><SkeletonRow cols={9} /></>
             ) : filteredPOs.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-sm text-zinc-400 text-center">
+                <td colSpan={9} className="px-4 py-8 text-sm text-zinc-400 text-center">
                   {search ? 'No purchase orders match your search' : 'No purchase orders found'}
                 </td>
               </tr>
@@ -423,10 +424,11 @@ export default function POPage() {
               filteredPOs.map(po => {
                 const isExpanded = expandedId === po.id
                 const next = nextStatus(po.status)
+                const totalUnits = po.line_items.reduce((sum, li) => sum + (li.units_ordered || 0), 0)
+                
                 return (
-                  <>
+                  <Fragment key={po.id}>
                     <tr
-                      key={po.id}
                       className="hover:bg-zinc-50 transition-colors cursor-pointer"
                       onClick={() => setExpandedId(isExpanded ? null : po.id)}
                     >
@@ -441,13 +443,16 @@ export default function POPage() {
                           className="text-xs font-semibold text-zinc-500 mt-0.5 font-sans"
                           inputClassName="w-32 text-xs font-semibold text-zinc-900"
                           onSave={async (val) => {
-                            await api.updatePO(po.id, { po_name: val })
+                            await api.updatePO(po.id, { po_name: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, po_name: val } : p))
                           }}
                         />
                       </td>
                       <td className="px-4 py-2.5 text-sm text-zinc-900">{po.supplier}</td>
                       <td className="px-4 py-2.5 text-right font-data text-sm text-zinc-600">{po.line_items.length}</td>
+                      <td className="px-4 py-2.5 text-right font-data text-sm font-semibold text-zinc-900">
+                        {totalUnits.toLocaleString()}
+                      </td>
                       <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.order_date)}</td>
                       <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
                       <td className="px-4 py-2.5"><StatusBadge status={po.status} /></td>
@@ -685,7 +690,7 @@ export default function POPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 )
               })
             )}
