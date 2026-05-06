@@ -76,7 +76,7 @@ export interface AllocationPlan {
 export const THRESHOLDS: Record<SKUCategory, { min_coverage: number; reorder_trigger: number }> = {
   A: { min_coverage: 60, reorder_trigger: 45 },
   B: { min_coverage: 45, reorder_trigger: 30 },
-  C: { min_coverage: 20, reorder_trigger: 20 },
+  C: { min_coverage: 30, reorder_trigger: 20 },
 }
 
 export const VALID_PO_TRANSITIONS: Record<POStatus, POStatus[]> = {

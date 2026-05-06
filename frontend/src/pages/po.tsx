@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { X, Upload, Check, Edit2 } from 'lucide-react'
+import { X, Upload, Check, Edit2, Plus, Trash2 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
@@ -93,7 +93,9 @@ function InlineEdit({
   type = 'text',
   placeholder = '—',
   className = '',
-  inputClassName = 'w-16 text-xs'
+  inputClassName = 'w-16 text-xs',
+  suggestions = [],
+  autoEdit = false
 }: {
   value: string | number | null | undefined
   onSave: (val: string) => Promise<void>
@@ -101,8 +103,10 @@ function InlineEdit({
   placeholder?: string
   className?: string
   inputClassName?: string
+  suggestions?: string[]
+  autoEdit?: boolean
 }) {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(autoEdit)
   const [val, setVal] = useState(value?.toString() ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -111,7 +115,12 @@ function InlineEdit({
     e?.stopPropagation()
     setSaving(true)
     try {
-      await onSave(val)
+      let finalVal = val
+      // If selecting from suggestions, extract the SKU part
+      if (suggestions.length > 0 && finalVal.includes(' - ')) {
+        finalVal = finalVal.split(' - ')[0].trim()
+      }
+      await onSave(finalVal)
       setEditing(false)
     } finally {
       setSaving(false)
@@ -121,15 +130,27 @@ function InlineEdit({
   if (editing) {
     return (
       <form onClick={e => e.stopPropagation()} onSubmit={handleSave} className="flex items-center gap-1">
-        <input
-          autoFocus
-          type={type}
-          step={type === 'number' ? 'any' : undefined}
-          className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setVal(value?.toString() ?? '') } }}
-        />
+        {suggestions.length > 0 ? (
+          <div className={inputClassName}>
+            <Autocomplete
+              value={val}
+              onChange={setVal}
+              suggestions={suggestions}
+              placeholder={placeholder}
+              className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
+            />
+          </div>
+        ) : (
+          <input
+            autoFocus
+            type={type}
+            step={type === 'number' ? 'any' : undefined}
+            className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setVal(value?.toString() ?? '') } }}
+          />
+        )}
         <button type="submit" disabled={saving} className="p-0.5 text-emerald-600 hover:bg-emerald-50 rounded shrink-0">
           {saving ? <span className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin block" /> : <Check className="h-3 w-3" />}
         </button>
@@ -197,7 +218,7 @@ export default function POPage() {
   useEffect(() => {
     api.getSuppliers().then(res => setAllSuppliers(res.suppliers || []))
     api.getSKUs().then(res => {
-      const skus = (res.skus ?? []).map(s => `${s.sku} - ${s.name || ''}`)
+      const skus = (res.skus ?? []).map(s => s.sku)
       setSkuSuggestions(skus)
     })
   }, [])
@@ -472,14 +493,20 @@ export default function POPage() {
                             </thead>
                             <tbody className="divide-y divide-zinc-100">
                               {po.line_items.map((li, i) => (
-                                <tr key={i}>
+                                <tr key={i} className="group/item">
                                   <td className="py-2 pr-4">
-                                    <button
-                                      onClick={() => navigate('/sku/' + li.sku)}
-                                      className="font-data text-xs text-blue-600 hover:text-blue-800 font-medium"
-                                    >
-                                      {li.sku}
-                                    </button>
+                                    <InlineEdit 
+                                      value={li.sku} 
+                                      suggestions={skuSuggestions}
+                                      inputClassName="w-full"
+                                      autoEdit={li.sku === '' && i === po.line_items.length - 1}
+                                      onSave={async (val) => {
+                                        const newItems = [...po.line_items]
+                                        newItems[i] = { ...li, sku: val }
+                                        await api.updatePO(po.id, { line_items: newItems })
+                                        setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                      }}
+                                    />
                                   </td>
                                   <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">
                                     <InlineEdit 
@@ -540,7 +567,7 @@ export default function POPage() {
                                   <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">
                                     <InlineEdit 
                                       value={li.dimensions} 
-                                      inputClassName="w-20 text-[10px]"
+                                      inputClassName="w-32 text-[10px]"
                                       onSave={async (val) => {
                                         const newItems = [...po.line_items]
                                         newItems[i] = { ...li, dimensions: val }
@@ -577,10 +604,10 @@ export default function POPage() {
                                       }}
                                     />
                                   </td>
-                                  <td className="py-2 text-left font-data text-[10px] text-zinc-400">
+                                  <td className="py-2 text-left font-data text-[10px] text-zinc-400 relative">
                                     <InlineEdit 
                                       value={li.notes} 
-                                      inputClassName="w-24 text-[10px]"
+                                      inputClassName="w-48 text-[10px]"
                                       onSave={async (val) => {
                                         const newItems = [...po.line_items]
                                         newItems[i] = { ...li, notes: val }
@@ -588,12 +615,38 @@ export default function POPage() {
                                         setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
                                       }}
                                     />
+                                    <button
+                                      onClick={async () => {
+                                        if (confirm('Remove this item from the PO?')) {
+                                          const newItems = po.line_items.filter((_, idx) => idx !== i)
+                                          await api.updatePO(po.id, { line_items: newItems })
+                                          setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                                        }
+                                      }}
+                                      className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
-                          <div className="flex flex-col gap-2 mt-3 text-xs text-zinc-500">
+                          <div className="mt-3 flex items-center justify-between">
+                            <button
+                              onClick={async () => {
+                                const newItem = { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
+                                const newItems = [...po.line_items, newItem]
+                                await api.updatePO(po.id, { line_items: newItems })
+                                setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
+                              }}
+                              className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 text-blue-600 rounded border border-blue-100 hover:bg-blue-100 text-[10px] font-black uppercase tracking-widest transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add New Item
+                            </button>
+                          </div>
+                          <div className="flex flex-col gap-2 mt-4 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
                             {po.tracking_number && (
                               <div className="flex items-center gap-2"><span className="font-medium text-zinc-600">Tracking: </span>{po.tracking_number}</div>
                             )}

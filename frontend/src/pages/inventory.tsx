@@ -85,7 +85,7 @@ export default function InventoryPage() {
 
     return finalKeys.map(key => ({
       key,
-      label: key.replace(/_/g, ' ').toUpperCase(),
+      label: key === 'required_30d' ? 'REQUIRED STOCK' : key.replace(/_/g, ' ').toUpperCase(),
       width: key === 'sku' ? '240px' : key === 'name' ? '350px' : '160px'
     }))
   }, [data])
@@ -268,7 +268,9 @@ export default function InventoryPage() {
             accent="text-brand-blue"
             items={[
               { label: 'FBA Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
-              { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) }
+              { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
+              { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
+              { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
             ]}
           />
         </div>

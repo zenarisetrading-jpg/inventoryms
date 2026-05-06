@@ -553,7 +553,7 @@ export default function CommandCenter() {
             <KPITile
               label="Ship Pending"
               value={data.ship_now.length}
-              sub={`${totalShipUnits} Units staged - Send to FBA and FBN`}
+              sub={`${totalShipUnits} Units (${totalShipBoxesAmazon + totalShipBoxesNoon} Boxes) staged - Send to FBA and FBN`}
               accentColor="border-l-brand-blue"
               icon={MoveRight}
               onDoubleClick={() => setDrillModal({
@@ -782,6 +782,23 @@ export default function CommandCenter() {
                   })
                 )}
               </tbody>
+              {shipNowRows.length > 0 && (
+                <tfoot className="bg-slate-50/80 sticky bottom-0 z-10 backdrop-blur-md border-t-2 border-slate-200">
+                  <tr className="font-black text-primary">
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest">Totals</td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                      {shipNowRows.reduce((sum, item) => sum + toSafeNumber(item.blended_sv), 0).toFixed(1)}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-brand-blue">
+                      {totalShipUnits.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
+                      {(totalShipBoxesAmazon + totalShipBoxesNoon).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </>
         </SectionCard>
@@ -836,6 +853,23 @@ export default function CommandCenter() {
                   ))
                 )}
               </tbody>
+              {(data?.reorder_now.length ?? 0) > 0 && (
+                <tfoot className="bg-slate-50/80 sticky bottom-0 z-10 backdrop-blur-md border-t-2 border-slate-200">
+                  <tr className="font-black text-primary">
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest">Totals</td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                      {(data?.reorder_now ?? []).reduce((sum, r) => sum + (r.suggested_units || 0), 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-emerald-600">
+                      {(data?.reorder_now ?? []).reduce((sum, r) => sum + (Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                      {((data?.reorder_now ?? []).reduce((sum, r) => sum + (r.projected_coverage || 0), 0) / (data?.reorder_now.length || 1)).toFixed(1)}d
+                    </td>
+                    <td className="px-4 py-2.5"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </>
         </SectionCard>
