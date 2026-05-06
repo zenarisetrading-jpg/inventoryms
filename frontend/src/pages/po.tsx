@@ -494,12 +494,21 @@ export default function POPage() {
                             <tbody className="divide-y divide-zinc-100">
                               {(() => {
                                 const saveItems = async (newItems: any[]) => {
-                                  // Update local state immediately
+                                  const oldItems = po.line_items
+                                  // Update local state immediately for responsiveness
                                   setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
-                                  // Only save to DB items that have a SKU
-                                  const toSave = newItems.filter(it => it.sku && it.sku.trim() !== '')
-                                  // We always call updatePO so that deletions are also synced (even if toSave is empty)
-                                  await api.updatePO(po.id, { line_items: toSave })
+                                  
+                                  try {
+                                    // Only save to DB items that have a SKU
+                                    const toSave = newItems.filter(it => it.sku && it.sku.trim() !== '')
+                                    const res = await api.updatePO(po.id, { line_items: toSave })
+                                    const resAny = res as any
+                                    if (resAny.error) throw new Error(resAny.error)
+                                  } catch (err: any) {
+                                    alert('Failed to save changes: ' + err.message)
+                                    // Revert local state on failure
+                                    setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: oldItems } : p))
+                                  }
                                 }
 
                                 return (
@@ -636,7 +645,7 @@ export default function POPage() {
                                       <td colSpan={9} className="py-3">
                                         <button
                                           onClick={() => {
-                                            const newItem = { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
+                                            const newItem = { sku: '', units_ordered: 1, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
                                             const newItems = [...po.line_items, newItem]
                                             // Only update local state, don't save to DB until they enter a SKU
                                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, line_items: newItems } : p))
