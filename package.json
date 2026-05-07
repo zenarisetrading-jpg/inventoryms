@@ -20,6 +20,7 @@
     "supabase": "^2.84.4"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.105.1"
+    "@supabase/supabase-js": "^2.105.1",
+    "serve": "^14.2.4"
   }
 }
