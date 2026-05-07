@@ -44,6 +44,8 @@ export interface CommandCenterResponse {
     suggested_boxes_noon: number
     total_boxes_to_ship: number
     total_units_to_ship: number
+    send_to_fba_units?: number
+    send_to_fbn_units?: number
     plan_date: string | null
   }[]
   reorder_now: {

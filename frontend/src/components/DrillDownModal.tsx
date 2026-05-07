@@ -92,9 +92,9 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-auto custom-scrollbar p-6">
+        <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full text-sm border-separate border-spacing-0">
-            <thead className="bg-white sticky top-0 z-20">
+            <thead className="bg-white sticky top-0 z-30 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
               <tr>
                 <HeaderCell>SKU</HeaderCell>
                 <HeaderCell>Product Name</HeaderCell>
@@ -109,8 +109,8 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   <>
                     <HeaderCell right>Velocity</HeaderCell>
                     <HeaderCell right>Staged Units</HeaderCell>
-                    <HeaderCell right>FBA Units</HeaderCell>
-                    <HeaderCell right>FBN Units</HeaderCell>
+                    <HeaderCell right>SENT TO FBA UNITS</HeaderCell>
+                    <HeaderCell right>SENT TO FBN UNITS</HeaderCell>
                     <HeaderCell right>Total Boxes</HeaderCell>
                     <HeaderCell right>AMZ Boxes</HeaderCell>
                     <HeaderCell right>Noon Boxes</HeaderCell>
@@ -203,10 +203,10 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                         {item.total_units_to_ship || item.units_to_ship}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-blue">
-                        {item.suggested_units_amazon ?? 0}
+                        {item.send_to_fba_units ?? 0}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-amber">
-                        {item.suggested_units_noon ?? 0}
+                        {item.send_to_fbn_units ?? 0}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-primary">
                         {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))}
@@ -330,7 +330,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
               ))}
             </tbody>
             {type === 'ship_now' && (
-              <tfoot className="bg-slate-50 sticky bottom-0 z-20 border-t-2 border-slate-200">
+              <tfoot className="bg-slate-50 sticky bottom-0 z-30 shadow-[0_-2px_10px_-3px_rgba(0,0,0,0.07)] border-t-2 border-slate-200">
                 <tr className="font-black text-sidebar">
                   <td className="py-3 px-2 text-[11px] uppercase tracking-widest" colSpan={2}>Totals</td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
@@ -340,10 +340,10 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     {safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_units_amazon) || 0), 0).toLocaleString()}
+                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_fba_units) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px] text-brand-amber">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_units_noon) || 0), 0).toLocaleString()}
+                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_fbn_units) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px] text-primary">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))) || 0), 0).toLocaleString()}
@@ -390,7 +390,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
 function HeaderCell({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
-    <th className={`px-2 py-3 border-b border-slate-100 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}>
+    <th className={`px-6 py-3 border-b border-slate-100 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Bell, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2 } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -232,13 +232,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-4">
-            <div className="flex items-center gap-1">
-              <button className="p-2 text-muted hover:bg-slate-100 rounded-full relative transition-colors">
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white" />
-              </button>
-            </div>
-            <div className="w-px h-6 bg-slate-200 mx-1 lg:mx-2" />
+
             <div 
               onClick={() => setIsSettingsOpen(true)}
               className="flex items-center gap-3 group cursor-pointer hover:bg-slate-50 p-1.5 rounded-xl transition-colors"
@@ -298,8 +292,14 @@ function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClos
 
   const handleSave = async () => {
     setLoading(true)
+    const isSuperAdmin = ['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user.email?.toLowerCase() || '')
+    const finalRole = isSuperAdmin ? 'Administrator' : role
+
     const { data, error } = await supabase.auth.updateUser({
-      data: { full_name: fullName, role: role }
+      data: { 
+        full_name: fullName, 
+        role: finalRole 
+      }
     })
     
     if (!error && data.user) {
@@ -347,9 +347,10 @@ function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClos
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Professional Role</label>
                 <div className="relative">
                   <select 
+                    disabled={!['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '')}
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium appearance-none cursor-pointer"
+                    className={`w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium appearance-none ${!['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '') ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                   >
                     <option value="Member">Member</option>
                     <option value="Operations Mgr">Operations Mgr</option>
@@ -357,7 +358,9 @@ function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClos
                     <option value="Inventory Analyst">Inventory Analyst</option>
                     <option value="Administrator">Administrator</option>
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                  {['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '') && (
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
+                  )}
                 </div>
               </div>
 

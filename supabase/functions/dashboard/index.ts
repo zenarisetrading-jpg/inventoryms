@@ -36,6 +36,9 @@ interface ShipNowItem {
   suggested_boxes_noon: number
   total_boxes_to_ship: number
   total_units_to_ship: number
+  send_to_fba_units: number
+  send_to_fbn_units: number
+  units_per_box: number
   plan_date: string
 }
 
@@ -229,6 +232,9 @@ serve(async (req: Request) => {
           suggested_boxes_noon: fbn_boxes,
           total_boxes_to_ship: fba_boxes + fbn_boxes,
           total_units_to_ship: Number(r.send_to_fba_units || 0) + Number(r.send_to_fbn_units || 0),
+          send_to_fba_units: Number(r.send_to_fba_units || 0),
+          send_to_fbn_units: Number(r.send_to_fbn_units || 0),
+          units_per_box: Number(r.units_per_box || 1),
           plan_date: new Date().toISOString()
         })
       }

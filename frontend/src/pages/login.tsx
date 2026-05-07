@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, AlertCircle, Loader2, UserPlus, ArrowLeft } from 'lucide-react'
+import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, AlertCircle, Loader2, UserPlus, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
 type AuthMode = 'signin' | 'signup'
 
@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<AuthMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -33,12 +34,14 @@ export default function LoginPage() {
         })
         if (error) throw error
       } else {
+        const isAdmin = ['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(email.toLowerCase())
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              role: 'Member'
+              role: isAdmin ? 'Administrator' : 'Member',
+              full_name: email.split('@')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
             }
           }
         })
@@ -117,13 +120,20 @@ export default function LoginPage() {
               <div className="relative group">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-950/50 border border-white/5 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all font-medium"
+                  className="w-full bg-slate-950/50 border border-white/5 rounded-xl py-4 pl-12 pr-12 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all font-medium"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

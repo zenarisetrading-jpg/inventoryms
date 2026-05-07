@@ -395,15 +395,35 @@ export default function CommandCenter() {
       if (!sku) continue
       const existing = grouped.get(sku)
 
-      const incomingAmazon = toSafeNumber(
+      const incomingAmazonBoxes = toSafeNumber(
         row.suggested_boxes_amazon ?? (row.node === 'amazon_fba' ? row.boxes_to_ship : 0),
         0
       )
-      const incomingNoon = toSafeNumber(
+      const incomingNoonBoxes = toSafeNumber(
         row.suggested_boxes_noon ?? (row.node === 'noon_fbn' ? row.boxes_to_ship : 0),
         0
       )
+      const totalBoxes = incomingAmazonBoxes + incomingNoonBoxes
       const incomingUnits = toSafeNumber(row.total_units_to_ship ?? row.units_to_ship, 0)
+      
+      // Super Fallback: If units_per_box is missing or 1, try to infer it from Total Units / Total Boxes
+      let upb = toSafeNumber(row.units_per_box, 0)
+      if (upb <= 1 && totalBoxes > 0) {
+        upb = Math.round(incomingUnits / totalBoxes)
+      }
+      if (upb === 0) upb = 1 // absolute fallback
+
+      // Fallback calculation: if the server didn't provide send_to_fba_units, try to calculate it from boxes
+      const incomingFbaUnits = toSafeNumber(
+        row.send_to_fba_units ?? 
+        (incomingAmazonBoxes > 0 ? incomingAmazonBoxes * upb : (row.node === 'amazon_fba' ? incomingUnits : 0)), 
+        0
+      )
+      const incomingFbnUnits = toSafeNumber(
+        row.send_to_fbn_units ?? 
+        (incomingNoonBoxes > 0 ? incomingNoonBoxes * upb : (row.node === 'noon_fbn' ? incomingUnits : 0)), 
+        0
+      )
 
       if (!existing) {
         grouped.set(sku, {
@@ -417,16 +437,20 @@ export default function CommandCenter() {
           boxes_in_hand: row.boxes_in_hand ?? null,
           boxes_required_30d_amz: row.boxes_required_30d_amz ?? null,
           boxes_required_30d_noon: row.boxes_required_30d_noon ?? null,
-          suggested_boxes_amazon: incomingAmazon,
-          suggested_boxes_noon: incomingNoon,
+          suggested_boxes_amazon: incomingAmazonBoxes,
+          suggested_boxes_noon: incomingNoonBoxes,
           total_units_to_ship: incomingUnits,
+          send_to_fba_units: incomingFbaUnits,
+          send_to_fbn_units: incomingFbnUnits,
         })
         continue
       }
 
-      existing.suggested_boxes_amazon = toSafeNumber(existing.suggested_boxes_amazon, 0) + incomingAmazon
-      existing.suggested_boxes_noon = toSafeNumber(existing.suggested_boxes_noon, 0) + incomingNoon
+      existing.suggested_boxes_amazon = toSafeNumber(existing.suggested_boxes_amazon, 0) + incomingAmazonBoxes
+      existing.suggested_boxes_noon = toSafeNumber(existing.suggested_boxes_noon, 0) + incomingNoonBoxes
       existing.total_units_to_ship = toSafeNumber(existing.total_units_to_ship, 0) + incomingUnits
+      existing.send_to_fba_units = toSafeNumber(existing.send_to_fba_units, 0) + incomingFbaUnits
+      existing.send_to_fbn_units = toSafeNumber(existing.send_to_fbn_units, 0) + incomingFbnUnits
 
       if (!existing.allocation_logic && row.allocation_logic) existing.allocation_logic = row.allocation_logic
       if (existing.blended_sv == null && row.blended_sv != null) existing.blended_sv = row.blended_sv
