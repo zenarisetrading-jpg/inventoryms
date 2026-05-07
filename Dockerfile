@@ -14,6 +14,12 @@ RUN npm install --prefix frontend
 # Copy all files
 COPY . .
 
+# Pass build arguments for Supabase (Railway provides these automatically)
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 # Build the frontend
 RUN npm run build --prefix frontend
 
