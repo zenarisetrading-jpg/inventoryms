@@ -485,14 +485,14 @@ export default function SKUCatalog() {
                           </select>
                         ) : col === 'cogs' ? (
                           <div className="flex items-center gap-2 min-w-[100px]">
-                            {editingCogs?.sku === row.sku ? (
+                            {editingCogs && editingCogs.sku === row.sku ? (
                               <div className="flex items-center gap-1">
                                 <input
                                   type="number"
                                   step="0.01"
                                   className="w-16 p-1 text-xs border border-brand-blue rounded bg-white text-zinc-900 font-semibold focus:outline-none"
                                   value={editingCogs.value}
-                                  onChange={e => setEditingCogs({ ...editingCogs, value: e.target.value })}
+                                  onChange={e => setEditingCogs({ sku: editingCogs.sku, value: e.target.value })}
                                   autoFocus
                                 />
                                 <button
