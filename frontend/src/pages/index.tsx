@@ -797,7 +797,7 @@ export default function CommandCenter() {
                         </td>
                         <td className="px-4 py-2.5">
                           <ActionDropdown 
-                            currentStatus={rowStatuses[`${sku}-${idx}`] || 'shipped'} 
+                            currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
                             onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
                           />
                         </td>

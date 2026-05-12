@@ -9,12 +9,12 @@ interface ActionDropdownProps {
   showArrow?: boolean;
 }
 
-const DEFAULT_STATUSES = ['shipped', 'Delivered', 'Closed', 'Cancelled'];
+const DEFAULT_STATUSES = ['Shipment planning', 'Sent to FBA', 'Sent to FBN', 'Sent to Both'];
 const DEFAULT_COLORS: Record<string, string> = {
-  shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-  Delivered: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  Closed: 'bg-slate-100 text-slate-500 border-slate-200',
-  Cancelled: 'bg-red-100 text-red-700 border-red-200'
+  'Shipment planning': 'bg-slate-100 text-slate-700 border-slate-200',
+  'Sent to FBA': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Sent to FBN': 'bg-amber-100 text-amber-700 border-amber-200',
+  'Sent to Both': 'bg-purple-100 text-purple-700 border-purple-200'
 };
 
 export function ActionDropdown({ 
@@ -37,17 +37,19 @@ export function ActionDropdown({
       <button 
         ref={buttonRef}
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-black border uppercase tracking-wider transition-all hover:shadow-sm ${activeColor}`}
+        className={`flex items-center justify-between gap-1.5 px-3 py-1.5 w-36 rounded-md text-[10px] font-black border uppercase tracking-wider transition-all hover:shadow-sm ${activeColor}`}
       >
-        {showArrow && statusLower === 'shipped' && <span className="text-[14px] leading-none">→</span>}
-        {currentStatus}
-        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-1.5 truncate mr-1">
+          {showArrow && (statusLower.startsWith('sent to') || statusLower === 'shipment planning') && <span className="text-[14px] leading-none shrink-0">→</span>}
+          <span className="truncate">{currentStatus}</span>
+        </div>
+        <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-1 w-32 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-100">
+          <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-100">
             {options.map(s => (
               <button
                 key={s}
