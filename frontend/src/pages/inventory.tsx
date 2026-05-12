@@ -432,16 +432,16 @@ function renderCell(key: string, val: any) {
 
 function InventoryStatCard({ title, items, icon: Icon, accent }: { title: string, items: { label: string, value: any }[], icon: any, accent: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-5 group min-w-0">
-      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-        <h3 className="text-[12px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
-        <Icon className={`w-5 h-5 ${accent} opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
+    <div className="bg-white border border-zinc-200 rounded-2xl p-4 lg:p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 lg:gap-5 group min-w-0">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-2 lg:pb-3">
+        <h3 className="text-[10px] lg:text-[12px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
+        <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${accent} opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
       </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-5">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 lg:gap-x-4 lg:gap-y-5">
         {items.map((item, i) => (
-          <div key={i} className="flex flex-col gap-1.5 min-w-0">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider truncate">{item.label}</span>
-            <span className="text-[22px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
+          <div key={i} className="flex flex-col gap-1 min-w-0">
+            <span className="text-[9px] lg:text-[10px] font-black text-zinc-400 uppercase tracking-wider truncate">{item.label}</span>
+            <span className="text-[16px] lg:text-[20px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
           </div>
         ))}
       </div>

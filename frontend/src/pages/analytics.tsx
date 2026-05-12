@@ -88,11 +88,11 @@ function Card({ title, children, className = '' }: { title?: string; children: R
   return (
     <div className={`bg-white border border-zinc-200 rounded-lg ${className}`}>
       {title && (
-        <div className="px-4 pt-4 pb-2 border-b border-zinc-100">
-          <h3 className="text-sm font-semibold text-zinc-700">{title}</h3>
+        <div className="px-3 lg:px-4 pt-3 lg:pt-4 pb-2 border-b border-zinc-100">
+          <h3 className="text-xs lg:text-sm font-semibold text-zinc-700">{title}</h3>
         </div>
       )}
-      <div className="p-4">{children}</div>
+      <div className="p-3 lg:p-4">{children}</div>
     </div>
   )
 }
@@ -184,21 +184,21 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
       {/* Header + range picker */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">Analytics</h1>
-          <p className="text-xs font-bold text-muted uppercase tracking-wider opacity-60 mt-1">Velocity, health, and exposure</p>
+          <h1 className="text-lg lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Analytics</h1>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-wider opacity-60 mt-1">Velocity, health, and exposure</p>
         </div>
-        <div className="flex items-center gap-1 bg-zinc-100 rounded-xl p-1 shrink-0 overflow-x-auto custom-scrollbar">
+        <div className="flex items-center gap-1 bg-zinc-100 rounded-xl p-1 shrink-0 overflow-x-auto custom-scrollbar self-start sm:self-auto">
           {([7, 30, 90] as const).map(d => (
             <button
               key={d}
               onClick={() => setDays(d)}
-              className={`px-4 py-1.5 rounded-lg text-[10px] lg:text-xs font-black transition-all uppercase tracking-widest whitespace-nowrap ${
+              className={`px-3 lg:px-4 py-1.5 rounded-lg text-[10px] font-black transition-all uppercase tracking-widest whitespace-nowrap ${
                 days === d ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
               }`}
             >
-              {d} Days
+              {d}d
             </button>
           ))}
         </div>

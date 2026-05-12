@@ -87,23 +87,23 @@ function KPITile({
   return (
     <div 
       onDoubleClick={onDoubleClick}
-      className={`bg-card border border-border-color rounded-xl p-4 shadow-sm border-l-[6px] ${accentColor} transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer select-none`}
+      className={`bg-card border border-border-color rounded-xl p-3 lg:p-4 shadow-sm border-l-[6px] ${accentColor} transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer select-none`}
       title="Double-click to drill down"
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-[10px] font-black text-muted uppercase tracking-[0.05em] mb-1">{label}</p>
-          <p className={`text-2xl font-black font-data tracking-tight ${urgent && Number(value) > 0 ? 'text-red-600' : 'text-primary'}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-[9px] lg:text-[10px] font-black text-muted uppercase tracking-[0.05em] mb-1 truncate">{label}</p>
+          <p className={`text-xl lg:text-2xl font-black font-data tracking-tight leading-none ${urgent && Number(value) > 0 ? 'text-red-600' : 'text-primary'}`}>
             {value}
           </p>
         </div>
-        <div className={`p-2 rounded-lg bg-gray-50`}>
-          <Icon className={`w-4 h-4 ${urgent && Number(value) > 0 ? 'text-red-500' : 'text-muted'}`} />
+        <div className={`p-1.5 lg:p-2 rounded-lg bg-gray-50 shrink-0`}>
+          <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${urgent && Number(value) > 0 ? 'text-red-500' : 'text-muted'}`} />
         </div>
       </div>
-      {sub && <p className="text-[10px] font-medium text-muted/60 mt-2 flex items-center gap-1">
-        <span className="w-1 h-1 rounded-full bg-slate-300" />
-        {sub}
+      {sub && <p className="text-[9px] lg:text-[10px] font-medium text-muted/60 mt-1.5 lg:mt-2 flex items-center gap-1 leading-tight">
+        <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+        <span className="truncate">{sub}</span>
       </p>}
     </div>
   )
@@ -484,7 +484,9 @@ export default function CommandCenter() {
       {/* Premium Dashboard Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between border-b border-sidebar/10 pb-6 mb-2 gap-4">
         <div className="flex flex-col">
-          <h1 className="text-2xl lg:text-3xl font-black text-sidebar tracking-tighter uppercase">Command Center</h1>
+          <h1 className="text-xl lg:text-3xl font-black text-sidebar tracking-tighter uppercase leading-none">
+            Command Center
+          </h1>
           <div className="flex items-center gap-2 mt-2">
             <LayoutDashboard className="w-3.5 h-3.5 text-brand-blue" />
             <span className="text-[9px] lg:text-[10px] font-black text-muted uppercase tracking-[0.2em]">Regional Logistics Controller</span>
@@ -545,7 +547,7 @@ export default function CommandCenter() {
       {/* ── KPI TILES ─────────────────────────────────────────────────────── */}
       {!loading && data && (
         <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 lg:gap-4">
             <KPITile
               label="Critical Stocks"
               value={criticalCount}
