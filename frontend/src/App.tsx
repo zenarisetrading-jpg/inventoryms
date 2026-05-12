@@ -184,7 +184,7 @@ export default function App() {
 
             {isAdminExpanded && !isSidebarCollapsed && (
               <div className="space-y-1 mb-3 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <SidebarLink icon={Package} label="SKU Catalog" path="/skus" current={route.name === 'skus' || route.name === 'sku'} isSubItem />
+                <SidebarLink icon={Package} label="SKU Master" path="/skus" current={route.name === 'skus' || route.name === 'sku'} isSubItem />
                 <SidebarLink icon={ClipboardList} label="PO Register" path="/po" current={route.name === 'po'} isSubItem />
                 <SidebarLink icon={Upload} label="Upload Centre" path="/upload" current={route.name === 'upload'} isSubItem />
                 <SidebarLink icon={Activity} label="Data Health" path="/health" current={route.name === 'health'} isSubItem />

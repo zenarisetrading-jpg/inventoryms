@@ -185,6 +185,7 @@ export default function POPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [advancingId, setAdvancingId] = useState<string | null>(null)
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'po_number', direction: 'desc' })
   const slideOverRef = useRef<HTMLDivElement>(null)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [bulkFile, setBulkFile] = useState<File | null>(null)
@@ -230,7 +231,37 @@ export default function POPage() {
       po.supplier.toLowerCase().includes(q) ||
       po.line_items.some(li => li.sku.toLowerCase().includes(q))
     )
+  }).sort((a, b) => {
+    if (!sortConfig) return 0
+    const { key, direction } = sortConfig
+    
+    let aVal: any = a[key as keyof PO]
+    let bVal: any = b[key as keyof PO]
+    
+    // Custom logic for computed columns
+    if (key === 'units') {
+      aVal = a.line_items.reduce((s, li) => s + (li.units_ordered || 0), 0)
+      bVal = b.line_items.reduce((s, li) => s + (li.units_ordered || 0), 0)
+    } else if (key === 'skus') {
+      aVal = a.line_items.length
+      bVal = b.line_items.length
+    }
+    
+    if (aVal === bVal) return 0
+    if (aVal === null || aVal === undefined) return 1
+    if (bVal === null || bVal === undefined) return -1
+    
+    const res = aVal < bVal ? -1 : 1
+    return direction === 'asc' ? res : -res
   })
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc'
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
 
   const handleAdvance = async (po: PO) => {
     const next = nextStatus(po.status)
@@ -401,13 +432,48 @@ export default function POPage() {
           <thead className="bg-zinc-50 border-b border-zinc-200">
             <tr>
               <th className="w-[4%] px-3 py-2.5" />
-              <th className="w-[16%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">PO #</th>
-              <th className="w-[20%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Supplier</th>
-              <th className="w-[6%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">SKUs</th>
-              <th className="w-[10%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Units</th>
-              <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Order Date</th>
-              <th className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">ETA</th>
-              <th className="w-[10%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">Status</th>
+              <th 
+                className="w-[16%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('po_number')}
+              >
+                PO # {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[20%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('supplier')}
+              >
+                Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[6%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('skus')}
+              >
+                SKUs {sortConfig?.key === 'skus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[10%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('units')}
+              >
+                Units {sortConfig?.key === 'units' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('order_date')}
+              >
+                Order Date {sortConfig?.key === 'order_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('eta')}
+              >
+                ETA {sortConfig?.key === 'eta' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
+                className="w-[10%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                onClick={() => requestSort('status')}
+              >
+                Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
               <th className="w-[10%] px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>

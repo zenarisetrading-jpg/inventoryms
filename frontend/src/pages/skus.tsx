@@ -1,570 +1,555 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
-import { Search, Info, ChevronDown, ChevronUp, ArrowUpDown, ArrowUp, ArrowDown, Edit2, Check, X, Package, Plus, Filter, Globe, Layers } from 'lucide-react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
-import type { SKUListItem } from '../types'
-import { navigate } from '../lib/router'
-import { Toggle } from '../components/shared/Toggle'
-import { MultiSelect } from '../components/shared/MultiSelect'
+import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown } from 'lucide-react'
 
-type SortKey = 'row_num' | 'sku' | 'name' | 'asin' | 'fnsku' | 'product_category' | 'sub_category' | 'category' | 'units_per_box' | 'moq' | 'lead_time_days' | 'cogs' | 'blended_sv' | 'is_active' | 'action_flag'
-type SortDir = 'asc' | 'desc'
-
-const FLAG_ORDER: Record<string, number> = {
-  CRITICAL_OOS_RISK: 0, OOS_RISK: 1, SHIP_NOW: 2, REORDER: 3, TRANSFER: 4, EXCESS: 5, OK: 6,
-}
-
-function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
-  if (col !== sortKey) return <ArrowUpDown className="inline h-3 w-3 ml-1 text-zinc-300" />
-  return sortDir === 'asc'
-    ? <ArrowUp className="inline h-3 w-3 ml-1 text-brand-blue" />
-    : <ArrowDown className="inline h-3 w-3 ml-1 text-brand-blue" />
-}
-
-const ABC_GUIDE = [
-  {
-    cat: 'A',
-    label: 'Top movers',
-    color: 'text-amber-700 bg-amber-50 border-amber-200',
-    dotColor: 'bg-amber-500',
-    desc: 'High-velocity, high-revenue SKUs',
-    reorder: 45,
-    min: 60,
-  },
-  {
-    cat: 'B',
-    label: 'Mid-tier',
-    color: 'text-blue-700 bg-blue-50 border-blue-200',
-    dotColor: 'bg-blue-500',
-    desc: 'Steady sellers, moderate revenue',
-    reorder: 30,
-    min: 45,
-  },
-  {
-    cat: 'C',
-    label: 'Long tail',
-    color: 'text-zinc-600 bg-zinc-50 border-zinc-200',
-    dotColor: 'bg-zinc-400',
-    desc: 'Slow movers, low revenue share',
-    reorder: 20,
-    min: 20,
-  },
-]
-
-// ─── Inline Category Editor ───────────────────────────────────────────────────
-
-function CategoryEdit({
-  sku,
-  current,
-  onSaved,
-}: {
-  sku: string
-  current: string | null
-  onSaved: (cat: string | null) => void
+// Custom MultiSelect Component
+function MultiSelect({ 
+  options, 
+  value, 
+  onChange, 
+  label 
+}: { 
+  options: { label: string, value: string }[], 
+  value: string[], 
+  onChange: (val: string[]) => void, 
+  label: string 
 }) {
-  const [open, setOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [open])
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
-  const handleSet = async (e: React.MouseEvent, cat: string | null) => {
-    e.stopPropagation()
-    setSaving(true)
-    await api.updateSKU(sku, { category: cat })
-    setSaving(false)
-    setOpen(false)
-    onSaved(cat)
+  const toggleOption = (optValue: string) => {
+    if (value.includes(optValue)) {
+      onChange(value.filter(v => v !== optValue))
+    } else {
+      onChange([...value, optValue])
+    }
   }
 
+  const displayText = value.length === 0 
+    ? `ALL ${label}S` 
+    : value.length === 1 
+      ? options.find(o => o.value === value[0])?.label || label
+      : `${value.length} ${label}S`
+
   return (
-    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
+    <div className="relative" ref={ref}>
       <button
-        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        disabled={saving}
-        className="flex items-center gap-1 group"
-        title="Click to set ABC category"
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-2 bg-zinc-50 border text-[11px] font-bold uppercase rounded-lg px-3 py-1.5 transition-colors ${
+          value.length > 0 
+            ? 'border-brand-blue/50 text-brand-blue bg-brand-blue/5' 
+            : 'border-zinc-200 text-zinc-700 hover:border-zinc-300'
+        }`}
       >
-        {current ? (
-          <span className="text-[11px] font-black text-zinc-700 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded group-hover:border-brand-amber group-hover:bg-amber-50 transition-colors">
-            {current}
-          </span>
-        ) : (
-          <span className="text-[11px] text-zinc-300 border border-dashed border-zinc-200 px-2 py-0.5 rounded group-hover:border-brand-amber transition-colors">
-            —
-          </span>
-        )}
-        {saving ? (
-          <span className="w-3 h-3 border-2 border-brand-amber border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <ChevronDown className="h-3 w-3 text-zinc-300 group-hover:text-brand-amber transition-colors" />
-        )}
+        <span className="truncate max-w-[120px]">{displayText}</span>
+        <ChevronDown className="w-3.5 h-3.5 opacity-50" />
       </button>
 
-      {open && (
-        <div className="absolute z-20 top-full left-0 mt-1 bg-white border border-zinc-200 rounded-xl shadow-xl p-2 flex gap-1.5 min-w-max animate-in fade-in zoom-in-95 duration-100">
-          {ABC_GUIDE.map(g => (
-            <button
-              key={g.cat}
-              onClick={e => handleSet(e, g.cat)}
-              className={`px-3 py-1.5 text-[10px] font-black rounded-lg border transition-all ${g.color} hover:scale-105 active:scale-95`}
-            >
-              {g.cat}
-            </button>
-          ))}
-          {current && (
-            <button
-              onClick={e => handleSet(e, null)}
-              className="px-2 py-1 text-xs text-zinc-400 border border-dashed border-zinc-200 rounded-lg hover:text-rose-500 hover:border-rose-200 transition-colors"
-            >
-              ×
-            </button>
-          )}
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[300px]">
+          <div className="p-2 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</span>
+            {value.length > 0 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onChange([]); }}
+                className="text-[9px] font-bold text-rose-500 hover:text-rose-600 uppercase"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="overflow-y-auto p-1 custom-scrollbar">
+            {options.map(opt => (
+              <label 
+                key={opt.value} 
+                onClick={(e) => {
+                  e.preventDefault()
+                  toggleOption(opt.value)
+                }}
+                className="flex items-center gap-2.5 px-3 py-2 hover:bg-zinc-50 rounded-lg cursor-pointer transition-colors group"
+              >
+                <div className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${
+                  value.includes(opt.value) 
+                    ? 'bg-brand-blue border-brand-blue text-white' 
+                    : 'border-zinc-300 group-hover:border-brand-blue'
+                }`}>
+                  {value.includes(opt.value) && <Check className="w-2.5 h-2.5" />}
+                </div>
+                <span className="text-xs font-semibold text-zinc-700 uppercase">{opt.label}</span>
+              </label>
+            ))}
+            {options.length === 0 && (
+              <div className="px-3 py-4 text-center text-xs font-medium text-zinc-400">No options</div>
+            )}
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-function CogsEdit({
-  sku,
-  current,
-  onSaved,
-}: {
-  sku: string
-  current: number | null
-  onSaved: (cogs: number | null) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState(current?.toString() ?? '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(false)
 
-  const handleSave = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    e?.stopPropagation()
-    const num = parseFloat(value)
-    if (isNaN(num)) { setError(true); return }
-    
-    setSaving(true)
+export default function SKUCatalog() {
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Search, Sort & Filter State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+  
+  // Arrays represent selected values. Empty array means ALL.
+  const [filters, setFilters] = useState({
+    categories: [] as string[],
+    sub_categories: [] as string[],
+    is_active: [] as string[],
+    amazon_active: [] as string[],
+    noon_active: [] as string[]
+  })
+
+  const [updating, setUpdating] = useState<string | null>(null)
+  const [editingCogs, setEditingCogs] = useState<{sku: string, value: string} | null>(null)
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError(null)
     try {
-      await api.updateSKU(sku, { cogs: num })
-      onSaved(num)
-      setEditing(false)
-    } catch (err) {
-      setError(true)
+      const response = await api.getSKUs()
+      if ((response as any).error) {
+        throw new Error((response as any).error)
+      }
+      
+      setData((response as any).skus || [])
+    } catch (e: any) {
+      setError(e.message || 'Failed to fetch SKUs')
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
-  if (editing) {
+  useEffect(() => {
+    fetchData()
+  }, [])
+
+  const handleUpdateField = async (sku: string, field: string, value: any) => {
+    setUpdating(`${sku}-${field}`)
+    try {
+      const res = await api.updateSKU(sku, { [field]: value })
+      if ((res as any).error) throw new Error((res as any).error)
+      
+      // Optimistically update local state
+      setData(prev => prev.map(row => row.sku === sku ? { ...row, [field]: value } : row))
+      
+      if (field === 'cogs') {
+        setEditingCogs(null)
+      }
+    } catch (e: any) {
+      alert(`Failed to update ${field}: ${e.message}`)
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc'
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+    setSortConfig({ key, direction })
+  }
+
+  // Dynamically calculate valid sub-categories based on selected categories
+  const validSubCategories = useMemo(() => {
+    let pool = data
+    if (filters.categories.length > 0) {
+      pool = data.filter(r => filters.categories.includes(r.category))
+    }
+    const subs = new Set(pool.map(r => r.sub_category).filter(Boolean))
+    return Array.from(subs).sort() as string[]
+  }, [data, filters.categories])
+
+  const sortedAndFilteredData = useMemo(() => {
+    let result = data.filter(row => {
+      // 1. Dropdown Filters
+      if (filters.categories.length > 0 && !filters.categories.includes(row.category)) return false
+      if (filters.sub_categories.length > 0 && !filters.sub_categories.includes(row.sub_category)) return false
+      
+      if (filters.is_active.length > 0) {
+        const rowStatus = row.is_active === true ? 'TRUE' : 'FALSE'
+        if (!filters.is_active.includes(rowStatus)) return false
+      }
+      if (filters.amazon_active.length > 0) {
+        const rowStatus = row.amazon_active === true ? 'TRUE' : 'FALSE'
+        if (!filters.amazon_active.includes(rowStatus)) return false
+      }
+      if (filters.noon_active.length > 0) {
+        const rowStatus = row.noon_active === true ? 'TRUE' : 'FALSE'
+        if (!filters.noon_active.includes(rowStatus)) return false
+      }
+
+      // 2. Search Query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchesSearch = Object.values(row).some(val => 
+          String(val).toLowerCase().includes(q)
+        )
+        if (!matchesSearch) return false
+      }
+
+      return true
+    })
+
+    // 3. Sorting
+    if (sortConfig !== null) {
+      result.sort((a, b) => {
+        const aVal = a[sortConfig.key]
+        const bVal = b[sortConfig.key]
+
+        if (aVal === null || aVal === undefined) return sortConfig.direction === 'asc' ? 1 : -1
+        if (bVal === null || bVal === undefined) return sortConfig.direction === 'asc' ? -1 : 1
+
+        if (typeof aVal === 'string' && typeof bVal === 'string') {
+          return sortConfig.direction === 'asc' 
+            ? aVal.localeCompare(bVal)
+            : bVal.localeCompare(aVal)
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+        return 0
+      })
+    }
+
+    return result
+  }, [data, searchQuery, filters, sortConfig])
+
+  // Fixed column order including physical properties and flags
+  const columns = [
+    'sku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days', 
+    'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
+    'is_active', 'amazon_active', 'noon_active'
+  ]
+
+  const handleExport = () => {
+    if (!sortedAndFilteredData.length) return
+    const headers = columns.join(',')
+    const rows = sortedAndFilteredData.map(row =>
+      columns.map(key => `"${row[key] ?? ''}"`).join(',')
+    ).join('\n')
+    const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `sku_master_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+  }
+
+  const renderStatusToggle = (row: any, field: string) => {
+    const isActive = row[field] === true
+    const isUpdating = updating === `${row.sku}-${field}`
+    
     return (
-      <form 
-        onClick={e => e.stopPropagation()} 
-        onSubmit={handleSave}
-        className="flex items-center gap-1.5 min-w-[120px]"
+      <button
+        onClick={() => handleUpdateField(row.sku, field, !isActive)}
+        disabled={isUpdating}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:ring-offset-1 disabled:opacity-50 ${
+          isActive ? 'bg-emerald-500' : 'bg-zinc-300'
+        }`}
       >
-        <input
-          autoFocus
-          type="number"
-          step="0.01"
-          className={`w-full px-2 py-1 text-xs font-black border rounded-lg outline-none transition-all ${error ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-brand-blue/30 focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue'}`}
-          value={value}
-          onChange={e => { setValue(e.target.value); setError(false) }}
-          onKeyDown={e => { if (e.key === 'Escape') setEditing(false) }}
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+            isActive ? 'translate-x-4.5' : 'translate-x-1'
+          }`}
+          style={{ transform: isActive ? 'translateX(18px)' : 'translateX(4px)' }}
         />
-        <button type="submit" disabled={saving} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
-          {saving ? <span className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin block" /> : <Check className="h-4 w-4" />}
-        </button>
-        <button type="button" onClick={() => setEditing(false)} className="p-1 text-zinc-400 hover:bg-zinc-100 rounded-lg transition-colors">
-          <X className="h-4 w-4" />
-        </button>
-      </form>
+      </button>
     )
   }
 
-  return (
-    <div 
-      className="flex items-center justify-end gap-2 group/cogs cursor-pointer"
-      onClick={e => { e.stopPropagation(); setEditing(true); setValue(current?.toString() ?? '') }}
-    >
-      <span className="font-black text-[13px] text-sidebar">
-        {current != null ? Number(current).toFixed(2) : '—'}
-      </span>
-      <Edit2 className="h-3 w-3 text-zinc-300 group-hover/cogs:text-brand-blue opacity-0 group-hover/cogs:opacity-100 transition-all" />
-    </div>
-  )
-}
-
-// ─── Main SKU Catalog Page ───────────────────────────────────────────────────
-
-export default function SKUCatalog() {
-  const [rawSkus, setRawSkus] = useState<SKUListItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [selectedTiers, setSelectedTiers] = useState<string[]>([])
-  const [sortKey, setSortKey] = useState<SortKey>('sku')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
-  const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
-  const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>([])
-
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
-  }
-
-  const filteredSkus = useMemo(() => {
-    let fetched = [...rawSkus]
-    
-    if (selectedStatus.length > 0) {
-      fetched = fetched.filter(s => {
-        if (selectedStatus.includes('active') && s.is_active) return true
-        if (selectedStatus.includes('inactive') && !s.is_active) return true
-        return false
-      })
-    }
-    
-    if (selectedTiers.length > 0) {
-      fetched = fetched.filter(s => s.category && selectedTiers.includes(s.category))
-    }
-
-    if (selectedCategories.length > 0) {
-      fetched = fetched.filter(s => s.product_category && selectedCategories.includes(s.product_category))
-    }
-
-    if (selectedSubCategories.length > 0) {
-      fetched = fetched.filter(s => s.sub_category && selectedSubCategories.includes(s.sub_category))
-    }
-
-    if (selectedMarketplaces.length > 0) {
-      // Placeholder logic for marketplace filtering - assuming it's related to some SKU property
-      // For now, if both are selected, show all. If only one, it's a no-op as we don't have per-sku marketplace data yet.
-      // But we can filter by the 'is_live' status if we want, or just leave it for future data.
-    }
-
-    if (search) {
-      const q = search.toLowerCase()
-      fetched = fetched.filter(s => 
-        s.sku.toLowerCase().includes(q) || 
-        s.name.toLowerCase().includes(q) || 
-        s.asin?.toLowerCase().includes(q) || 
-        s.fnsku?.toLowerCase().includes(q)
-      )
-    }
-    
-    return fetched
-  }, [rawSkus, selectedTiers, selectedStatus, selectedCategories, selectedSubCategories, selectedMarketplaces, search])
-
-  const sortedSkus = useMemo(() => {
-    return [...filteredSkus].sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'blended_sv') {
-        cmp = (a.demand?.blended_sv ?? -1) - (b.demand?.blended_sv ?? -1)
-      } else if (sortKey === 'action_flag') {
-        cmp = (FLAG_ORDER[a.action_flag ?? ''] ?? 99) - (FLAG_ORDER[b.action_flag ?? ''] ?? 99)
-      } else if (sortKey === 'is_active') {
-        cmp = (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0)
-      } else if (typeof (a as any)[sortKey] === 'number' && typeof (b as any)[sortKey] === 'number') {
-        cmp = ((a as any)[sortKey] as number) - ((b as any)[sortKey] as number)
-      } else {
-        const av = ((a as any)[sortKey] ?? '') as string
-        const bv = ((b as any)[sortKey] ?? '') as string
-        cmp = av.localeCompare(bv)
-      }
-      return sortDir === 'asc' ? cmp : -cmp
-    })
-  }, [filteredSkus, sortKey, sortDir])
-
-  const load = useCallback(() => {
-    setLoading(true)
-    api.getSKUs({
-      search: search || undefined,
-    }).then(res => {
-      const resAny = res as unknown as { error?: string; skus?: SKUListItem[] }
-      setRawSkus(resAny.skus ?? [])
-      setLoading(false)
-    })
-  }, [search])
-
-  useEffect(() => {
-    const timeout = setTimeout(load, 300)
-    return () => clearTimeout(timeout)
-  }, [load])
-
-  const handleCategoryUpdate = (sku: string, next: string | null) => {
-    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, category: next as any } : s))
-  }
-
-  const handleActiveToggle = async (sku: string, next: boolean) => {
-    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, is_active: next } : s))
-    await api.updateSKU(sku, { is_active: next })
-  }
-
-  const handleCogsUpdate = (sku: string, newCogs: number | null) => {
-    setRawSkus(prev => prev.map(s => s.sku === sku ? { ...s, cogs: newCogs } : s))
-  }
-
-  const columns: { key: SortKey; label: string; align: 'left' | 'right'; note?: string; width: string }[] = [
-    { key: 'row_num', label: 'NO.', align: 'left', width: '50px' },
-    { key: 'sku', label: 'SKU', align: 'left', width: '220px' },
-    { key: 'name', label: 'NAME', align: 'left', width: '300px' },
-    { key: 'asin', label: 'ASIN', align: 'left', width: '130px' },
-    { key: 'fnsku', label: 'FNSKU', align: 'left', width: '130px' },
-    { key: 'category', label: 'ABC', align: 'left', note: 'click to edit', width: '100px' },
-    { key: 'product_category', label: 'CATEGORY', align: 'left', width: '150px' },
-    { key: 'sub_category', label: 'SUB-CATEGORY', align: 'left', width: '150px' },
-    { key: 'cogs', label: 'AED COGS', align: 'right', note: 'click to edit', width: '120px' },
-    { key: 'is_active', label: 'ACTIVE', align: 'left', width: '100px' },
-  ]
-
-  const categoryOptions = useMemo(() => {
-     return Array.from(new Set(rawSkus.map(s => s.product_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
-  }, [rawSkus])
-
-  const subCategoryOptions = useMemo(() => {
-    let list = rawSkus
-    if (selectedCategories.length > 0) {
-      list = list.filter(s => s.product_category && selectedCategories.includes(s.product_category))
-    }
-    return Array.from(new Set(list.map(s => s.sub_category).filter(Boolean))).sort().map(c => ({ label: c!.toUpperCase(), value: c! }))
-  }, [rawSkus, selectedCategories])
+  const isAnyFilterActive = Object.values(filters).some(arr => arr.length > 0)
 
   return (
-    <div className="flex flex-col gap-8 -mt-4 lg:-mt-8 pb-12">
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
-        <div className="flex items-center gap-4">
-           <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-blue shadow-lg shrink-0">
+    <div className="flex flex-col gap-6 -mt-4 lg:-mt-8">
+      {/* HEADER & MAIN TOOLBAR */}
+      <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black shrink-0">
               <Package className="w-5 h-5 lg:w-6 lg:h-6" />
-           </div>
-           <div>
-              <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">SKU Catalog</h1>
-              <p className="text-[9px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 lg:mt-2 opacity-60">Global Master Control Center</p>
-           </div>
+            </div>
+            <div>
+              <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">SKU Master</h1>
+              <p className="text-[9px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 lg:mt-2 opacity-60">RAW DATA FEED</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+            <div className="relative group min-w-[280px] flex-1 lg:flex-none">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
+              <input
+                type="text"
+                placeholder="SEARCH SKUS..."
+                className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-transparent rounded-xl text-sm font-semibold uppercase focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue outline-none transition-all placeholder:text-zinc-400"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchData}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-black uppercase text-zinc-900 hover:bg-zinc-50 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                RELOAD
+              </button>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-6 py-2.5 bg-sidebar text-brand-amber rounded-xl text-xs font-black uppercase hover:bg-sidebar/90 transition-all shadow-md active:scale-95 transition-transform"
+              >
+                <Download className="h-4 w-4" />
+                EXPORT
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button 
-             onClick={() => navigate('/skus/new')}
-             className="flex items-center gap-1.5 lg:gap-2 px-4 py-2 lg:px-6 lg:py-3 bg-brand-amber text-sidebar rounded-xl text-[10px] lg:text-xs font-black uppercase hover:opacity-90 transition-all shadow-md active:scale-95 whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            New Entry
-          </button>
+        {/* SECONDARY TOOLBAR: FILTERS */}
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-zinc-100">
+          <div className="flex items-center gap-2 text-zinc-400 mr-2">
+            <Filter className="w-4 h-4" />
+            <span className="text-[10px] font-black uppercase tracking-widest">FILTERS</span>
+          </div>
+          
+          <MultiSelect 
+            label="Category"
+            options={[
+              { label: 'Category A', value: 'A' },
+              { label: 'Category B', value: 'B' },
+              { label: 'Category C', value: 'C' },
+            ]}
+            value={filters.categories}
+            onChange={(val) => {
+              setFilters(prev => {
+                const next = { ...prev, categories: val }
+                // if we are restricting categories, prune invalid sub_categories
+                if (val.length > 0) {
+                  const validSubs = new Set(data.filter(r => val.includes(r.category)).map(r => r.sub_category))
+                  next.sub_categories = prev.sub_categories.filter(s => validSubs.has(s))
+                }
+                return next
+              })
+            }}
+          />
+
+          <MultiSelect 
+            label="Sub-Category"
+            options={validSubCategories.map(sub => ({ label: sub, value: sub }))}
+            value={filters.sub_categories}
+            onChange={(val) => setFilters(prev => ({ ...prev, sub_categories: val }))}
+          />
+
+          <MultiSelect 
+            label="System Status"
+            options={[
+              { label: 'Active', value: 'TRUE' },
+              { label: 'Inactive', value: 'FALSE' },
+            ]}
+            value={filters.is_active}
+            onChange={(val) => setFilters(prev => ({ ...prev, is_active: val }))}
+          />
+
+          <MultiSelect 
+            label="Amazon"
+            options={[
+              { label: 'Active', value: 'TRUE' },
+              { label: 'Inactive', value: 'FALSE' },
+            ]}
+            value={filters.amazon_active}
+            onChange={(val) => setFilters(prev => ({ ...prev, amazon_active: val }))}
+          />
+
+          <MultiSelect 
+            label="Noon"
+            options={[
+              { label: 'Active', value: 'TRUE' },
+              { label: 'Inactive', value: 'FALSE' },
+            ]}
+            value={filters.noon_active}
+            onChange={(val) => setFilters(prev => ({ ...prev, noon_active: val }))}
+          />
+
+          {isAnyFilterActive && (
+            <button
+              onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [] })}
+              className="text-[10px] font-bold text-rose-500 uppercase hover:text-rose-600 transition-colors ml-auto flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── FILTERS & TOC ────────────────────────────────────────────────── */}
-      <div className="bg-white p-3 lg:p-4 rounded-2xl border border-zinc-200 shadow-sm flex flex-col xl:flex-row items-center gap-3 lg:gap-4">
-          <div className="relative group flex-1 w-full">
-            <Search className="absolute left-3 lg:left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 lg:h-4 lg:w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
-            <input
-              type="text"
-              placeholder="QUICK SCAN SKU OR NAME..."
-              className="w-full pl-9 lg:pl-11 pr-4 py-2 lg:py-3 bg-zinc-50 border-transparent rounded-lg lg:rounded-xl text-[11px] lg:text-[13px] font-bold uppercase focus:ring-0 outline-none transition-all placeholder:text-zinc-300"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+      {/* TABLE */}
+      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-200px)]">
+        {error && (
+          <div className="m-8 p-6 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-6">
+            <AlertTriangle className="h-8 w-8 text-rose-500" />
+            <p className="text-sm font-medium text-rose-900 uppercase leading-relaxed tracking-wide">{error}</p>
           </div>
+        )}
 
-          <div className="grid grid-cols-2 lg:flex lg:flex-wrap items-center gap-2 lg:gap-3 w-full xl:w-auto">
-            <MultiSelect
-              label="Markets"
-              placeholder="ALL MARKETS"
-              icon={Globe}
-              options={[{label: 'AMAZON', value: 'amazon'}, {label: 'NOON', value: 'noon'}]}
-              selected={selectedMarketplaces}
-              onChange={setSelectedMarketplaces}
-            />
-            
-            <MultiSelect
-              label="Category"
-              placeholder="ALL CATEGORIES"
-              icon={Filter}
-              options={categoryOptions}
-              selected={selectedCategories}
-              onChange={setSelectedCategories}
-            />
-
-            <MultiSelect
-              label="SubCategory"
-              placeholder="ALL SUB-CAT"
-              icon={Layers}
-              options={subCategoryOptions}
-              selected={selectedSubCategories}
-              onChange={setSelectedSubCategories}
-            />
-
-            <MultiSelect
-              label="Tiers"
-              placeholder="ALL TIERS"
-              icon={ArrowUpDown}
-              options={[{label: 'TIER A', value: 'A'}, {label: 'TIER B', value: 'B'}, {label: 'TIER C', value: 'C'}]}
-              selected={selectedTiers}
-              onChange={setSelectedTiers}
-            />
-
-            <MultiSelect
-              label="Status"
-              placeholder="ALL STATUS"
-              icon={Layers}
-              options={[{label: 'ACTIVE', value: 'active'}, {label: 'INACTIVE', value: 'inactive'}]}
-              selected={selectedStatus}
-              onChange={setSelectedStatus}
-            />
+        {loading && !data.length && (
+          <div className="flex flex-col items-center justify-center min-h-[400px]">
+            <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-zinc-500 font-medium uppercase tracking-widest text-sm">LOADING SKU MASTER...</p>
           </div>
-      </div>
+        )}
 
-      {/* ── DATA GRID ──────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-220px)]">
-        <div className="overflow-auto custom-scrollbar flex-1 relative">
-          <table className="w-fit min-w-full border-collapse">
-            <thead className="sticky top-0 z-30 bg-zinc-900 shadow-xl">
-              <tr>
-                {columns.map((col, i) => (
-                  <th
-                    key={col.key}
-                    style={{ width: col.width, minWidth: col.width }}
-                    onClick={() => handleSort(col.key)}
-                    className={`
-                      px-3 py-2 lg:px-4 lg:py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
-                      ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
-                      ${i === 1 ? 'sticky left-[50px] z-40 bg-zinc-900 border-r border-zinc-800' : ''}
-                      ${col.align === 'right' ? 'text-right' : 'text-left'}
-                    `}
-                  >
-                    <div className={`flex items-center gap-2 ${col.align === 'right' ? 'justify-end' : ''}`}>
-                      <span className="text-[12px] font-black text-zinc-400 uppercase tracking-widest group-hover:text-white transition-colors">
-                        {col.label}
-                      </span>
-                      {col.note && <span className="text-[9px] font-bold text-zinc-600 normal-case italic">{col.note}</span>}
-                      <SortIcon col={col.key} sortKey={sortKey} sortDir={sortDir} />
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-            {loading ? (
-               Array.from({ length: 10 }).map((_, i) => <SkeletonRow key={i} colCount={columns.length} />)
-            ) : sortedSkus.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-12 py-24 text-center">
-                    <p className="text-[13px] font-black text-zinc-400 uppercase tracking-widest leading-loose">
-                       SCAN COMPLETE: 0 MATCHES FOUND.
-                    </p>
-                  </td>
+        {!error && !loading && sortedAndFilteredData.length === 0 && (
+          <div className="p-8 text-center text-zinc-500 font-semibold uppercase">
+            No SKUs found matching your filters.
+          </div>
+        )}
+
+        {!error && data.length > 0 && (
+          <div className="overflow-auto custom-scrollbar flex-1 relative bg-white">
+            <table className="w-fit min-w-full border-collapse">
+              <thead className="sticky top-0 z-30 bg-white">
+                <tr className="bg-zinc-900">
+                  {columns.map((col, i) => (
+                    <th
+                      key={col}
+                      onClick={() => handleSort(col)}
+                      className={`
+                        px-4 py-3 text-left border-b border-zinc-800 whitespace-nowrap cursor-pointer hover:bg-zinc-800 transition-colors group/header select-none
+                        ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 group-hover/header:bg-zinc-800 border-r border-zinc-800' : ''}
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-black text-zinc-400 uppercase tracking-[0.1em]">
+                          {col.replace(/_/g, ' ')}
+                        </span>
+                        <div className={`text-zinc-600 transition-colors ${sortConfig?.key === col ? 'text-brand-blue' : 'group-hover/header:text-zinc-400'}`}>
+                          {sortConfig?.key === col ? (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5" /> : <ArrowDown className="w-3.5 h-3.5" />
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 opacity-50" />
+                          )}
+                        </div>
+                      </div>
+                    </th>
+                  ))}
                 </tr>
-              ) : (
-                sortedSkus.map((sku, rowIndex) => (
-                  <tr
-                    key={sku.sku}
-                    className="group hover:bg-brand-blue/5 transition-colors"
-                  >
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {sortedAndFilteredData.map((row, idx) => (
+                  <tr key={idx} className="group hover:bg-brand-blue/5 transition-colors">
                     {columns.map((col, i) => (
                       <td
-                        key={col.key}
-                        style={{ width: col.width, minWidth: col.width }}
-                        onClick={() => i > 0 && i < 5 && navigate('/sku/' + sku.sku)}
+                        key={col}
                         className={`
-                          px-3 py-1.5 h-10 lg:px-4 lg:py-2 lg:h-[48px] border-zinc-50
+                          px-4 py-2 border-zinc-50 h-[48px] whitespace-nowrap
                           ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
-                          ${i === 1 ? 'sticky left-[50px] z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]' : ''}
-                          ${col.align === 'right' ? 'text-right' : 'text-left'}
-                          ${i > 0 && i < 5 ? 'cursor-pointer' : ''}
                         `}
                       >
-                        {renderValue(col.key, sku, handleCategoryUpdate, handleActiveToggle, handleCogsUpdate, rowIndex + 1)}
+                        {col === 'is_active' || col === 'amazon_active' || col === 'noon_active' ? (
+                          <div className="flex items-center gap-2">
+                            {renderStatusToggle(row, col)}
+                            <span className={`text-[10px] font-black uppercase ${row[col] ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                              {row[col] ? 'ON' : 'OFF'}
+                            </span>
+                          </div>
+                        ) : col === 'category' ? (
+                          <select
+                            value={row.category || 'C'}
+                            onChange={(e) => handleUpdateField(row.sku, 'category', e.target.value)}
+                            disabled={updating === `${row.sku}-category`}
+                            className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs rounded focus:ring-brand-blue focus:border-brand-blue block w-16 p-1 font-bold uppercase disabled:opacity-50 cursor-pointer"
+                          >
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                          </select>
+                        ) : col === 'cogs' ? (
+                          <div className="flex items-center gap-2 min-w-[100px]">
+                            {editingCogs?.sku === row.sku ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="w-16 p-1 text-xs border border-brand-blue rounded bg-white text-zinc-900 font-semibold focus:outline-none"
+                                  value={editingCogs.value}
+                                  onChange={e => setEditingCogs({ ...editingCogs, value: e.target.value })}
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleUpdateField(row.sku, 'cogs', parseFloat(editingCogs.value))}
+                                  disabled={updating === `${row.sku}-cogs`}
+                                  className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingCogs(null)}
+                                  className="p-1 text-rose-500 hover:bg-rose-50 rounded transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="text-[13px] font-semibold text-zinc-600">
+                                  {row[col] === null || row[col] === undefined ? '-' : Number(row[col]).toFixed(2)}
+                                </span>
+                                <button
+                                  onClick={() => setEditingCogs({ sku: row.sku, value: String(row.cogs || 0) })}
+                                  className="p-1 text-zinc-400 hover:text-brand-blue hover:bg-brand-blue/10 rounded transition-colors"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <span className={`text-[13px] uppercase ${i === 0 ? 'font-black text-brand-blue' : 'font-semibold text-zinc-600'}`}>
+                            {row[col] === null || row[col] === undefined ? '-' : String(row[col])}
+                          </span>
+                        )}
                       </td>
                     ))}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {/* Footer Stats */}
-        <div className="px-8 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between z-30 shrink-0">
-           <div className="flex items-center gap-6">
-              {/* Status items removed */}
-           </div>
-           <p className="text-[11px] font-bold uppercase text-zinc-400 tracking-widest opacity-60">
-             Logistics Engine v2.4 • Buffer: {sortedSkus.length} Items
-           </p>
+        <div className="px-8 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0 z-30">
+          <div className="flex items-center gap-6">
+            <p className="text-[12px] font-bold uppercase text-zinc-500">RECORDS: {sortedAndFilteredData.length}</p>
+          </div>
         </div>
       </div>
       
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
       `}</style>
     </div>
-  )
-}
-
-function renderValue(key: SortKey, sku: SKUListItem, onCategorySaved: any, onActiveToggle: any, onCogsSaved: any, rowNum: number) {
-  if (key === 'row_num') return <span className="text-[13px] font-black text-sidebar font-data">{rowNum}</span>
-  if (key === 'sku') return <span className="font-black text-brand-blue text-[13px] hover:underline underline-offset-4">{sku.sku}</span>
-  if (key === 'name') return <span className="text-[12px] lg:text-[13px] font-bold text-sidebar truncate block max-w-[120px] sm:max-w-[200px] lg:max-w-[300px]">{sku.name}</span>
-  if (key === 'asin') return <span className="text-[13px] font-black text-sidebar font-data">{sku.asin || '—'}</span>
-  if (key === 'fnsku') return <span className="text-[13px] font-black text-sidebar font-data">{sku.fnsku || '—'}</span>
-  if (key === 'category') return (
-    <CategoryEdit
-      sku={sku.sku}
-      current={sku.category ?? null}
-      onSaved={cat => onCategorySaved(sku.sku, cat)}
-    />
-  )
-  if (key === 'product_category') return <span className="text-[11px] font-bold text-zinc-500 uppercase">{sku.product_category || '—'}</span>
-  if (key === 'sub_category') return <span className="text-[11px] font-bold text-zinc-500 uppercase">{sku.sub_category || '—'}</span>
-  if (key === 'cogs') return (
-    <CogsEdit
-      sku={sku.sku}
-      current={sku.cogs ?? null}
-      onSaved={newCogs => onCogsSaved(sku.sku, newCogs)}
-    />
-  )
-  if (key === 'is_active') return (
-    <Toggle 
-      checked={sku.is_active} 
-      onChange={(next) => onActiveToggle(sku.sku, next)}
-      label={sku.is_active ? 'Active' : 'Inactive'}
-    />
-  )
-  
-  return <span className="text-[11px] font-bold text-zinc-600">{String((sku as any)[key] ?? '—')}</span>
-}
-
-function SkeletonRow({ colCount }: { colCount: number }) {
-  return (
-    <tr className="animate-pulse">
-      {[...Array(colCount)].map((_, i) => (
-        <td key={i} className="px-6 py-4">
-          <div className="h-4 bg-zinc-100 rounded-lg w-full" />
-        </td>
-      ))}
-    </tr>
   )
 }

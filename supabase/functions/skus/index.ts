@@ -22,6 +22,10 @@ interface SKUListItem {
   lead_time_days: number
   cogs: number
   dimensions: string | null
+  weight_kg: number | null
+  cbm: number | null
+  amazon_active: boolean
+  noon_active: boolean
   is_active: boolean
   is_live: boolean
   demand: {
@@ -155,16 +159,7 @@ async function handleList(url: URL): Promise<Response> {
   // Base query: join sku_master with demand_metrics (left join via foreign key)
   let query = supabase
     .from('sku_master')
-    .select(
-      `
-      sku, name, asin, fnsku, category, product_category, sub_category,
-      units_per_box, moq, lead_time_days, cogs, dimensions, is_active,
-      demand_metrics(
-        blended_sv, total_coverage, projected_coverage,
-        action_flag, should_reorder, suggested_reorder_units
-      )
-      `
-    )
+    .select('*')
     .order('sku', { ascending: true })
 
   // Apply category filter
@@ -172,13 +167,16 @@ async function handleList(url: URL): Promise<Response> {
     query = query.eq('category', category)
   }
 
-  const [{ data, error }, liveSalesResult] = await Promise.all([
+  const [{ data, error }, liveSalesResult, demandResult] = await Promise.all([
     query,
     supabase
       .from('sales_snapshot')
       .select('sku')
       .gte('date', cutoff60)
       .gt('units_sold', 0),
+    supabase
+      .from('demand_metrics')
+      .select('sku, blended_sv, total_coverage, projected_coverage, action_flag, should_reorder, suggested_reorder_units')
   ])
 
   if (error) {
@@ -199,6 +197,20 @@ async function handleList(url: URL): Promise<Response> {
         (r.name as string).toLowerCase().includes(lower)
     )
   }
+
+  // Create demand lookup map
+  const demandMap = new Map<string, any>()
+  if (demandResult.data) {
+    demandResult.data.forEach((d: any) => {
+      demandMap.set(d.sku, d)
+    })
+  }
+
+  // Attach demand metrics
+  rows = rows.map((r: any) => ({
+    ...r,
+    demand_metrics: demandMap.has(r.sku) ? [demandMap.get(r.sku)] : []
+  }))
 
   // Apply action_flag filter
   if (flag) {
@@ -230,7 +242,11 @@ async function handleList(url: URL): Promise<Response> {
       moq: r.moq as number,
       lead_time_days: r.lead_time_days as number,
       cogs: r.cogs as number,
-      dimensions: (r.dimensions as string | null) ?? null,
+      dimensions: ((r.dimensions || r.dimension) as string | null) ?? null,
+      weight_kg: (r.weight_kg as number | null) ?? null,
+      cbm: (r.cbm as number | null) ?? null,
+      amazon_active: (r.amazon_active as boolean) ?? true,
+      noon_active: (r.noon_active as boolean) ?? true,
       is_active: r.is_active as boolean,
       is_live: liveSkuSet.has(r.sku as string),
       demand: metric ? {
@@ -261,7 +277,7 @@ async function handleDetail(skuId: string): Promise<Response> {
     // SKU master record
     supabase
       .from('sku_master')
-      .select('sku, name, asin, fnsku, category, product_category, sub_category, units_per_box, moq, lead_time_days, cogs, dimensions, is_active')
+      .select('*')
       .eq('sku', skuId)
       .maybeSingle(),
 
@@ -416,7 +432,7 @@ async function handleDetail(skuId: string): Promise<Response> {
     moq: skuRow.moq as number,
     lead_time_days: skuRow.lead_time_days as number,
     cogs: skuRow.cogs as number,
-    dimensions: (skuRow.dimensions as string | null) ?? null,
+    dimensions: ((skuRow.dimensions || skuRow.dimension) as string | null) ?? null,
     is_active: skuRow.is_active as boolean,
 
     demand: demandRow
@@ -518,7 +534,7 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
   }
 
   // Only allow updating specific fields
-  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'is_active']
+  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'is_active', 'amazon_active', 'noon_active']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) {
@@ -558,7 +574,7 @@ async function handleAutoClassify(): Promise<Response> {
   // Fetch all active SKUs with their demand metrics
   const { data, error } = await supabase
     .from('sku_master')
-    .select('sku, demand_metrics(blended_sv)')
+    .select('sku')
     .eq('is_active', true)
 
   if (error) {
@@ -569,9 +585,7 @@ async function handleAutoClassify(): Promise<Response> {
   }
 
   const skus = ((data ?? []) as Record<string, unknown>[]).map(r => {
-    const dm = r.demand_metrics as Record<string, unknown>[] | null
-    const sv = (Array.isArray(dm) && dm.length > 0 ? dm[0].blended_sv : 0) as number
-    return { sku: r.sku as string, blended_sv: sv ?? 0 }
+    return { sku: r.sku as string, blended_sv: 0 }
   })
 
   // Sort by velocity descending (nulls/zeros fall to C naturally)

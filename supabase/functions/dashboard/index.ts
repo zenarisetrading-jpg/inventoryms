@@ -98,23 +98,27 @@ interface CommandCenterResponse {
   oos_count_amazon: number
   oos_count_noon: number
   oos_count_total: number
-  oos_skus_amazon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number; fba_units: number; fbn_units: number; minutes_units: number }[]
-  oos_skus_noon: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number; fba_units: number; fbn_units: number; minutes_units: number }[]
+  oos_skus_amazon: any[]
+  oos_skus_noon: any[]
+  oos_skus_total_risk: any[]
+  last_synced: string | null
   latest_snapshot_amazon: string | null
   latest_snapshot_noon: string | null
   latest_snapshot_locad: string | null
-  last_synced: string | null
-  total_oos_risk: {
-    sku: string
-    name: string
-    category: string
-    product_category: string
-    sub_category: string
-    blended_sv: number
-    suggested_units: number
-    total_cost_aed: number
-  }[]
   generated_at: string
+}
+
+function pct(num: number, den: number): number {
+  return den > 0 ? Math.round((num / den) * 1000) / 10 : 0
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString('en-AE', { month: 'short', day: 'numeric' })
+  } catch {
+    return '—'
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -139,24 +143,36 @@ serve(async (req: Request) => {
     // 1. Fetch data from fact_inventory_planning and sku_master separately to avoid relationship issues
     const [factRes, masterRes] = await Promise.all([
       supabase.from('fact_inventory_planning').select('*'),
-      supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active')
+      supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active')
     ])
 
     if (factRes.error) throw factRes.error
     if (masterRes.error) throw masterRes.error
 
     const factRows = factRes.data || []
-    interface SKUInfo { sku: string; name: string; category: string; lead_time_days: number; cogs: number; is_active: boolean }
+    interface SKUInfo { 
+      sku: string; 
+      name: string; 
+      category: string; 
+      lead_time_days: number; 
+      cogs: number; 
+      is_active: boolean;
+      amazon_active: boolean;
+      noon_active: boolean;
+    }
     const masterMap = new Map<string, SKUInfo>(
       (masterRes.data as SKUInfo[] || []).filter(m => m.is_active).map(m => [m.sku.trim().toUpperCase(), m])
     )
 
-    // 2. Fetch Inbound POs (still needed from separate table)
-    const { data: inboundRows } = await supabase
-      .from('po_register')
-      .select('id, po_number, supplier, eta, status, po_line_items(sku, units_ordered, units_received)')
-      .in('status', INCOMING_PO_STATUSES)
+    // 2. Fetch Inbound POs from fact_purchase (flattened source)
+    const { data: allPurchases } = await supabase
+      .from('fact_purchase')
+      .select('po_number, supplier, eta, status, sku, units_ordered, units_received')
       .order('eta', { ascending: true })
+
+    const inboundRows = (allPurchases || []).filter(r => 
+      r.status && INCOMING_PO_STATUSES.includes(r.status.toLowerCase() as any)
+    )
 
     // 3. Last synced & snapshot dates (still from snapshots)
     const [latestSnapshot, snapDates] = await Promise.all([
@@ -255,40 +271,48 @@ serve(async (req: Request) => {
         })
       }
 
-      // 4. OOS Metrics (Simplified to show all possible SKUs)
-      amzLiveCount++
-      if (fba_units <= 0) {
-        amzOOSCount++
-        oos_skus_amazon.push({
-          sku: r.sku,
-          name: skuMeta.name,
-          blended_sv,
-          coverage_amazon: 0,
-          coverage_noon: noon_cov,
-          fba_units,
-          fbn_units,
-          minutes_units: Number(r.minutes_units || 0)
-        })
+      // 4. OOS Metrics (Filtered by Channel Active Status)
+      if (skuMeta.amazon_active) {
+        amzLiveCount++
+        if (fba_units <= 0) {
+          amzOOSCount++
+          oos_skus_amazon.push({
+            sku: r.sku,
+            name: skuMeta.name,
+            blended_sv,
+            coverage_amazon: 0,
+            coverage_noon: noon_cov,
+            fba_units,
+            fbn_units,
+            minutes_units: Number(r.minutes_units || 0)
+          })
+        }
       }
 
-      noonLiveCount++
-      if (fbn_units <= 0) {
-        noonOOSCount++
-        oos_skus_noon.push({
-          sku: r.sku,
-          name: skuMeta.name,
-          blended_sv,
-          coverage_amazon: amz_cov,
-          coverage_noon: 0,
-          fba_units,
-          fbn_units,
-          minutes_units: Number(r.minutes_units || 0)
-        })
+      if (skuMeta.noon_active) {
+        noonLiveCount++
+        if (fbn_units <= 0) {
+          noonOOSCount++
+          oos_skus_noon.push({
+            sku: r.sku,
+            name: skuMeta.name,
+            blended_sv,
+            coverage_amazon: amz_cov,
+            coverage_noon: 0,
+            fba_units,
+            fbn_units,
+            minutes_units: Number(r.minutes_units || 0)
+          })
+        }
       }
 
-      totalLiveCount++
-      if ((fba_units + fbn_units) <= 0) {
-        totalOOSCount++
+      // Total Global Status (if active on ANY channel)
+      if (skuMeta.amazon_active || skuMeta.noon_active) {
+        totalLiveCount++
+        const totalUnits = (skuMeta.amazon_active ? fba_units : 0) + (skuMeta.noon_active ? fbn_units : 0)
+        if (totalUnits <= 0) {
+          totalOOSCount++
+        }
       }
 
       // 5. Total Fleet Risk (Both OOS + Total Coverage < 14)
@@ -308,41 +332,59 @@ serve(async (req: Request) => {
     }
 
 
-    const pct = (num: number, den: number) => (den > 0 ? Math.round((num / den) * 1000) / 10 : 0)
 
-    const response: CommandCenterResponse = {
-      alerts: alerts.sort((a,b) => a.total_coverage - b.total_coverage),
-      ship_now: ship_now.sort((a,b) => b.total_units_to_ship - a.total_units_to_ship),
-      reorder_now: reorder_now.sort((a,b) => a.projected_coverage - b.projected_coverage),
-      transfers: [], // Transfers are now implicitly covered by ship_now in this MVP version
-      inbound: (inboundRows || []).map((po: any) => ({
-        id: po.id,
-        po_number: po.po_number,
-        supplier: po.supplier,
-        eta: po.eta,
-        status: po.status,
-        total_units: (po.po_line_items || []).reduce((s: number, li: any) => s + (li.units_ordered - (li.units_received || 0)), 0),
-        line_items: po.po_line_items || []
-      })),
-      excess: [], // Fact table doesn't explicitly flag excess yet in this version
-      live_selling_skus: totalLiveCount,
-      live_skus_amazon: amzLiveCount,
-      live_skus_noon: noonLiveCount,
-      oos_pct_amazon: pct(amzOOSCount, amzLiveCount),
-      oos_pct_noon: pct(noonOOSCount, noonLiveCount),
-      oos_pct_total: pct(totalOOSCount, totalLiveCount),
-      oos_count_amazon: amzOOSCount,
-      oos_count_noon: noonOOSCount,
-      oos_count_total: totalOOSCount,
-      oos_skus_amazon: oos_skus_amazon.sort((a,b) => b.blended_sv - a.blended_sv),
-      oos_skus_noon: oos_skus_noon.sort((a,b) => b.blended_sv - a.blended_sv),
-      latest_snapshot_amazon: latestDateByNode['amazon_fba'] || null,
-      latest_snapshot_noon: latestDateByNode['noon_fbn'] || null,
-      latest_snapshot_locad: latestDateByNode['locad_warehouse'] || null,
-      last_synced: latestSnapshot.data?.synced_at || null,
-      total_oos_risk: oos_skus_total_risk.sort((a,b) => b.blended_sv - a.blended_sv),
-      generated_at: new Date().toISOString(),
-    }
+
+      // 5. Group Inbound POs for the UI
+      const poGroups = new Map<string, any>()
+      for (const r of (inboundRows || [])) {
+        if (!poGroups.has(r.po_number)) {
+          poGroups.set(r.po_number, {
+            id: r.po_number,
+            po_number: r.po_number,
+            supplier: r.supplier,
+            eta: r.eta,
+            status: r.status,
+            total_units: 0,
+            line_items: []
+          })
+        }
+        const group = poGroups.get(r.po_number)!
+        const remaining = Number(r.units_ordered) - Number(r.units_received || 0)
+        group.total_units += remaining
+        const skuInfo = masterMap.get(r.sku.trim().toUpperCase())
+        group.line_items.push({ 
+          sku: r.sku, 
+          name: skuInfo?.name || r.sku, // Get name from masterMap
+          units_ordered: r.units_ordered, 
+          units_received: r.units_received || 0 
+        })
+      }
+
+      const response: CommandCenterResponse = {
+        alerts: alerts.sort((a,b) => a.total_coverage - b.total_coverage),
+        ship_now: ship_now.sort((a,b) => b.total_units_to_ship - a.total_units_to_ship),
+        reorder_now: reorder_now.sort((a,b) => a.projected_coverage - b.projected_coverage),
+        transfers: [], 
+        inbound: Array.from(poGroups.values()),
+        excess: [], 
+        live_selling_skus: totalLiveCount,
+        live_skus_amazon: amzLiveCount,
+        live_skus_noon: noonLiveCount,
+        oos_pct_amazon: pct(amzOOSCount, amzLiveCount),
+        oos_pct_noon: pct(noonOOSCount, noonLiveCount),
+        oos_pct_total: pct(totalOOSCount, totalLiveCount),
+        oos_count_amazon: amzOOSCount,
+        oos_count_noon: noonOOSCount,
+        oos_count_total: totalOOSCount,
+        oos_skus_amazon: oos_skus_amazon.sort((a,b) => b.blended_sv - a.blended_sv),
+        oos_skus_noon: oos_skus_noon.sort((a,b) => b.blended_sv - a.blended_sv),
+        oos_skus_total_risk: oos_skus_total_risk.sort((a,b) => b.blended_sv - a.blended_sv),
+        latest_snapshot_amazon: latestDateByNode['amazon_fba'] ? formatDate(latestDateByNode['amazon_fba']) : '—',
+        latest_snapshot_noon: latestDateByNode['noon_fbn'] ? formatDate(latestDateByNode['noon_fbn']) : '—',
+        latest_snapshot_locad: latestDateByNode['locad_warehouse'] ? formatDate(latestDateByNode['locad_warehouse']) : '—',
+        last_synced: latestSnapshot.data?.synced_at || new Date().toISOString(),
+        generated_at: new Date().toISOString(),
+      }
 
     return new Response(JSON.stringify(response), {
       status: 200,
@@ -350,8 +392,10 @@ serve(async (req: Request) => {
     })
   } catch (err) {
     console.error('dashboard: unhandled error', err)
+    const errorDetail = err instanceof Error ? err.message : 
+                       (typeof err === 'object' ? JSON.stringify(err) : String(err))
     return new Response(
-      JSON.stringify({ error: 'Internal server error', detail: String(err) }),
+      JSON.stringify({ error: 'Internal server error', detail: errorDetail }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

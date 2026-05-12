@@ -532,7 +532,7 @@ export default function CommandCenter() {
           <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
           <div className="flex-1">
             <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">Channel Integration Error</h3>
-            <p className="text-[11px] mt-1 text-red-600/80 font-medium leading-relaxed">System failed to establish handshake with Supabase Edge Functions. {(data as any).error}</p>
+            <p className="text-[11px] mt-1 text-red-600/80 font-medium leading-relaxed">System failed to establish handshake with Supabase Edge Functions. {(data as any).error} {(data as any).detail ? `- ${(data as any).detail}` : ''}</p>
             <div className="flex gap-4 mt-4">
               <button onClick={load} className="px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
                 Reconnect
@@ -603,7 +603,7 @@ export default function CommandCenter() {
             <KPITile
               label="AMZ OOS Rate"
               value={`${(data.oos_pct_amazon ?? 0).toFixed(1)}%`}
-              sub={`${data.oos_count_amazon ?? 0} SKUs OOS`}
+              sub={`${data.oos_count_amazon ?? 0} OOS / ${data.live_skus_amazon ?? 0} Active SKUs`}
               accentColor="border-l-indigo-400"
               icon={TrendingUp}
               onDoubleClick={() => setDrillModal({
@@ -616,7 +616,7 @@ export default function CommandCenter() {
             <KPITile
               label="Noon OOS Rate"
               value={`${(data.oos_pct_noon ?? 0).toFixed(1)}%`}
-              sub={`${data.oos_count_noon ?? 0} SKUs OOS`}
+              sub={`${data.oos_count_noon ?? 0} OOS / ${data.live_skus_noon ?? 0} Active SKUs`}
               accentColor="border-l-purple-400"
               icon={TrendingUp}
               onDoubleClick={() => setDrillModal({
@@ -935,12 +935,18 @@ export default function CommandCenter() {
                   data?.inbound?.flatMap((b: any) => (b.line_items ?? []).map((li: any) => ({
                     po: b.po_number,
                     sku: li.sku,
+                    name: li.name,
                     units: li.units_ordered,
                     eta: b.eta
                   }))).map((row: any) => (
                     <tr key={`${row.po}-${row.sku}`} className="hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-2.5 font-data text-[10px] font-bold text-muted">{row.po}</td>
-                      <td className="px-4 py-2.5"><SKULink sku={row.sku} /></td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex flex-col">
+                          <SKULink sku={row.sku} />
+                          <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[180px]">{row.name}</span>
+                        </div>
+                      </td>
                       <td className="px-4 py-2.5 text-right font-data text-[11px] text-primary">{row.units}</td>
                       <td className="px-4 py-2.5 text-[10px] font-bold text-muted">{formatDate(row.eta)}</td>
                     </tr>

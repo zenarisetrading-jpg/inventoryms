@@ -111,10 +111,10 @@ async function handleList(url: URL): Promise<Response> {
   const supplierParam = url.searchParams.get('supplier')
 
   let query = supabase.from('fact_purchase').select('*')
-  if (statusParam) query = query.eq('status', statusParam)
+  if (statusParam) query = query.ilike('status', `%${statusParam.trim()}%`)
   if (supplierParam) query = query.ilike('supplier', `%${supplierParam}%`)
 
-  const { data, error } = await query.order('created_at', { ascending: false })
+  const { data, error } = await query.order('po_number', { ascending: false })
 
   if (error) return errorResponse('Failed to fetch purchases', 500, error.message)
 

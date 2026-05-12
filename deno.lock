@@ -1,0 +1,18 @@
+{
+  "version": "5",
+  "remote": {
+    "https://deno.land/std@0.168.0/_util/asserts.ts": "d0844e9b62510f89ce1f9878b046f6a57bf88f208a10304aab50efcb48365272",
+    "https://deno.land/std@0.168.0/encoding/csv.ts": "13adca08c30da6330dfcf35760630c9006a1ee17fe1887f12557255fd1bf08d0",
+    "https://deno.land/std@0.168.0/encoding/csv/_io.ts": "885a8663352d494b984fd9f91605c3dd8831cc2def0d1a3feadb53eb469458c4",
+    "https://deno.land/std@0.168.0/encoding/csv/_parser.ts": "dd44e1e6758984fb4aa1c34f8fb6e7db6b8eb4a2e1527d73db6d3b073576131e"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@supabase/supabase-js@^2.105.1",
+        "npm:serve@^14.2.4",
+        "npm:supabase@^2.84.4"
+      ]
+    }
+  }
+}

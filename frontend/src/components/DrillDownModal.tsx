@@ -16,8 +16,21 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
   const [rowStatuses, setRowStatuses] = useState<Record<string, string>>({})
   if (!isOpen) return null
 
-  // Ensure data is an array
-  const safeData = Array.isArray(data) ? data : []
+  // Flatten data for specific types if needed
+  const displayData = (type === 'inbound') 
+    ? (Array.isArray(data) ? data : []).flatMap((po: any) => 
+        (po.line_items || []).map((li: any) => ({
+          ...li,
+          po_number: po.po_number,
+          supplier: po.supplier,
+          status: po.status,
+          eta: po.eta,
+          total_units: li.units_ordered
+        }))
+      )
+    : (Array.isArray(data) ? data : [])
+
+  const safeData = displayData
 
   const handleExport = () => {
     try {
