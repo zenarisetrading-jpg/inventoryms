@@ -14,6 +14,7 @@ export default function InventoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
+  const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
 
   const fetchData = async () => {
     setLoading(true)
@@ -67,7 +68,7 @@ export default function InventoryPage() {
     
     // Explicit order as requested by user
     const PREFERRED_ORDER = [
-      'sku', 'category', 'sub_category', 'action_flag',
+      'sku', 'is_active', 'category', 'sub_category', 'action_flag',
       'fba_units', 'amazon_sv', 'fbn_units', 'noon_sv', 
       'minutes_units', 'minutes_sv', 
       'locad_units', 'locad_boxes', 'units_per_box', 'blended_sv',
@@ -99,6 +100,15 @@ export default function InventoryPage() {
       list = list.filter(item =>
         Object.values(item).some(v => String(v).toLowerCase().includes(q))
       )
+    }
+
+    if (selectedStatus.length > 0) {
+      list = list.filter(item => {
+        if (selectedStatus.includes('active') && selectedStatus.includes('inactive')) return true
+        if (selectedStatus.includes('active')) return item.is_active !== false
+        if (selectedStatus.includes('inactive')) return item.is_active === false
+        return false
+      })
     }
 
     if (selectedCategories.length > 0) {
@@ -152,66 +162,76 @@ export default function InventoryPage() {
   )
 
   return (
-    <div className="flex flex-col gap-8 -mt-4 lg:-mt-8">
+    <div className="flex flex-col gap-10 -mt-4 lg:-mt-8 pb-20 px-2 lg:px-4">
       {/* ── TOP CONTROL PANEL ────────────────────────────────────────── */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black shrink-0">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center justify-between bg-white p-6 lg:p-8 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40">
+        <div className="flex items-center gap-3 lg:gap-4">
+          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg shrink-0">
             <Layers className="w-5 h-5 lg:w-6 lg:h-6" />
           </div>
           <div>
-            <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Inventory Matrix</h1>
-            <p className="text-[9px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 lg:mt-2 opacity-60">fact_inventory_planning • RAW DATA FEED</p>
+            <h1 className="text-lg lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Inventory Matrix</h1>
+            <p className="text-[8px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 opacity-60">fact_inventory_planning • RAW DATA FEED</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+        <div className="flex flex-wrap items-center gap-2 lg:gap-4 w-full lg:flex-1 lg:justify-end">
           {/* Search */}
-          <div className="relative group min-w-[280px] flex-1 lg:flex-none">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
+          <div className="relative group flex-1 min-w-[140px] lg:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
             <input
               type="text"
-              placeholder="SCAN RECORDS..."
-              className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-transparent rounded-xl text-sm font-semibold uppercase focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue outline-none transition-all placeholder:text-zinc-400"
+              placeholder="SCAN..."
+              className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-100 rounded-xl text-xs font-semibold uppercase focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue outline-none transition-all placeholder:text-zinc-400"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <MultiSelect
-            label="Tiers"
-            placeholder="ALL TIERS"
-            icon={Filter}
-            options={[{label: 'TIER A', value: 'A'}, {label: 'TIER B', value: 'B'}, {label: 'TIER C', value: 'C'}]}
-            selected={selectedCategories}
-            onChange={setSelectedCategories}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <MultiSelect
+              label="Tiers"
+              placeholder="TIERS"
+              icon={Filter}
+              options={[{label: 'TIER A', value: 'A'}, {label: 'TIER B', value: 'B'}, {label: 'TIER C', value: 'C'}]}
+              selected={selectedCategories}
+              onChange={setSelectedCategories}
+            />
 
-          <MultiSelect
-            label="SubCategory"
-            placeholder="ALL SUB-CAT"
-            icon={Layers}
-            options={Array.from(new Set((data?.raw_data || []).map((r: any) => r.sub_category).filter(Boolean))).sort().map((c: any) => ({ label: c.toUpperCase(), value: c }))}
-            selected={selectedSubCategories}
-            onChange={setSelectedSubCategories}
-          />
+            <MultiSelect
+              label="Status"
+              placeholder="STATUS"
+              icon={Filter}
+              options={[{ label: 'Active Only', value: 'active' }, { label: 'Inactive Only', value: 'inactive' }]}
+              selected={selectedStatus}
+              onChange={setSelectedStatus}
+            />
 
-          {/* Actions */}
-          <div className="flex items-center gap-3">
+            <MultiSelect
+              label="SubCategory"
+              placeholder="SUB-CAT"
+              icon={Layers}
+              options={Array.from(new Set((data?.raw_data || []).map((r: any) => r.sub_category).filter(Boolean))).sort().map((c: any) => ({ label: c.toUpperCase(), value: c }))}
+              selected={selectedSubCategories}
+              onChange={setSelectedSubCategories}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto lg:ml-0">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-5 py-3 bg-white border border-zinc-200 rounded-xl text-xs font-black uppercase text-zinc-900 hover:bg-zinc-50 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-[10px] font-black uppercase text-zinc-900 hover:bg-zinc-50 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               SYNC
             </button>
 
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-6 py-3 bg-sidebar text-brand-amber rounded-xl text-xs font-black uppercase hover:bg-sidebar/90 transition-all shadow-md active:scale-95 transition-transform"
+              className="flex items-center gap-2 px-4 py-2 bg-sidebar text-brand-amber rounded-xl text-[10px] font-black uppercase hover:bg-sidebar/90 transition-all shadow-md active:scale-95 transition-transform"
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-3.5 w-3.5" />
               EXPORT
             </button>
           </div>
@@ -220,7 +240,7 @@ export default function InventoryPage() {
 
       {/* ── SUMMARY STATS ────────────────────────────────────────────── */}
       {!error && processedData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
           <InventoryStatCard 
             title="Channel Stock" 
             icon={Archive}
@@ -314,8 +334,8 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {processedData.map((row, idx) => (
-                  <tr key={idx} className="group hover:bg-brand-blue/5 transition-colors">
+                {processedData.map((row: any, idx) => (
+                  <tr key={idx} className={`group hover:bg-brand-blue/5 transition-colors ${row.is_active === false ? 'bg-zinc-50/80 opacity-60' : ''}`}>
                     {columns.map((col, i) => (
                       <td
                         key={col.key}
@@ -395,6 +415,13 @@ export default function InventoryPage() {
 }
 
 function renderCell(key: string, val: any) {
+  if (key === 'is_active') {
+    return val === false ? (
+      <span className="px-2 py-0.5 bg-zinc-200 text-zinc-500 rounded text-[9px] font-black uppercase">Inactive</span>
+    ) : (
+      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[9px] font-black uppercase">Active</span>
+    )
+  }
   if (val === null || val === undefined) return '0'
   if (typeof val === 'number') {
     if (val % 1 !== 0) return val.toFixed(2)
@@ -405,16 +432,16 @@ function renderCell(key: string, val: any) {
 
 function InventoryStatCard({ title, items, icon: Icon, accent }: { title: string, items: { label: string, value: any }[], icon: any, accent: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 group min-w-0">
-      <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-        <h3 className="text-[11px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
-        <Icon className={`w-4 h-4 ${accent} opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
+    <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-5 group min-w-0">
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <h3 className="text-[12px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
+        <Icon className={`w-5 h-5 ${accent} opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-5">
         {items.map((item, i) => (
-          <div key={i} className="flex flex-col gap-1 min-w-0">
-            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider truncate">{item.label}</span>
-            <span className="text-[19px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
+          <div key={i} className="flex flex-col gap-1.5 min-w-0">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider truncate">{item.label}</span>
+            <span className="text-[22px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
           </div>
         ))}
       </div>

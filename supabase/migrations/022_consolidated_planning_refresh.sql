@@ -33,6 +33,7 @@ CREATE TABLE public.fact_inventory_planning (
     send_to_fbn_units numeric NULL,
     fba_boxes numeric NULL,
     fbn_boxes numeric NULL,
+    is_active boolean NULL DEFAULT true,
     loaded_at timestamp
     with
         time zone NULL DEFAULT now(),
@@ -88,7 +89,8 @@ BEGIN
         send_to_fba_units,
         send_to_fbn_units,
         fba_boxes,
-        fbn_boxes
+        fbn_boxes,
+        is_active
     )
 
     WITH latest_snapshot AS (
@@ -230,16 +232,12 @@ BEGIN
 
             COALESCE(sp.amazon_units, 0) AS amazon_required_30,
             COALESCE(sp.noon_units, 0) AS noon_required_30,
-            COALESCE(sp.minutes_sales_units, 0) AS minutes_required_30
+            COALESCE(sp.minutes_sales_units, 0) AS minutes_required_30,
+            sm.is_active
 
-        FROM inventory_data i
-
-        INNER JOIN sku_master sm
-            ON i.sku = sm.sku
-            AND sm.is_active = TRUE
-
-        LEFT JOIN sales_pivot sp
-            ON i.sku = sp.sku
+        FROM sku_master sm
+        LEFT JOIN inventory_data i ON sm.sku = i.sku
+        LEFT JOIN sales_pivot sp ON sm.sku = sp.sku
     ),
 
     final_calc AS (
@@ -322,6 +320,9 @@ BEGIN
                     0
                 ) < NULLIF(units_per_box, 0)
                 THEN 0
+                
+                -- Disable suggested reorder if SKU is inactive
+                WHEN is_active = FALSE THEN 0
 
                 ELSE GREATEST(
                     moq,
@@ -426,19 +427,15 @@ BEGIN
 
         SELECT *,
 
-            LEAST(
-                locad_boxes,
-                fba_need_boxes
-            ) * units_per_box AS send_to_fba,
+            CASE 
+                WHEN is_active = FALSE THEN 0 
+                ELSE LEAST(locad_boxes, fba_need_boxes) * units_per_box 
+            END AS send_to_fba,
 
-            LEAST(
-                GREATEST(
-                    0,
-                    locad_boxes - fba_need_boxes
-                ),
-                fbn_need_boxes
-            ) * units_per_box AS send_to_fbn
-
+            CASE 
+                WHEN is_active = FALSE THEN 0 
+                ELSE LEAST(GREATEST(0, locad_boxes - fba_need_boxes), fbn_need_boxes) * units_per_box 
+            END AS send_to_fbn
         FROM allocation_step1
     )
 
@@ -500,7 +497,9 @@ BEGIN
 
         send_to_fba / NULLIF(units_per_box, 0) AS fba_boxes,
 
-        send_to_fbn / NULLIF(units_per_box, 0) AS fbn_boxes
+        send_to_fbn / NULLIF(units_per_box, 0) AS fbn_boxes,
+        
+        is_active
 
     FROM allocation a
     LEFT JOIN fact_purchase_agg pa
