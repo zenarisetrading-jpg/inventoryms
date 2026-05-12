@@ -128,7 +128,7 @@ export default function InventoryPage() {
       })
     }
     return list
-  }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedSubCategories])
+  }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedSubCategories, selectedStatus])
 
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
