@@ -474,7 +474,7 @@ export default function POPage() {
               >
                 Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="w-[10%] px-4 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
+              <th className="w-[10%] pl-4 pr-8 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -501,7 +501,7 @@ export default function POPage() {
                       <td className="px-3 py-2.5 text-center text-zinc-400 text-xs">
                         {isExpanded ? '▼' : '▶'}
                       </td>
-                      <td className="px-4 py-2.5 font-data text-sm font-semibold text-zinc-900">
+                      <td className="px-4 py-4 font-data text-sm font-semibold text-zinc-900">
                         {po.po_number}
                         <InlineEdit 
                           value={po.po_name} 
@@ -514,15 +514,15 @@ export default function POPage() {
                           }}
                         />
                       </td>
-                      <td className="px-4 py-2.5 text-sm text-zinc-900">{po.supplier}</td>
-                      <td className="px-4 py-2.5 text-right font-data text-sm text-zinc-600">{po.line_items.length}</td>
-                      <td className="px-4 py-2.5 text-right font-data text-sm font-semibold text-zinc-900">
+                      <td className="px-4 py-4 text-sm text-zinc-900">{po.supplier}</td>
+                      <td className="px-4 py-4 text-right font-data text-sm text-zinc-600">{po.line_items.length}</td>
+                      <td className="px-4 py-4 text-right font-data text-sm font-semibold text-zinc-900">
                         {totalUnits.toLocaleString()}
                       </td>
-                      <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.order_date)}</td>
-                      <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
-                      <td className="px-4 py-2.5"><StatusBadge status={po.status} /></td>
-                      <td className="px-4 py-2.5 text-right" onClick={e => e.stopPropagation()}>
+                      <td className="px-4 py-4 font-data text-xs text-zinc-500">{formatDate(po.order_date)}</td>
+                      <td className="px-4 py-4 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
+                      <td className="px-4 py-4"><StatusBadge status={po.status} /></td>
+                      <td className="pl-4 pr-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <ActionDropdown 
                           currentStatus={po.status}
                           onStatusChange={async (newStatus) => {

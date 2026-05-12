@@ -769,7 +769,7 @@ export default function CommandCenter() {
                   <Th right>SV</Th>
                   <Th right>Staged</Th>
                   <Th right>Boxes</Th>
-                  <Th>Protocol</Th>
+                  <th className="px-4 pr-8 py-3 text-[10px] font-black text-muted uppercase tracking-[0.1em] text-left">Protocol</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-color/50 bg-white">
@@ -795,7 +795,7 @@ export default function CommandCenter() {
                         <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
                           {sugAmz + sugNoon}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td className="px-4 pr-8 py-2.5">
                           <ActionDropdown 
                             currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
                             onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
