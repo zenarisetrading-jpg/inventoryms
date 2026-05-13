@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers, Archive, Box, ShoppingCart, Send, DollarSign } from 'lucide-react'
+import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers, Archive, Box, ShoppingCart, Send } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
 import { MultiSelect } from '../components/shared/MultiSelect'
@@ -154,27 +154,6 @@ export default function InventoryPage() {
     return t
   }, [processedData])
 
-  const cogsByChannel = useMemo(() => {
-    let amazon = 0, noon = 0, minutes = 0, locad = 0
-    processedData.forEach((row: any) => {
-      const cogs = Number(row.cogs || 0)
-      amazon  += (Number(row.fba_units  || row.current_fba_stock_units || 0)) * cogs
-      noon    += (Number(row.fbn_units  || row.current_fbn_stock_units || 0)) * cogs
-      minutes += (Number(row.minutes_units || 0)) * cogs
-      locad   += (Number(row.locad_units || row.stock_in_hand_units || 0)) * cogs
-    })
-    const fmt = (n: number) => n >= 1_000_000
-      ? `${(n/1_000_000).toFixed(1)}M`
-      : n >= 1_000 ? `${(n/1_000).toFixed(1)}K` : n.toFixed(0)
-    return {
-      amazon:  `AED ${fmt(amazon)}`,
-      noon:    `AED ${fmt(noon)}`,
-      minutes: `AED ${fmt(minutes)}`,
-      locad:   `AED ${fmt(locad)}`,
-      total:   `AED ${fmt(amazon + noon + minutes + locad)}`,
-    }
-  }, [processedData])
-
   if (loading && !data) return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
@@ -261,7 +240,7 @@ export default function InventoryPage() {
 
       {/* ── SUMMARY STATS ────────────────────────────────────────────── */}
       {!error && processedData.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
           <InventoryStatCard 
             title="Channel Stock" 
             icon={Archive}
@@ -312,17 +291,6 @@ export default function InventoryPage() {
               { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
               { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
               { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
-            ]}
-          />
-          <InventoryStatCard
-            title="Inventory COGS"
-            icon={DollarSign}
-            accent="text-emerald-600"
-            items={[
-              { label: 'Amazon FBA', value: cogsByChannel.amazon },
-              { label: 'Noon FBN',   value: cogsByChannel.noon },
-              { label: 'Minutes',    value: cogsByChannel.minutes },
-              { label: 'Locad WH',   value: cogsByChannel.locad },
             ]}
           />
         </div>

@@ -218,7 +218,7 @@ BEGIN
             COALESCE(sm.amazon_active, true) AS amazon_active,
             COALESCE(sm.noon_active, true) AS noon_active,
 
-            COALESCE(i.locad_boxes, 0) * COALESCE(sm.units_per_box, 0) AS locad_units,
+            COALESCE(i.locad_boxes, 0) * COALESCE(NULLIF(sm.units_per_box, 0), 1) AS locad_units,
 
             COALESCE(sp.amazon_units, 0) / 30.0 AS amazon_sv,
             COALESCE(sp.noon_units, 0) / 30.0 AS noon_sv,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -8,8 +8,7 @@ import POPage from './pages/po'
 import UploadPage from './pages/upload'
 import HealthPage from './pages/health'
 import InventoryPage from './pages/inventory'
-import AnalyticsPage from './pages/analytics'
-import PerformanceInsightsPage from './pages/performance-insights'
+import PerformancePage from './pages/performance'
 import PONewPage from './pages/po_new'
 import SKUNewPage from './pages/skus_new'
 import { navigate } from './lib/router'
@@ -27,8 +26,7 @@ type Route =
   | { name: 'upload' }
   | { name: 'health' }
   | { name: 'inventory' }
-  | { name: 'analytics' }
-  | { name: 'insights' }
+  | { name: 'performance' }
   | { name: 'skus_new' }
 
 function parseRoute(): Route {
@@ -41,8 +39,7 @@ function parseRoute(): Route {
   if (path === '/upload') return { name: 'upload' }
   if (path === '/health') return { name: 'health' }
   if (path === '/inventory') return { name: 'inventory' }
-  if (path === '/analytics') return { name: 'analytics' }
-  if (path === '/insights') return { name: 'insights' }
+  if (path === '/performance') return { name: 'performance' }
   if (path === '/skus/new') return { name: 'skus_new' }
   return { name: 'dashboard' }
 }
@@ -148,8 +145,7 @@ export default function App() {
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
-          <SidebarLink icon={BarChart2} label="Analytics" path="/analytics" current={route.name === 'analytics'} collapsed={isSidebarCollapsed} />
-          <SidebarLink icon={Activity} label="Insights" path="/insights" current={route.name === 'insights'} collapsed={isSidebarCollapsed} />
+          <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
         </nav>
 
         <div className={`p-4 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
@@ -265,8 +261,7 @@ export default function App() {
               {route.name === 'upload' && <UploadPage />}
               {route.name === 'health' && <HealthPage />}
               {route.name === 'inventory' && <InventoryPage />}
-              {route.name === 'analytics' && <AnalyticsPage />}
-              {route.name === 'insights' && <PerformanceInsightsPage />}
+              {route.name === 'performance' && <PerformancePage />}
             </ErrorBoundary>
           </div>
         </main>

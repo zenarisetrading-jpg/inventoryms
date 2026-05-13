@@ -24,11 +24,17 @@ serve(async (req: Request) => {
   }
 
   try {
+    const supabase = getSupabaseAdmin()
+
+    // -------------------------------------------------------------------------
+    // Force refresh the fact table to ensure the latest data is used
+    // -------------------------------------------------------------------------
+    await supabase.rpc('refresh_fact_inventory_planning')
+
     const url = new URL(req.url)
     const rangeDays = parseInt(url.searchParams.get('days') ?? '30', 10)
     const validRange = [7, 30, 90].includes(rangeDays) ? rangeDays : 30
 
-    const supabase = getSupabaseAdmin()
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - validRange)
     const cutoff = cutoffDate.toISOString().slice(0, 10)
@@ -44,12 +50,11 @@ serve(async (req: Request) => {
       poLineItemsResult,
       topSkusResult,
       categoryResult,
-      inventoryAmazonResult,
-      inventoryNoonResult,
-      inventoryLocadResult,
+      factInventoryResult,
       reorderResult,
       flagCountResult,
       noDataSkusResult,
+      factTotalsResult,
     ] = await Promise.all([
       // 1. Sales trend: daily totals by channel
       supabase
@@ -96,29 +101,14 @@ serve(async (req: Request) => {
         .select('sku, channel, units_sold')
         .gte('date', cutoff),
 
-      // 8a/8b/8c. Inventory value inputs by node.
-      // Query per-node to avoid API max-rows truncation dropping noon/locad rows.
+      // 8. Inventory distribution from fact table (with high limit for breakdowns)
       supabase
-        .from('inventory_snapshot')
-        .select('sku, node, warehouse_name, available, snapshot_date')
-        .eq('node', 'amazon_fba')
-        .gte('snapshot_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-        .order('snapshot_date', { ascending: false })
+        .from('fact_inventory_planning')
+        .select('sku, fba_units, fbn_units, minutes_units, locad_units, cogs, action_flag, category, sub_category, is_active')
         .limit(5000),
-      supabase
-        .from('inventory_snapshot')
-        .select('sku, node, warehouse_name, available, snapshot_date')
-        .eq('node', 'noon_fbn')
-        .gte('snapshot_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-        .order('snapshot_date', { ascending: false })
-        .limit(5000),
-      supabase
-        .from('inventory_snapshot')
-        .select('sku, node, warehouse_name, available, snapshot_date')
-        .eq('node', 'locad_warehouse')
-        .gte('snapshot_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-        .order('snapshot_date', { ascending: false })
-        .limit(5000),
+
+      // 8b. Dedicated RPC for the "Correct Numbers" (Main Totals)
+      supabase.rpc('get_inventory_valuation_totals'),
 
       // 9. Reorder cash requirement
       supabase
@@ -143,6 +133,7 @@ serve(async (req: Request) => {
         .is('coverage_noon', null)
         .is('coverage_warehouse', null),
     ])
+
 
     // -------------------------------------------------------------------------
     // Also fetch sku_master for names + cogs + category
@@ -287,87 +278,75 @@ serve(async (req: Request) => {
       .sort((a, b) => (b.amazon + b.noon + b.noon_minutes) - (a.amazon + a.noon + a.noon_minutes))
 
     // -------------------------------------------------------------------------
-    // 8. Inventory value
+    // 8. Inventory value (from fact_inventory_planning)
     // -------------------------------------------------------------------------
-    // KEY FIX: dedup by (sku, node, warehouse_name) — not just (sku, node).
-    // A single SKU can have stock in multiple Locad bins (different warehouse_name).
-    // Using sku|node as the key caused all bins beyond the first to be silently dropped.
-    // Query is ordered snapshot_date DESC so the first occurrence per key is the latest.
-    const inventoryRows = [
-      ...((inventoryAmazonResult.data ?? []) as { sku: string; node: string; warehouse_name: string | null; available: number }[]),
-      ...((inventoryNoonResult.data ?? []) as { sku: string; node: string; warehouse_name: string | null; available: number }[]),
-      ...((inventoryLocadResult.data ?? []) as { sku: string; node: string; warehouse_name: string | null; available: number }[]),
-    ]
-
-    const latestPerBin = new Map<string, number>() // key: sku|node|warehouse_name → available
-    for (const row of inventoryRows) {
-      const key = `${row.sku}|${row.node}|${row.warehouse_name ?? '_'}`
-      if (!latestPerBin.has(key)) {
-        latestPerBin.set(key, row.available ?? 0)
-      }
-    }
-
+    const factRows = (factInventoryResult.data ?? []) as any[]
+    
     const nodeValues = new Map<string, number>()
-    let totalInventoryValue = 0
-    // Helper: Locad stores quantities in BOXES — multiply by units_per_box for actual units
-    function effectiveUnits(available: number, node: string, upb: number): number {
-      return node === 'locad_warehouse' ? available * upb : available
-    }
-
-    for (const [key, available] of latestPerBin.entries()) {
-      const parts = key.split('|')
-      const sku = parts[0]
-      const node = parts[1]
-      const meta = skuMap.get(sku)
-      const cogs = meta?.cogs ?? 0
-      const units = effectiveUnits(available, node, meta?.units_per_box ?? 1)
-      const value = units * cogs
-      nodeValues.set(node, (nodeValues.get(node) ?? 0) + value)
-      totalInventoryValue += value
-    }
-
-    // Value by flag (and subcategory inventory) — sum across all bins per SKU
-    const skuFlags = new Map<string, string>((coverageResult.data ?? []).map((r: { sku: string; action_flag: string | null }) => [r.sku, r.action_flag ?? 'OK']))
     const flagValues = new Map<string, number>()
-    const subCatInventory = new Map<string, { amazon: number; noon: number; warehouse: number }>()
-    const abcInventory = new Map<string, { amazon: number; noon: number; warehouse: number }>()
+    const subCatInventory = new Map<string, { amazon: number; noon: number; minutes: number; warehouse: number }>()
+    const abcInventory = new Map<string, { amazon: number; noon: number; minutes: number; warehouse: number }>()
+    let totalInventoryValue = 0
 
-    for (const [key, available] of latestPerBin.entries()) {
-      const parts = key.split('|')
-      const sku = parts[0]
-      const node = parts[1]
-      const meta = skuMap.get(sku)
-      const cogs = meta?.cogs ?? 0
-      const units = effectiveUnits(available, node, meta?.units_per_box ?? 1)
-      const value = units * cogs
+    for (const row of factRows) {
+      const cogs = row.cogs ?? 0
+      
+      const v_fba = (row.fba_units ?? 0) * cogs
+      const v_fbn = (row.fbn_units ?? 0) * cogs
+      const v_min = (row.minutes_units ?? 0) * cogs
+      const v_loc = (row.locad_units ?? 0) * cogs
+      const total_sku_value = v_fba + v_fbn + v_min + v_loc
+
+      totalInventoryValue += total_sku_value
+
+      // Node totals
+      nodeValues.set('amazon_fba', (nodeValues.get('amazon_fba') ?? 0) + v_fba)
+      nodeValues.set('noon_fbn', (nodeValues.get('noon_fbn') ?? 0) + v_fbn)
+      nodeValues.set('Minutes', (nodeValues.get('Minutes') ?? 0) + v_min)
+      nodeValues.set('locad_warehouse', (nodeValues.get('locad_warehouse') ?? 0) + v_loc)
 
       // Flag breakdown
-      const flag = skuFlags.get(sku) ?? 'OK'
-      flagValues.set(flag, (flagValues.get(flag) ?? 0) + value)
+      const flag = row.action_flag ?? 'OK'
+      flagValues.set(flag, (flagValues.get(flag) ?? 0) + total_sku_value)
 
       // Sub-category breakdown
-      const subCat = meta?.sub_category ?? 'Unknown'
-      const scEntry = subCatInventory.get(subCat) ?? { amazon: 0, noon: 0, warehouse: 0 }
-      if (node === 'amazon_fba') scEntry.amazon += value
-      else if (node === 'noon_fbn') scEntry.noon += value
-      else if (node === 'locad_warehouse') scEntry.warehouse += value
+      const subCat = row.sub_category ?? 'Unknown'
+      const scEntry = subCatInventory.get(subCat) ?? { amazon: 0, noon: 0, minutes: 0, warehouse: 0 }
+      scEntry.amazon += v_fba
+      scEntry.noon += v_fbn
+      scEntry.minutes += v_min
+      scEntry.warehouse += v_loc
       subCatInventory.set(subCat, scEntry)
 
       // ABC category breakdown
-      const abc = meta?.category ?? 'Unclassified'
-      const abcEntry = abcInventory.get(abc) ?? { amazon: 0, noon: 0, warehouse: 0 }
-      if (node === 'amazon_fba') abcEntry.amazon += value
-      else if (node === 'noon_fbn') abcEntry.noon += value
-      else if (node === 'locad_warehouse') abcEntry.warehouse += value
+      const abc = row.category ?? 'Unclassified'
+      const abcEntry = abcInventory.get(abc) ?? { amazon: 0, noon: 0, minutes: 0, warehouse: 0 }
+      abcEntry.amazon += v_fba
+      abcEntry.noon += v_fbn
+      abcEntry.minutes += v_min
+      abcEntry.warehouse += v_loc
       abcInventory.set(abc, abcEntry)
     }
 
+
+    // -------------------------------------------------------------------------
+    // 8. Inventory value (Use RPC for totals to match user's exact query)
+    // -------------------------------------------------------------------------
+    const rpcTotals = factTotalsResult.data?.[0] || { fba_total_cogs: 0, fbn_total_cogs: 0, minutes_total_cogs: 0, locad_total_cogs: 0 }
+    
     const inventory_value = {
-      total_aed: Math.round(totalInventoryValue),
-      by_node: Array.from(nodeValues.entries()).map(([node, value]) => ({
-        node,
-        value_aed: Math.round(value),
-      })),
+      total_aed: Math.round(
+        Number(rpcTotals.fba_total_cogs) + 
+        Number(rpcTotals.fbn_total_cogs) + 
+        Number(rpcTotals.minutes_total_cogs) + 
+        Number(rpcTotals.locad_total_cogs)
+      ),
+      by_node: [
+        { node: 'amazon_fba', value_aed: Math.round(Number(rpcTotals.fba_total_cogs)) },
+        { node: 'noon_fbn', value_aed: Math.round(Number(rpcTotals.fbn_total_cogs)) },
+        { node: 'Minutes', value_aed: Math.round(Number(rpcTotals.minutes_total_cogs)) },
+        { node: 'locad_warehouse', value_aed: Math.round(Number(rpcTotals.locad_total_cogs)) },
+      ],
       by_flag: Array.from(flagValues.entries()).map(([flag, value]) => ({
         flag,
         value_aed: Math.round(value),
@@ -379,8 +358,9 @@ serve(async (req: Request) => {
         sub_category,
         amazon_aed: Math.round(v.amazon),
         noon_aed: Math.round(v.noon),
+        minutes_aed: Math.round(v.minutes),
         warehouse_aed: Math.round(v.warehouse),
-        total_aed: Math.round(v.amazon + v.noon + v.warehouse),
+        total_aed: Math.round(v.amazon + v.noon + v.minutes + v.warehouse),
       }))
       .sort((a, b) => b.total_aed - a.total_aed)
 
@@ -389,8 +369,9 @@ serve(async (req: Request) => {
         category,
         amazon_aed: Math.round(v.amazon),
         noon_aed: Math.round(v.noon),
+        minutes_aed: Math.round(v.minutes),
         warehouse_aed: Math.round(v.warehouse),
-        total_aed: Math.round(v.amazon + v.noon + v.warehouse),
+        total_aed: Math.round(v.amazon + v.noon + v.minutes + v.warehouse),
       }))
       .sort((a, b) => (a.category ?? 'Z').localeCompare(b.category ?? 'Z'))
 
