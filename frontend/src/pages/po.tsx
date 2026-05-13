@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, Fragment } from 'react'
-import { X, Upload, Check, Edit2, Plus, Trash2 } from 'lucide-react'
+import { X, Upload, Check, Edit2, Plus, Trash2, Download } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
@@ -370,6 +370,44 @@ export default function POPage() {
     }
   }
 
+  const handleExport = () => {
+    if (!filteredPOs.length) return
+    const headers = [
+      'PO Number', 'PO Name', 'Supplier', 'Order Date', 'ETA', 'Tracking', 'Status', 'PO Notes',
+      'SKU', 'Units Ordered', 'Units Received', 'Units Per Box', 'Box Count', 'Dimensions', 'COGS', 'Shipping Cost', 'Item Notes'
+    ].join(',')
+
+    const rows = filteredPOs.flatMap(po => 
+      po.line_items.map(li => [
+        `"${po.po_number}"`,
+        `"${po.po_name || ''}"`,
+        `"${po.supplier}"`,
+        `"${po.order_date}"`,
+        `"${po.eta || ''}"`,
+        `"${po.tracking_number || ''}"`,
+        `"${po.status}"`,
+        `"${(po.notes || '').replace(/"/g, '""')}"`,
+        `"${li.sku}"`,
+        li.units_ordered || 0,
+        li.units_received || 0,
+        li.units_per_box || 0,
+        li.box_count || 0,
+        `"${li.dimensions || ''}"`,
+        li.cogs_per_unit || 0,
+        li.shipping_cost_per_unit || 0,
+        `"${(li.notes || '').replace(/"/g, '""')}"`
+      ].join(','))
+    ).join('\n')
+
+    const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `po_register_${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="w-full space-y-5">
       {/* Header */}
@@ -382,6 +420,13 @@ export default function POPage() {
           >
             <Upload className="h-3.5 w-3.5" />
             Bulk Upload
+          </button>
+          <button
+            onClick={handleExport}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] lg:text-xs font-black border border-zinc-200 text-muted rounded-lg hover:bg-zinc-50 transition-all uppercase tracking-widest"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
           </button>
           <button
             onClick={() => navigate('/po/new')}

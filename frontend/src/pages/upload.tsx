@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { X, Upload, CheckCircle2, AlertCircle, Package, Download } from 'lucide-react'
 import { api } from '../lib/api'
 import type { SyncStatus, UploadLocadResponse, UploadNoonResponse, UploadNoonInventoryResponse } from '../types'
+import { LoadingScreen } from '../components/shared/LoadingScreen'
 
 // ─── Drop Zone ────────────────────────────────────────────────────────────────
 
@@ -61,9 +62,8 @@ function DropZone({ accept, label, hint, onFile, disabled }: DropZoneProps) {
 
 function UploadingZone() {
   return (
-    <div className="border-2 border-dashed border-zinc-200 rounded-lg px-6 py-8 text-center bg-zinc-50">
-      <div className="inline-block w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mb-2" />
-      <div className="text-sm font-medium text-zinc-500">Uploading and processing…</div>
+    <div className="border-2 border-dashed border-zinc-200 rounded-lg px-6 py-8 text-center bg-zinc-50 flex flex-col items-center gap-3">
+      <LoadingScreen message="Uploading & Processing..." />
     </div>
   )
 }
@@ -137,11 +137,7 @@ function MappingModal({ onClose, onSaved, internalSKUs }: MappingModalProps) {
           )}
 
           {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse h-12 bg-zinc-100 rounded-lg" />
-              ))}
-            </div>
+            <LoadingScreen message="Fetching Unmapped SKUs..." />
           ) : unmatched.length === 0 ? (
             <div className="py-10 text-center">
               <CheckCircle2 className="mx-auto h-10 w-10 text-green-500 mb-2" />

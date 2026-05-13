@@ -7,6 +7,7 @@ import { ActionFlagBadge } from '../components/shared/ActionFlagBadge'
 import { DrillDownModal } from '../components/DrillDownModal'
 import { Search, Download, RefreshCw, PlusCircle, ShieldAlert, AlertCircle, TrendingUp, Activity, Package, MoveRight, ChevronDown, ChevronUp, Clock, Calendar, DownloadCloud, CheckCircle, ArrowRight, LayoutDashboard, AlertTriangle, Receipt } from 'lucide-react'
 import { ActionDropdown } from '../components/ActionDropdown'
+import { LoadingScreen } from '../components/shared/LoadingScreen'
 
 const NODE_LABEL: Record<InventoryNode, string> = {
   amazon_fba: 'Amazon FBA',
@@ -87,7 +88,7 @@ function KPITile({
   return (
     <div 
       onDoubleClick={onDoubleClick}
-      className={`bg-card border border-border-color rounded-xl p-3 lg:p-4 shadow-sm border-l-[6px] ${accentColor} transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer select-none`}
+      className={`bg-card border border-border-color rounded-xl p-3 sm:p-4 shadow-sm border-l-[4px] lg:border-l-[6px] ${accentColor} transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer select-none`}
       title="Double-click to drill down"
     >
       <div className="flex items-start justify-between gap-2">
@@ -134,7 +135,7 @@ function InventoryHealthBar({ data }: { data: CommandCenterResponse | null }) {
   if (total === 0) return null
 
   return (
-    <div className="bg-card border border-border-color rounded-xl p-5 shadow-sm">
+    <div className="bg-card border border-border-color rounded-xl p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.1em] flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-brand-blue" />
@@ -200,7 +201,7 @@ function SectionCard({
       onDoubleClick={onDoubleClick}
       className="bg-card border border-border-color rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-default select-none relative group/card"
     >
-      <div className={`px-4 py-2.5 border-b border-border-color border-l-[6px] ${accentColor} bg-slate-50/50 flex items-center justify-between`}>
+      <div className={`px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border-color border-l-[4px] lg:border-l-[6px] ${accentColor} bg-slate-50/50 flex items-center justify-between`}>
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg bg-white shadow-sm`}>
             <Icon className={`w-4 h-4 ${accentColor.replace('border-l-', 'text-')}`} />
@@ -479,8 +480,10 @@ export default function CommandCenter() {
   const criticalCount = (data?.alerts ?? []).filter(a => a.action_flag === 'CRITICAL_OOS_RISK').length
   const oosRiskCount = (data?.alerts ?? []).filter(a => a.action_flag === 'OOS_RISK').length
 
+  if (loading && !data) return <LoadingScreen message="Initializing Command Center..." />
+
   return (
-    <div className="space-y-6 w-full mx-auto">
+    <div className="space-y-4 sm:space-y-6 w-full mx-auto px-0">
       {/* Premium Dashboard Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between border-b border-sidebar/10 pb-6 mb-2 gap-4">
         <div className="flex flex-col">

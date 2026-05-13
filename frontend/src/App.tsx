@@ -16,6 +16,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
 import LoginPage from './pages/login'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
+import { LoadingScreen } from './components/shared/LoadingScreen'
 
 type Route =
   | { name: 'dashboard' }
@@ -88,18 +89,7 @@ export default function App() {
   }
 
   if (sessionLoading) {
-    return (
-      <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center animate-bounce">
-            <span className="text-black font-black text-xl italic">Z</span>
-          </div>
-          <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 animate-[loading_1.5s_ease-in-out_infinite]" />
-          </div>
-        </div>
-      </div>
-    )
+    return <LoadingScreen fullScreen message="Authenticating User..." />
   }
 
   if (!user) {
@@ -249,7 +239,7 @@ export default function App() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar bg-body">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-body">
           <div className="w-full">
             <ErrorBoundary>
               {route.name === 'dashboard' && <CommandCenter />}

@@ -3,6 +3,7 @@ import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, F
 import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
 import { MultiSelect } from '../components/shared/MultiSelect'
+import { LoadingScreen } from '../components/shared/LoadingScreen'
 
 export default function InventoryPage() {
   const [data, setData] = useState<PlanningResponse | null>(null)
@@ -154,15 +155,10 @@ export default function InventoryPage() {
     return t
   }, [processedData])
 
-  if (loading && !data) return (
-    <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
-      <p className="text-zinc-500 font-medium uppercase tracking-widest text-sm">Synchronizing Master Buffer...</p>
-    </div>
-  )
+  if (loading && !data) return <LoadingScreen message="Synchronizing Master Buffer..." />
 
   return (
-    <div className="flex flex-col gap-10 -mt-4 lg:-mt-8 pb-20 px-2 lg:px-4">
+    <div className="flex flex-col gap-6 lg:gap-10 pb-20 px-0 sm:px-4">
       {/* ── TOP CONTROL PANEL ────────────────────────────────────────── */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center justify-between bg-white p-6 lg:p-8 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40">
         <div className="flex items-center gap-3 lg:gap-4">

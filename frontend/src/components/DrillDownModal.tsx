@@ -106,7 +106,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
         {/* Content */}
         <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-sm border-separate border-spacing-0">
+          <table className="w-fit min-w-full text-sm border-separate border-spacing-0">
             <thead className="bg-white sticky top-0 z-30 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
               <tr>
                 <HeaderCell>SKU</HeaderCell>

@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { TrendingUp, BarChart3, Package, Calendar, ListFilter, Search, ChevronUp, ChevronDown, Filter, X, Check, Hash, LineChart as LineIcon, ShoppingCart, HeartPulse, PieChart as PieIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { LoadingScreen } from '../components/shared/LoadingScreen'
 
 // ---------------------------------------------------------------------------
 // Design System
@@ -212,8 +213,10 @@ export default function PerformancePage() {
     return sortOrder === 'asc' ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />
   }
 
+  if (loading && detailedSales.length === 0) return <LoadingScreen message="Aggregating Performance Data..." fullScreen />
+
   return (
-    <div className="w-full space-y-8 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto pb-20">
+    <div className="w-full space-y-4 sm:space-y-8 px-0 sm:px-6 lg:px-8 max-w-[1920px] mx-auto pb-20">
 
       {/* Header & Global Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4">
@@ -241,15 +244,15 @@ export default function PerformancePage() {
       </div>
 
       {/* ROW 1: Sales Velocity Trend (FULL WIDTH) */}
-      <div className="bg-white p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm relative overflow-hidden">
-        <div className="mb-10 flex items-center justify-center gap-4 relative z-10">
-          <div className="p-3 bg-indigo-50 rounded-xl shrink-0"><LineIcon className="w-6 h-6 text-indigo-600" /></div>
+      <div className="bg-white p-4 sm:p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm relative overflow-hidden">
+        <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4 relative z-10">
+          <div className="p-2 sm:p-3 bg-indigo-50 rounded-xl shrink-0"><LineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" /></div>
           <div className="text-center md:text-left">
-            <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Sales Velocity Trend</h3>
-            <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily units per channel</p>
+            <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Sales Velocity Trend</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily units per channel</p>
           </div>
         </div>
-        <div className="h-[450px] relative z-10">
+        <div className="h-[300px] sm:h-[450px] relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -261,7 +264,18 @@ export default function PerformancePage() {
                 labelStyle={{ fontSize: '11px', fontWeight: 900, color: '#64748b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}
                 labelFormatter={(value) => `DATE: ${value}`}
               />
-              <Legend verticalAlign="top" height={60} iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }} />
+              <Legend 
+                verticalAlign="top" 
+                height={window.innerWidth < 640 ? 100 : 60} 
+                iconType="circle" 
+                wrapperStyle={{ 
+                  fontSize: window.innerWidth < 640 ? '8px' : '10px',
+                  fontWeight: 900, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.5px',
+                  paddingBottom: '20px'
+                }} 
+              />
               <Line type="monotone" dataKey="amazon" stroke={COLORS.amazon} strokeWidth={4} dot={false} name="AMAZON" />
               <Line type="monotone" dataKey="noon" stroke={COLORS.noon} strokeWidth={4} dot={false} name="NOON FBN" />
               <Line type="monotone" dataKey="minutes" stroke={COLORS.minutes} strokeWidth={4} dot={false} name="NOON MINUTES" />
@@ -275,25 +289,25 @@ export default function PerformancePage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 
         {/* Coverage Health */}
-        <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col">
-          <div className="mb-8 flex items-center justify-center gap-4">
-            <div className="p-3 bg-emerald-50 rounded-xl shrink-0"><HeartPulse className="w-6 h-6 text-emerald-600" /></div>
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col">
+          <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-emerald-50 rounded-xl shrink-0"><HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
             <div className="text-center md:text-left">
-              <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Coverage Health</h3>
-              <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Median days of stock</p>
+              <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Coverage Health</h3>
+              <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Median days of stock</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-2">
             {[
               { label: 'AMAZON FBA', val: coverageData?.amazon, color: COLORS.amazon },
               { label: 'NOON FBN', val: coverageData?.noon, color: COLORS.noon },
               { label: 'NOON MINUTES', val: coverageData?.minutes, color: COLORS.minutes },
               { label: 'LOCAD WAREHOUSE', val: coverageData?.locad, color: '#10b981' }
             ].map(node => (
-              <div key={node.label} className="bg-zinc-50 p-6 rounded-xl border border-zinc-100 flex flex-col items-center text-center">
-                <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-2">{node.label}</span>
-                <span className="text-2xl font-black text-sidebar font-data">
+              <div key={node.label} className="bg-zinc-50 p-3 sm:p-6 rounded-xl border border-zinc-100 flex flex-col items-center text-center">
+                <span className="text-[8px] sm:text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2 leading-tight">{node.label}</span>
+                <span className="text-lg sm:text-2xl font-black text-sidebar font-data">
                   {node.val ? Math.round(node.val) : '-'}
                 </span>
                 <span className="text-[8px] font-bold text-zinc-500 uppercase mt-1">Days</span>
@@ -306,15 +320,15 @@ export default function PerformancePage() {
         </div>
 
         {/* Channel Mix Area Chart */}
-        <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm">
-          <div className="mb-8 flex items-center justify-center gap-4">
-            <div className="p-3 bg-orange-50 rounded-xl shrink-0"><PieIcon className="w-6 h-6 text-orange-500" /></div>
+        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm">
+          <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 bg-orange-50 rounded-xl shrink-0"><PieIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" /></div>
             <div className="text-center md:text-left">
-              <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Channel Mix</h3>
-              <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily sales share %</p>
+              <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Channel Mix</h3>
+              <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily sales share %</p>
             </div>
           </div>
-          <div className="h-[280px]">
+          <div className="h-[250px] sm:h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={channelMixData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -331,15 +345,15 @@ export default function PerformancePage() {
       </div>
 
       {/* ROW 3: Top Sub-categories */}
-      <div className="bg-white p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm">
-        <div className="mb-10 flex items-center justify-center gap-4">
-          <div className="p-3 bg-emerald-50 rounded-xl shrink-0"><BarChart3 className="w-6 h-6 text-emerald-600" /></div>
+      <div className="bg-white p-4 sm:p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm">
+        <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-emerald-50 rounded-xl shrink-0"><BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
           <div className="text-center md:text-left">
-            <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Sub-category Performance</h3>
-            <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Volume breakdown by type</p>
+            <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Sub-category Performance</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Volume breakdown by type</p>
           </div>
         </div>
-        <div className="h-[400px]">
+        <div className="h-[300px] sm:h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={subcategoryData} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -413,7 +427,7 @@ export default function PerformancePage() {
           </div>
         </div>
 
-        <div className="overflow-auto max-h-[800px] custom-scrollbar">
+        <div className="overflow-auto max-h-[420px] custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
             <thead className="sticky top-0 z-20 bg-zinc-50 shadow-sm">
               <tr className="border-b border-zinc-200">

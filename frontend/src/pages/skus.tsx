@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
 import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown } from 'lucide-react'
+import { LoadingScreen } from '../components/shared/LoadingScreen'
 
 // Custom MultiSelect Component
 function MultiSelect({ 
@@ -279,10 +280,10 @@ export default function SKUCatalog() {
   const isAnyFilterActive = Object.values(filters).some(arr => arr.length > 0)
 
   return (
-    <div className="flex flex-col gap-6 -mt-4 lg:-mt-8">
+    <div className="flex flex-col gap-4 sm:gap-6 -mt-4 lg:-mt-8 px-0 sm:px-4">
       {/* HEADER & MAIN TOOLBAR */}
-      <div className="flex flex-col gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+      <div className="flex flex-col gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black shrink-0">
               <Package className="w-5 h-5 lg:w-6 lg:h-6" />
@@ -411,12 +412,7 @@ export default function SKUCatalog() {
           </div>
         )}
 
-        {loading && !data.length && (
-          <div className="flex flex-col items-center justify-center min-h-[400px]">
-            <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-zinc-500 font-medium uppercase tracking-widest text-sm">LOADING SKU MASTER...</p>
-          </div>
-        )}
+        {loading && !data.length && <LoadingScreen message="Unlocking SKU Master..." />}
 
         {!error && !loading && sortedAndFilteredData.length === 0 && (
           <div className="p-8 text-center text-zinc-500 font-semibold uppercase">
