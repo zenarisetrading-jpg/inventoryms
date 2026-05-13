@@ -87,6 +87,18 @@ function SkeletonRow({ cols }: { cols: number }) {
   )
 }
 
+interface InlineEditProps {
+  value: string | number | null | undefined
+  onSave: (val: string) => Promise<void>
+  type?: 'text' | 'number' | 'date'
+  placeholder?: string
+  className?: string
+  inputClassName?: string
+  displayValue?: string
+  suggestions?: string[]
+  autoEdit?: boolean
+}
+
 function InlineEdit({
   value,
   onSave,
@@ -95,19 +107,12 @@ function InlineEdit({
   className = '',
   inputClassName = 'w-16 text-xs',
   suggestions = [],
-  autoEdit = false
-}: {
-  value: string | number | null | undefined
-  onSave: (val: string) => Promise<void>
-  type?: 'text' | 'number'
-  placeholder?: string
-  className?: string
-  inputClassName?: string
-  suggestions?: string[]
-  autoEdit?: boolean
-}) {
+  autoEdit = false,
+  displayValue
+}: InlineEditProps) {
   const [editing, setEditing] = useState(autoEdit)
-  const [val, setVal] = useState(value?.toString() ?? '')
+  const initialVal = type === 'date' && value ? new Date(value.toString()).toISOString().split('T')[0] : value?.toString() ?? ''
+  const [val, setVal] = useState(initialVal)
   const [saving, setSaving] = useState(false)
 
   const handleSave = async (e?: React.FormEvent) => {
@@ -164,9 +169,9 @@ function InlineEdit({
   return (
     <div 
       className={`group/edit cursor-pointer flex items-center gap-1 w-full ${className}`}
-      onClick={(e) => { e.stopPropagation(); setEditing(true); setVal(value?.toString() ?? '') }}
+      onClick={(e) => { e.stopPropagation(); setEditing(true); setVal(type === 'date' && value ? new Date(value.toString()).toISOString().split('T')[0] : value?.toString() ?? '') }}
     >
-      <span>{value !== null && value !== undefined && value !== '' ? value : <span className="text-zinc-300 italic">{placeholder}</span>}</span>
+      <span>{displayValue || (value !== null && value !== undefined && value !== '' ? value : <span className="text-zinc-300 italic">{placeholder}</span>)}</span>
       <Edit2 className="h-2.5 w-2.5 text-zinc-300 opacity-0 group-hover/edit:opacity-100 transition-opacity hover:text-amber-500 shrink-0" />
     </div>
   )
@@ -564,8 +569,32 @@ export default function POPage() {
                       <td className="px-4 py-4 text-right font-data text-sm font-semibold text-zinc-900">
                         {totalUnits.toLocaleString()}
                       </td>
-                      <td className="px-4 py-4 font-data text-xs text-zinc-500">{formatDate(po.order_date)}</td>
-                      <td className="px-4 py-4 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
+                      <td className="px-4 py-4 font-data text-xs text-zinc-500">
+                        <InlineEdit 
+                          type="date"
+                          value={po.order_date} 
+                          displayValue={formatDate(po.order_date)}
+                          placeholder="+ Add Date"
+                          inputClassName="w-32 text-xs"
+                          onSave={async (val) => {
+                            await api.updatePO(po.id, { order_date: val }, po.po_number)
+                            setPOs(prev => prev.map(p => p.id === po.id ? { ...p, order_date: val } : p))
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-4 font-data text-xs text-zinc-500">
+                        <InlineEdit 
+                          type="date"
+                          value={po.eta} 
+                          displayValue={formatDate(po.eta)}
+                          placeholder="+ Add ETA"
+                          inputClassName="w-32 text-xs"
+                          onSave={async (val) => {
+                            await api.updatePO(po.id, { eta: val }, po.po_number)
+                            setPOs(prev => prev.map(p => p.id === po.id ? { ...p, eta: val } : p))
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-4"><StatusBadge status={po.status} /></td>
                       <td className="pl-4 pr-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <ActionDropdown 
