@@ -4,9 +4,11 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   LineChart, Line, Legend, AreaChart, Area
 } from 'recharts'
-import { TrendingUp, BarChart3, Package, Calendar, ListFilter, Search, ChevronUp, ChevronDown, Filter, X, Check, Hash, LineChart as LineIcon, ShoppingCart, HeartPulse, PieChart as PieIcon } from 'lucide-react'
+import { TrendingUp, BarChart3, Package, Calendar, ListFilter, Search, ChevronUp, ChevronDown, Filter, X, Check, Hash, LineChart as LineIcon, ShoppingCart, HeartPulse, PieChart as PieIcon, AlertTriangle, Layers } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
+import { SalesPerformanceCard } from '../components/SalesPerformanceCard'
+import { MultiSelect } from '../components/shared/MultiSelect'
 
 // ---------------------------------------------------------------------------
 // Design System
@@ -50,66 +52,38 @@ const ITEM_STYLE = {
   letterSpacing: '0.5px',
 }
 
-// ---------------------------------------------------------------------------
-// Multi-Select Component
-// ---------------------------------------------------------------------------
-function MultiSelect({ label, options, selected, onChange }: {
-  label: string;
-  options: string[];
-  selected: string[];
-  onChange: (val: string[]) => void
-}) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    // Attempt to parse date, fallback to raw label if not a date
+    const dateParsed = Date.parse(label);
+    const isDate = !isNaN(dateParsed) && label.toString().includes('-');
+    const displayLabel = isDate 
+      ? new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
+      : label.toString().toUpperCase();
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const toggleOption = (option: string) => {
-    if (selected.includes(option)) onChange(selected.filter(item => item !== option))
-    else onChange([...selected, option])
-  }
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between gap-3 bg-zinc-50 border border-zinc-200 rounded-lg px-5 py-2.5 min-w-[200px] text-[10px] font-black text-sidebar uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-sm"
-      >
-        <span className="truncate max-w-[140px]">{selected.length === 0 ? label : `${selected.length} SELECTED`}</span>
-        <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-zinc-200 rounded-xl shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
-          <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em]">{label}</span>
-            {selected.length > 0 && <button onClick={() => onChange([])} className="text-[9px] font-black text-brand-blue hover:text-brand-blue/80 uppercase tracking-widest">Clear All</button>}
-          </div>
-          <div className="max-h-80 overflow-y-auto p-2 custom-scrollbar">
-            {options.map(opt => (
-              <button
-                key={opt}
-                onClick={() => toggleOption(opt)}
-                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all ${selected.includes(opt) ? 'bg-brand-blue/10 text-brand-blue' : 'text-zinc-500 hover:bg-zinc-50 hover:text-sidebar'}`}
-              >
-                {opt}
-                {selected.includes(opt) && <Check className="w-3.5 h-3.5" />}
-              </button>
-            ))}
-          </div>
+    return (
+      <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-xl">
+        <p className="text-[10px] font-black text-zinc-500 mb-4 uppercase tracking-[0.2em] border-b border-white/5 pb-3">
+          {displayLabel}
+        </p>
+        <div className="space-y-2.5">
+          {payload.map((entry: any, index: number) => (
+            <div key={index} className="flex items-center justify-between gap-10">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: entry.color || entry.stroke || entry.fill }} />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{entry.name}</span>
+              </div>
+              <span className="text-[12px] font-black text-white font-data">
+                {entry.value.toLocaleString()}{entry.unit === '%' ? '%' : ''}
+              </span>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
-  )
-}
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function PerformancePage() {
   const [loading, setLoading] = useState(true)
@@ -123,12 +97,14 @@ export default function PerformancePage() {
   const [totalValuation, setTotalValuation] = useState(0)
   const [hoverValuation, setHoverValuation] = useState<string | null>(null)
   const [hoverPo, setHoverPo] = useState<string | null>(null)
+  const [summaryData, setSummaryData] = useState<any>(null)
 
   // Filters & Sorting
   const [search, setSearch] = useState('')
   const [selCategories, setSelCategories] = useState<string[]>([])
   const [selProductCategories, setSelProductCategories] = useState<string[]>([])
   const [selSubCategories, setSelSubCategories] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<string>('total_units')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
@@ -147,11 +123,25 @@ export default function PerformancePage() {
       }
 
       const [subResult, trendResult, detailedResult, poResult, covResult] = await Promise.all([
-        supabase.rpc('get_subcategory_performance', { days_count: days }),
-        supabase.rpc('get_sales_velocity_trend', { days_count: days }),
+        supabase.rpc('get_subcategory_performance', { 
+          days_count: days,
+          p_categories: selCategories.length > 0 ? selCategories : null,
+          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        }),
+        supabase.rpc('get_sales_velocity_trend', { 
+          days_count: days,
+          p_categories: selCategories.length > 0 ? selCategories : null,
+          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        }),
         supabase.rpc('get_detailed_sales_performance', { days_count: days }),
         supabase.rpc('get_po_status_distribution'),
-        supabase.rpc('get_coverage_health')
+        supabase.rpc('get_coverage_health', {
+          p_categories: selCategories.length > 0 ? selCategories : null,
+          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        })
       ])
 
       if (subResult.data) setSubcategoryData(subResult.data)
@@ -160,11 +150,17 @@ export default function PerformancePage() {
       if (poResult.data) setPoStatusData(poResult.data)
       if (covResult.data) setCoverageData(covResult.data)
 
-    } catch (err) { console.error('Fetch error:', err) }
+      const { data: summary } = await supabase.rpc('get_dashboard_sales_summary')
+      if (summary) setSummaryData(summary)
+
+    } catch (err: any) { 
+      console.error('Fetch error:', err)
+      setError(err.message || 'Failed to fetch performance data')
+    }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchData() }, [days])
+  useEffect(() => { fetchData() }, [days, selCategories, selProductCategories, selSubCategories])
 
   // Channel Mix Data Calculation
   const channelMixData = useMemo(() => {
@@ -228,55 +224,200 @@ export default function PerformancePage() {
 
   if (loading && detailedSales.length === 0) return <LoadingScreen message="Aggregating Performance Data..." fullScreen />
 
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <AlertTriangle className="w-12 h-12 text-rose-500" />
+      <p className="text-rose-500 font-bold uppercase tracking-widest">{error}</p>
+      <button onClick={() => fetchData()} className="px-6 py-2 bg-white/5 border border-white/10 text-white rounded-xl hover:bg-white/10 transition-all font-black uppercase text-[10px] tracking-widest">Retry</button>
+    </div>
+  )
+
   return (
     <div className="w-full space-y-4 sm:space-y-8 px-0 sm:px-6 lg:px-8 max-w-[1920px] mx-auto pb-20">
 
-      {/* Header & Global Filters */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 pt-4">
-        <div className="flex items-center gap-5">
-          <div className="p-4 bg-brand-blue/10 rounded-2xl">
-            <LineIcon className="w-8 h-8 text-brand-blue" />
+      {/* HEADER & CONSOLIDATED CONTROL CENTER */}
+      <div className="relative z-50 bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
+        {/* Top: Centered Header */}
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-blue shadow-2xl border border-white/5">
+            <LineIcon className="w-7 h-7 lg:w-8 lg:h-8" />
           </div>
-          <div>
-            <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">Performance Analytics</h1>
-            <p className="text-xs font-bold text-muted uppercase tracking-wider opacity-60 mt-1">Commercial Intelligence Engine</p>
+          <div className="text-center">
+            <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">Performance Analytics</h1>
+            <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+              Commercial Intelligence Engine • Live Stream
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm">
-          {([7, 30, 90] as const).map(v => (
-            <button
-              key={v}
-              onClick={() => setDays(v)}
-              className={`px-8 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${days === v ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'text-zinc-500 hover:text-brand-blue hover:bg-zinc-50'}`}
-            >
-              {v}D
-            </button>
-          ))}
+        {/* Bottom: Unified Controls Row */}
+        <div className="flex flex-wrap items-center justify-center gap-4 w-full border-t border-white/5 pt-8">
+          {/* Timeline Toggle */}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10 shrink-0">
+            {([7, 30, 90] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setDays(v)}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${days === v ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'text-zinc-500 hover:text-brand-blue hover:bg-zinc-50/5'}`}
+              >
+                {v}D
+              </button>
+            ))}
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden xl:block mx-1" />
+
+          {/* Search Bar */}
+          <div className="relative group w-full lg:max-w-xs xl:max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-brand-blue transition-colors" />
+            <input
+              type="text"
+              placeholder="SEARCH CATALOG..."
+              className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] lg:text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/50 transition-all placeholder:text-zinc-600 font-black uppercase tracking-widest"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <MultiSelect 
+              label="Class" 
+              placeholder="ALL CLASSS"
+              icon={Filter}
+              options={['A', 'B', 'C'].map(v => ({ label: `CATEGORY ${v}`, value: v }))} 
+              selected={selCategories} 
+              onChange={setSelCategories} 
+            />
+            <MultiSelect 
+              label="Category" 
+              placeholder="ALL CATEGORYS"
+              icon={Filter}
+              options={Array.from(new Set(detailedSales.map(r => r.product_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))} 
+              selected={selProductCategories} 
+              onChange={setSelProductCategories} 
+            />
+            <MultiSelect 
+              label="Sub Category" 
+              placeholder="ALL SUB-CATEGORYS"
+              icon={Layers}
+              options={Array.from(new Set(detailedSales.map(r => r.sub_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))} 
+              selected={selSubCategories} 
+              onChange={setSelSubCategories} 
+            />
+          </div>
         </div>
       </div>
 
+      {/* NEW: Sales Performance Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        {summaryData && (
+          <>
+            <SalesPerformanceCard
+              title="TODAY"
+              dateRange="Snapshot"
+              sales={summaryData.today?.sales_aed || 0}
+              orders={summaryData.today?.orders || 0}
+              units={summaryData.today?.units || 0}
+              refunds={0}
+              advCost={summaryData.today?.adv_cost || 0}
+              payout={summaryData.today?.est_payout || 0}
+              grossProfit={summaryData.today?.gross_profit || 0}
+              netProfit={summaryData.today?.net_profit || 0}
+              headerColor="bg-zinc-900"
+              breakdown={[
+                { label: 'AMAZON', sales: summaryData.today?.amazon_sales || 0, units: summaryData.today?.amazon_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: summaryData.today?.noon_sales || 0, units: summaryData.today?.noon_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: summaryData.today?.minutes_sales || 0, units: summaryData.today?.minutes_units || 0, color: 'bg-purple-500' }
+              ]}
+            />
+            <SalesPerformanceCard
+              title="YESTERDAY"
+              dateRange="Full Day"
+              sales={summaryData.yesterday?.sales_aed || 0}
+              orders={summaryData.yesterday?.orders || 0}
+              units={summaryData.yesterday?.units || 0}
+              refunds={0}
+              advCost={summaryData.yesterday?.adv_cost || 0}
+              payout={summaryData.yesterday?.est_payout || 0}
+              grossProfit={summaryData.yesterday?.gross_profit || 0}
+              netProfit={summaryData.yesterday?.net_profit || 0}
+              headerColor="bg-zinc-800"
+              breakdown={[
+                { label: 'AMAZON', sales: summaryData.yesterday?.amazon_sales || 0, units: summaryData.yesterday?.amazon_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: summaryData.yesterday?.noon_sales || 0, units: summaryData.yesterday?.noon_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: summaryData.yesterday?.minutes_sales || 0, units: summaryData.yesterday?.minutes_units || 0, color: 'bg-purple-500' }
+              ]}
+            />
+            <SalesPerformanceCard
+              title="MONTH TO DATE"
+              dateRange="Current Month"
+              sales={summaryData.mtd?.sales_aed || 0}
+              orders={summaryData.mtd?.orders || 0}
+              units={summaryData.mtd?.units || 0}
+              refunds={0}
+              advCost={summaryData.mtd?.adv_cost || 0}
+              payout={summaryData.mtd?.est_payout || 0}
+              grossProfit={summaryData.mtd?.gross_profit || 0}
+              netProfit={summaryData.mtd?.net_profit || 0}
+              headerColor="bg-blue-900/50"
+              breakdown={[
+                { label: 'AMAZON', sales: summaryData.mtd?.amazon_sales || 0, units: summaryData.mtd?.amazon_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: summaryData.mtd?.noon_sales || 0, units: summaryData.mtd?.noon_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: summaryData.mtd?.minutes_sales || 0, units: summaryData.mtd?.minutes_units || 0, color: 'bg-purple-500' }
+              ]}
+            />
+            <SalesPerformanceCard
+              title="THIS MONTH FORECAST"
+              dateRange="Projected"
+              sales={summaryData.mtd?.forecast_sales || 0}
+              orders={Math.round((summaryData.mtd?.orders || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
+              units={Math.round((summaryData.mtd?.units || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
+              refunds={0}
+              advCost={(summaryData.mtd?.adv_cost || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
+              payout={(summaryData.mtd?.est_payout || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
+              grossProfit={(summaryData.mtd?.gross_profit || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
+              netProfit={(summaryData.mtd?.net_profit || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
+              headerColor="bg-emerald-900/50"
+            />
+            <SalesPerformanceCard
+              title="LAST MONTH"
+              dateRange="Previous Full Month"
+              sales={summaryData.last_month?.sales_aed || 0}
+              orders={summaryData.last_month?.orders || 0}
+              units={summaryData.last_month?.units || 0}
+              refunds={0}
+              advCost={summaryData.last_month?.adv_cost || 0}
+              payout={summaryData.last_month?.est_payout || 0}
+              grossProfit={summaryData.last_month?.gross_profit || 0}
+              netProfit={summaryData.last_month?.net_profit || 0}
+              headerColor="bg-indigo-900/50"
+              breakdown={[
+                { label: 'AMAZON', sales: summaryData.last_month?.amazon_sales || 0, units: summaryData.last_month?.amazon_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: summaryData.last_month?.noon_sales || 0, units: summaryData.last_month?.noon_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: summaryData.last_month?.minutes_sales || 0, units: summaryData.last_month?.minutes_units || 0, color: 'bg-purple-500' }
+              ]}
+            />
+          </>
+        )}
+      </div>
+
       {/* ROW 1: Sales Velocity Trend (FULL WIDTH) */}
-      <div className="bg-white p-4 sm:p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm relative overflow-hidden">
+      <div className="bg-card border-white/5 shadow-2xl relative overflow-hidden">
         <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4 relative z-10">
-          <div className="p-2 sm:p-3 bg-indigo-50 rounded-xl shrink-0"><LineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" /></div>
+          <div className="p-2 sm:p-3 bg-indigo-50 rounded-2xl shrink-0"><LineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" /></div>
           <div className="text-center md:text-left">
-            <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Sales Velocity Trend</h3>
-            <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily units per channel</p>
+            <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Sales Velocity Trend</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Daily units per channel</p>
           </div>
         </div>
         <div className="h-[300px] sm:h-[450px] relative z-10">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis dataKey="date" hide />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 13, fontWeight: 900 }} />
-              <ChartTooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }}
-                itemStyle={{ fontSize: '12px', fontWeight: 900 }}
-                labelStyle={{ fontSize: '11px', fontWeight: 900, color: '#64748b', marginBottom: '8px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}
-                labelFormatter={(value) => `DATE: ${value}`}
-              />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13, fontWeight: 900 }} />
+              <ChartTooltip content={<CustomTooltip />} />
               <Legend 
                 verticalAlign="top" 
                 height={window.innerWidth < 640 ? 100 : 60} 
@@ -298,72 +439,37 @@ export default function PerformancePage() {
         </div>
       </div>
 
-      {/* ROW 2: Coverage Health & Channel Mix */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-
-        {/* Coverage Health */}
-        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col">
-          <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
-            <div className="p-2 sm:p-3 bg-emerald-50 rounded-xl shrink-0"><HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
-            <div className="text-center md:text-left">
-              <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Coverage Health</h3>
-              <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Median days of stock</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-2">
-            {[
-              { label: 'AMAZON FBA', val: coverageData?.amazon, color: COLORS.amazon },
-              { label: 'NOON FBN', val: coverageData?.noon, color: COLORS.noon },
-              { label: 'NOON MINUTES', val: coverageData?.minutes, color: COLORS.minutes },
-              { label: 'LOCAD WAREHOUSE', val: coverageData?.locad, color: '#10b981' }
-            ].map(node => (
-              <div key={node.label} className="bg-zinc-50 p-3 sm:p-6 rounded-xl border border-zinc-100 flex flex-col items-center text-center">
-                <span className="text-[8px] sm:text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2 leading-tight">{node.label}</span>
-                <span className="text-lg sm:text-2xl font-black text-sidebar font-data">
-                  {node.val ? Math.round(node.val) : '-'}
-                </span>
-                <span className="text-[8px] font-bold text-zinc-500 uppercase mt-1">Days</span>
-                <div className="w-full h-1 mt-4 bg-zinc-200 rounded-full overflow-hidden">
-                  <div className="h-full transition-all duration-1000" style={{ width: `${Math.min(node.val || 0, 100)}%`, backgroundColor: node.color }} />
-                </div>
-              </div>
-            ))}
+      {/* ROW 2: Channel Mix Area Chart */}
+      <div className="bg-card border-white/5 shadow-2xl p-8 lg:p-10">
+        <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-orange-50 rounded-2xl shrink-0"><PieIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" /></div>
+          <div className="text-center md:text-left">
+            <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Channel Mix</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Daily sales share %</p>
           </div>
         </div>
-
-        {/* Channel Mix Area Chart */}
-        <div className="bg-white p-4 sm:p-8 rounded-2xl border border-zinc-200 shadow-sm">
-          <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
-            <div className="p-2 sm:p-3 bg-orange-50 rounded-xl shrink-0"><PieIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" /></div>
-            <div className="text-center md:text-left">
-              <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Channel Mix</h3>
-              <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Daily sales share %</p>
-            </div>
-          </div>
-          <div className="h-[250px] sm:h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={channelMixData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="date" hide />
-                <YAxis unit="%" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
-                <ChartTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }} />
-                <Area type="monotone" dataKey="amz_pct" stackId="1" stroke={COLORS.amazon} fill={COLORS.amazon} fillOpacity={0.1} name="AMAZON" />
-                <Area type="monotone" dataKey="noon_pct" stackId="1" stroke={COLORS.noon} fill={COLORS.noon} fillOpacity={0.1} name="NOON" />
-                <Area type="monotone" dataKey="min_pct" stackId="1" stroke={COLORS.minutes} fill={COLORS.minutes} fillOpacity={0.1} name="MINUTES" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+        <div className="h-[250px] sm:h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={channelMixData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="date" hide />
+              <YAxis unit="%" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+              <ChartTooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="amz_pct" stackId="1" stroke={COLORS.amazon} fill={COLORS.amazon} fillOpacity={0.1} name="AMAZON" />
+              <Area type="monotone" dataKey="noon_pct" stackId="1" stroke={COLORS.noon} fill={COLORS.noon} fillOpacity={0.1} name="NOON" />
+              <Area type="monotone" dataKey="min_pct" stackId="1" stroke={COLORS.minutes} fill={COLORS.minutes} fillOpacity={0.1} name="MINUTES" />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
       {/* ROW 3: Top Sub-categories */}
-      <div className="bg-white p-4 sm:p-8 lg:p-10 rounded-2xl border border-zinc-200 shadow-sm">
+      <div className="bg-card border-white/5 shadow-2xl">
         <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4">
-          <div className="p-2 sm:p-3 bg-emerald-50 rounded-xl shrink-0"><BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
+          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0"><BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
           <div className="text-center md:text-left">
-            <h3 className="text-xs sm:text-sm font-black text-sidebar uppercase tracking-wider">Sub-category Performance</h3>
-            <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Volume breakdown by type</p>
+            <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Sub-category Performance</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Volume breakdown by type</p>
           </div>
         </div>
         <div className="h-[300px] sm:h-[400px]">
@@ -400,74 +506,58 @@ export default function PerformancePage() {
                 tickLine={false}
                 tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
               />
-              <ChartTooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }}
-                itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}
-                labelFormatter={(v) => v?.toString().toUpperCase()}
-              />
+              <ChartTooltip content={<CustomTooltip />} />
               <Bar dataKey="total_units" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={40} label={{ position: 'top', fill: '#0f172a', fontSize: 11, fontWeight: 900, offset: 10, formatter: (v: any) => v?.toLocaleString() }} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
-
       {/* ROW 4: Detailed Performance Table */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="p-8 lg:p-10 border-b border-zinc-100 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <div className="flex items-center gap-4 min-w-fit">
-            <div className="p-3 bg-amber-50 rounded-xl"><ListFilter className="w-6 h-6 text-brand-amber" /></div>
-            <div>
-              <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Detailed Performance Audit</h3>
-              <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">SKU-level channel metrics</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 justify-end max-w-5xl">
-            <div className="flex items-center gap-3">
-              <MultiSelect label="ABC CLASS" options={categories} selected={selCategories} onChange={setSelCategories} />
-              <MultiSelect label="CATEGORIES" options={productCategories} selected={selProductCategories} onChange={setSelProductCategories} />
-              <MultiSelect label="SUB-CATEGORIES" options={subCategories} selected={selSubCategories} onChange={setSelSubCategories} />
-            </div>
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="SEARCH SKUS..."
-                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-2.5 pl-11 pr-4 text-xs font-bold text-sidebar placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-amber/20 uppercase"
-              />
+      <div className="relative z-10 bg-card border-white/5 shadow-2xl overflow-hidden">
+        <div className="p-8 lg:p-10 border-b border-white/5">
+          <div className="flex items-center justify-center gap-4">
+            <div className="p-3 bg-brand-amber/10 rounded-2xl"><ListFilter className="w-6 h-6 text-brand-amber" /></div>
+            <div className="text-center">
+              <h3 className="text-sm font-black text-primary uppercase tracking-wider">Detailed Performance Audit</h3>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">SKU-level channel metrics • Data Explorer</p>
             </div>
           </div>
         </div>
 
         <div className="overflow-auto max-h-[420px] custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
-            <thead className="sticky top-0 z-20 bg-zinc-50 shadow-sm">
+            <thead className="sticky top-0 z-20 bg-white/5 shadow-none border-white/10">
               <tr className="border-b border-zinc-200">
                 <th onClick={() => toggleSort('total_units')} className="px-6 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest w-16 cursor-pointer hover:text-brand-blue text-center">#</th>
                 <th onClick={() => toggleSort('category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Class</th>
                 <th onClick={() => toggleSort('product_category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Category</th>
                 <th onClick={() => toggleSort('sub_category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Sub-Category</th>
                 <th onClick={() => toggleSort('sku')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">SKU</th>
-                <th onClick={() => toggleSort('amazon_units')} className="px-8 py-5 text-[11px] font-black text-brand-amber uppercase tracking-widest cursor-pointer hover:text-sidebar text-right">Amazon</th>
-                <th onClick={() => toggleSort('noon_units')} className="px-8 py-5 text-[11px] font-black text-brand-blue uppercase tracking-widest cursor-pointer hover:text-sidebar text-right">Noon</th>
-                <th onClick={() => toggleSort('minutes_units')} className="px-8 py-5 text-[11px] font-black text-indigo-600 uppercase tracking-widest cursor-pointer hover:text-sidebar text-right">Minutes</th>
-                <th onClick={() => toggleSort('total_units')} className="px-8 py-5 text-[11px] font-black text-sidebar uppercase tracking-widest cursor-pointer hover:text-brand-blue text-right">Total</th>
+                <th onClick={() => toggleSort('amazon_units')} className="px-8 py-5 text-[11px] font-black text-brand-amber uppercase tracking-widest cursor-pointer hover:text-primary text-right">Amazon</th>
+                <th onClick={() => toggleSort('noon_units')} className="px-8 py-5 text-[11px] font-black text-brand-blue uppercase tracking-widest cursor-pointer hover:text-primary text-right">Noon</th>
+                <th onClick={() => toggleSort('minutes_units')} className="px-8 py-5 text-[11px] font-black text-indigo-600 uppercase tracking-widest cursor-pointer hover:text-primary text-right">Minutes</th>
+                <th onClick={() => toggleSort('total_units')} className="px-8 py-5 text-[11px] font-black text-primary uppercase tracking-widest cursor-pointer hover:text-brand-blue text-right">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-white/5">
+              {filteredAndSortedSales.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-8 py-20 text-center text-zinc-500 font-black uppercase tracking-widest">
+                    No performance data found matching your current filters.
+                  </td>
+                </tr>
+              )}
               {filteredAndSortedSales.map((row, i) => (
-                <tr key={i} className="hover:bg-zinc-50/50 transition-colors group">
-                  <td className="px-6 py-5 text-center text-[11px] font-black text-zinc-400">{i + 1}</td>
-                  <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.category}</td>
-                  <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.product_category}</td>
-                  <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.sub_category}</td>
-                  <td className="px-8 py-5 text-[12px] font-black text-sidebar font-data uppercase">{row.sku}</td>
+                <tr key={i} className="hover:bg-white/5 transition-colors group">
+                  <td className="px-6 py-5 text-center text-[11px] font-black text-zinc-500">{i + 1}</td>
+                  <td className="px-8 py-5 text-[12px] font-black text-zinc-300 uppercase">{row.category}</td>
+                  <td className="px-8 py-5 text-[12px] font-black text-zinc-300 uppercase">{row.product_category}</td>
+                  <td className="px-8 py-5 text-[12px] font-black text-zinc-300 uppercase">{row.sub_category}</td>
+                  <td className="px-8 py-5 text-[12px] font-black text-white font-data uppercase">{row.sku}</td>
                   <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-amber">{row.amazon_units?.toLocaleString()}</td>
                   <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-blue">{row.noon_units?.toLocaleString()}</td>
                   <td className="px-8 py-5 text-right font-data text-[13px] font-black text-indigo-600">{row.minutes_units?.toLocaleString()}</td>
-                  <td className="px-8 py-5 text-right font-data text-[15px] font-black text-sidebar">{row.total_units?.toLocaleString()}</td>
+                  <td className="px-8 py-5 text-right font-data text-[15px] font-black text-primary">{row.total_units?.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -478,11 +568,11 @@ export default function PerformancePage() {
       {/* ROW 5: Asset Valuation & PO Distribution */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Valuation */}
-        <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col">
+        <div className="bg-card border-white/5 shadow-2xl flex flex-col">
           <div className="mb-10 flex items-center justify-center gap-4">
-            <div className="p-3 bg-brand-blue/10 rounded-xl shrink-0"><TrendingUp className="w-6 h-6 text-brand-blue" /></div>
+            <div className="p-3 bg-brand-blue/10 rounded-2xl shrink-0"><TrendingUp className="w-6 h-6 text-brand-blue" /></div>
             <div className="text-center md:text-left">
-              <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Inventory Valuation</h3>
+              <h3 className="text-sm font-black text-primary uppercase tracking-wider">Inventory Valuation</h3>
               <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Asset value per node</p>
             </div>
           </div>
@@ -504,26 +594,30 @@ export default function PerformancePage() {
                 >
                   {valuationData.map((entry, i) => <Cell key={i} fill={VAL_COLORS[entry.node] || '#e2e8f0'} />)}
                 </Pie>
-                <ChartTooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }} formatter={(v: any) => aed(v)} />
-                <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', paddingTop: '30px', color: '#475569' }} />
+                <ChartTooltip contentStyle={{ display: 'none' }} />
+                <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', paddingTop: '30px', color: '#94a3b8' }} />
               </PieChart>
             </ResponsiveContainer>
-            {!hoverValuation && (
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
-                <span className="text-[18px] font-black text-sidebar font-data tracking-tight">{aed(totalValuation)}</span>
-                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">Total Assets</span>
+                <span className="text-[18px] font-black text-white font-data tracking-tight">
+                  {hoverValuation 
+                    ? aed(valuationData.find(d => d.node === hoverValuation)?.value_aed) 
+                    : aed(totalValuation)}
+                </span>
+                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                  {hoverValuation || 'Total Assets'}
+                </span>
               </div>
-            )}
           </div>
         </div>
 
         {/* PO Distribution */}
-        <div className="bg-white p-8 rounded-2xl border border-zinc-200 shadow-sm flex flex-col">
+        <div className="bg-card border-white/5 shadow-2xl flex flex-col p-8">
           <div className="mb-10 flex items-center justify-center gap-4">
-            <div className="p-3 bg-purple-50 rounded-xl shrink-0"><ShoppingCart className="w-6 h-6 text-purple-600" /></div>
+            <div className="p-3 bg-purple-50 rounded-2xl shrink-0"><ShoppingCart className="w-6 h-6 text-purple-600" /></div>
             <div className="text-center md:text-left">
-              <h3 className="text-sm font-black text-sidebar uppercase tracking-wider">Purchase Order Status</h3>
-              <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Procurement lifecycle breakdown</p>
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">Purchase Order Status</h3>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Procurement lifecycle breakdown</p>
             </div>
           </div>
           <div className="h-[350px] relative">
@@ -544,31 +638,61 @@ export default function PerformancePage() {
                 >
                   {poStatusData.map((entry, i) => <Cell key={i} fill={PO_STATUS_COLORS[entry.status] || '#e2e8f0'} />)}
                 </Pie>
-                <ChartTooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' }}
-                  itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}
-                  formatter={(value: any, name: any, props: any) => {
-                    const data = props.payload;
-                    return [`${value?.toLocaleString()} UNITS (${data.po_count} POs)`, name];
-                  }}
-                />
-                <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', paddingTop: '30px', color: '#475569' }} />
+                <ChartTooltip contentStyle={{ display: 'none' }} />
+                <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', paddingTop: '30px', color: '#94a3b8' }} />
               </PieChart>
             </ResponsiveContainer>
-            {!hoverPo && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
-                <span className="text-[20px] font-black text-sidebar font-data leading-none">
-                  {poStatusData.reduce((acc, curr) => acc + (curr.total_units || 0), 0).toLocaleString()}
-                </span>
-                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">Units</span>
-                <div className="w-8 h-px bg-zinc-100 my-1" />
-                <span className="text-[14px] font-black text-sidebar font-data leading-none">
-                  {poStatusData.reduce((acc, curr) => acc + curr.po_count, 0)}
-                </span>
-                <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">Orders</span>
-              </div>
-            )}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
+              <span className="text-[20px] font-black text-white font-data leading-none">
+                {hoverPo 
+                  ? (poStatusData.find(d => d.status === hoverPo)?.total_units || 0).toLocaleString()
+                  : poStatusData.reduce((acc, curr) => acc + (curr.total_units || 0), 0).toLocaleString()}
+              </span>
+              <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                {hoverPo || 'Total Units'}
+              </span>
+              <div className="w-8 h-px bg-white/10 my-1" />
+              <span className="text-[14px] font-black text-white font-data leading-none">
+                {hoverPo
+                  ? (poStatusData.find(d => d.status === hoverPo)?.po_count || 0)
+                  : poStatusData.reduce((acc, curr) => acc + curr.po_count, 0)}
+              </span>
+              <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mt-1">
+                {hoverPo ? 'Orders' : 'Total Orders'}
+              </span>
+            </div>
           </div>
+        </div>
+      </div>
+
+      {/* ROW 6: Coverage Health (Logistical Audit) */}
+      <div className="bg-card border-white/5 shadow-2xl p-8 lg:p-10">
+        <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
+          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0"><HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
+          <div className="text-center md:text-left">
+            <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Coverage Health</h3>
+            <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Median days of stock • Global Audit</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-2">
+          {[
+            { label: 'AMAZON FBA', val: coverageData?.amazon, color: COLORS.amazon },
+            { label: 'NOON FBN', val: coverageData?.noon, color: COLORS.noon },
+            { label: 'NOON MINUTES', val: coverageData?.minutes, color: COLORS.minutes },
+            { label: 'LOCAD WAREHOUSE', val: coverageData?.locad, color: '#10b981' }
+          ].map(node => (
+            <div key={node.label} className="bg-white/5 border border-white/5 shadow-2xl p-4 sm:p-6 rounded-2xl flex flex-col items-center text-center">
+              <span className="text-[8px] sm:text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2 leading-tight">{node.label}</span>
+              <span className="text-lg sm:text-2xl font-black text-primary font-data">
+                {node.val ? Math.round(node.val) : '-'}
+              </span>
+              <span className="text-[8px] font-bold text-zinc-500 uppercase mt-1">Days</span>
+              <div className="w-full h-1 mt-4 bg-zinc-200 rounded-full overflow-hidden">
+                <div className="h-full transition-all duration-1000" style={{ width: `${Math.min(node.val || 0, 100)}%`, backgroundColor: node.color }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

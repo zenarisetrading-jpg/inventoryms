@@ -38,10 +38,7 @@ function formatCovDays(days: any): string {
 }
 
 function coverageColor(days: number | null | undefined): string {
-  if (days == null || !isFinite(days) || days <= 0) return 'text-red-600 font-black'
-  if (days <= 7) return 'text-red-500 font-black'
-  if (days <= 14) return 'text-orange-500 font-black'
-  return 'text-primary font-black'
+  return 'text-white font-bold'
 }
 
 function toSafeNumber(value: unknown, fallback = 0): number {
@@ -88,22 +85,22 @@ function KPITile({
   return (
     <div 
       onDoubleClick={onDoubleClick}
-      className={`bg-card border border-border-color rounded-xl p-3 sm:p-4 shadow-sm border-l-[4px] lg:border-l-[6px] ${accentColor} transition-all hover:shadow-md hover:scale-[1.02] cursor-pointer select-none`}
+      className={`bg-white/5 border border-white/10 rounded-2xl p-3 sm:p-4 shadow-sm border-l-[4px] lg:border-l-[6px] ${accentColor} transition-all hover:scale-[1.02] cursor-pointer select-none`}
       title="Double-click to drill down"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] lg:text-[10px] font-black text-muted uppercase tracking-[0.05em] mb-1 truncate">{label}</p>
-          <p className={`text-xl lg:text-2xl font-black font-data tracking-tight leading-none ${urgent && Number(value) > 0 ? 'text-red-600' : 'text-primary'}`}>
+          <p className="text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.05em] mb-1 truncate">{label}</p>
+          <p className="text-xl lg:text-2xl font-black font-data text-white tracking-tight leading-none">
             {value}
           </p>
         </div>
-        <div className={`p-1.5 lg:p-2 rounded-lg bg-gray-50 shrink-0`}>
-          <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${urgent && Number(value) > 0 ? 'text-red-500' : 'text-muted'}`} />
+        <div className="bg-white/5 border border-white/10 rounded-lg p-2 shadow-sm transition-all shrink-0">
+          <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-white" />
         </div>
       </div>
-      {sub && <p className="text-[9px] lg:text-[10px] font-medium text-muted/60 mt-1.5 lg:mt-2 flex items-center gap-1 leading-tight">
-        <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+      {sub && <p className="text-[9px] lg:text-[10px] font-bold text-white mt-1.5 lg:mt-2 flex items-center gap-1 leading-tight">
+        <span className="w-1 h-1 rounded-full bg-white shrink-0" />
         <span className="truncate">{sub}</span>
       </p>}
     </div>
@@ -124,28 +121,28 @@ function InventoryHealthBar({ data }: { data: CommandCenterResponse | null }) {
 
   const segments = [
     { count: critical, color: 'bg-red-500', label: 'Critical' },
-    { count: oosRisk, color: 'bg-orange-400', label: 'Risk' },
-    { count: ship, color: 'bg-brand-blue', label: 'Ship' },
-    { count: reorder, color: 'bg-brand-amber', label: 'PO' },
-    { count: transfer, color: 'bg-indigo-500', label: 'Xfer' },
-    { count: excess, color: 'bg-slate-300', label: 'Excess' },
+    { count: oosRisk, color: 'bg-amber-500', label: 'Risk' },
+    { count: ship, color: 'bg-blue-500', label: 'Ship' },
+    { count: reorder, color: 'bg-amber-400', label: 'PO' },
+    { count: transfer, color: 'bg-blue-400', label: 'Xfer' },
+    { count: excess, color: 'bg-orange-400', label: 'Excess' },
   ].filter(s => s.count > 0)
 
   const total = segments.reduce((s, seg) => s + seg.count, 0)
   if (total === 0) return null
 
   return (
-    <div className="bg-card border border-border-color rounded-xl p-4 sm:p-5 shadow-sm">
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-black text-primary uppercase tracking-[0.1em] flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5 text-brand-blue" />
+        <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.1em] flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-zinc-400" />
           Fleet Health Snapshot
         </h3>
-        <span className="text-[10px] font-bold text-muted bg-slate-100 px-2 py-0.5 rounded-full uppercase">
+        <span className="text-[10px] font-black text-white bg-white/5 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10 shadow-sm">
           {total} Active Signals
         </span>
       </div>
-      <div className="flex h-3.5 rounded-full overflow-hidden gap-0.5 bg-slate-100 p-0.5 border border-slate-200 shadow-inner">
+      <div className="flex h-2.5 rounded-full overflow-hidden gap-0.5 bg-white/5 border border-white/5">
         {segments.map(seg => (
           <div
             key={seg.label}
@@ -199,11 +196,11 @@ function SectionCard({
   return (
     <div 
       onDoubleClick={onDoubleClick}
-      className="bg-card border border-border-color rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-default select-none relative group/card"
+      className="bg-card border-white/5 shadow-sm overflow-hidden flex flex-col max-h-[calc(100vh-210px)] rounded-2xl border"
     >
-      <div className={`px-3 sm:px-4 py-2 sm:py-2.5 border-b border-border-color border-l-[4px] lg:border-l-[6px] ${accentColor} bg-slate-50/50 flex items-center justify-between`}>
+      <div className={`px-3 sm:px-4 py-2 sm:py-2.5 border-b border-white/5 border-l-[4px] lg:border-l-[6px] ${accentColor} bg-white/5 flex items-center justify-between`}>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg bg-white shadow-sm`}>
+          <div className={`bg-white/10 border-white/10 rounded-lg p-2 shadow-inner group-hover:bg-white/20 transition-all`}>
             <Icon className={`w-4 h-4 ${accentColor.replace('border-l-', 'text-')}`} />
           </div>
           <div>
@@ -213,7 +210,7 @@ function SectionCard({
         </div>
         <div className="flex items-center gap-3">
           {extra}
-          <span className="text-[11px] font-black text-primary bg-white border border-border-color px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+          <span className="text-[11px] font-black text-white bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
             {count}
           </span>
         </div>
@@ -259,9 +256,9 @@ function SkeletonRow({ cols }: { cols: number }) {
 function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; message?: string }) {
   return (
     <tr>
-      <td colSpan={cols} className="px-4 py-8 text-[11px] font-bold text-muted/40 text-center uppercase tracking-widest bg-slate-50/30">
+      <td colSpan={cols} className="px-4 py-8 text-[11px] font-bold text-zinc-500 text-center uppercase tracking-widest bg-white/5">
         <div className="flex flex-col items-center gap-2">
-          <ShieldAlert className="w-8 h-8 opacity-10" />
+          <ShieldAlert className="w-8 h-8 opacity-20" />
           {message}
         </div>
       </td>
@@ -272,7 +269,7 @@ function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; mes
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-4 py-3 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}
+      className={`px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}
     >
       {children}
     </th>
@@ -283,7 +280,7 @@ function SKULink({ sku }: { sku: string }) {
   return (
     <button
       onClick={() => navigate('/sku/' + sku)}
-      className="font-data text-[11px] font-black text-brand-blue hover:text-blue-800 transition-colors bg-blue-50/50 px-2 py-0.5 rounded border border-blue-100/50"
+      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-0.5 rounded border"
     >
       {sku}
     </button>
@@ -292,11 +289,11 @@ function SKULink({ sku }: { sku: string }) {
 
 function ActionTag({ action }: { action: 'SHIP' | 'REORDER' | 'TRANSFER' | 'EXCESS' | 'HOLD' }) {
   const cfg = {
-    SHIP: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-    REORDER: 'bg-brand-amber/10 text-brand-amber border-brand-amber/20',
-    TRANSFER: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-    EXCESS: 'bg-orange-100 text-orange-700 border-orange-200',
-    HOLD: 'bg-slate-100 text-slate-600 border-slate-200',
+    SHIP: 'bg-blue-50 text-blue-600 border-blue-200',
+    REORDER: 'bg-amber-50 text-amber-600 border-amber-200',
+    TRANSFER: 'bg-blue-50 text-blue-600 border-blue-200',
+    EXCESS: 'bg-amber-50 text-amber-600 border-amber-200',
+    HOLD: 'bg-emerald-50 text-emerald-600 border-emerald-200',
   }[action]
   return (
     <span className={`inline-block px-2.5 py-1 rounded-md text-[9px] font-black border uppercase tracking-widest ${cfg}`}>
@@ -487,7 +484,7 @@ export default function CommandCenter() {
       {/* Premium Dashboard Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between border-b border-sidebar/10 pb-6 mb-2 gap-4">
         <div className="flex flex-col">
-          <h1 className="text-xl lg:text-3xl font-black text-sidebar tracking-tighter uppercase leading-none">
+          <h1 className="text-xl lg:text-3xl font-black text-primary tracking-tighter uppercase leading-none">
             Command Center
           </h1>
           <div className="flex items-center gap-2 mt-2">
@@ -505,35 +502,36 @@ export default function CommandCenter() {
             <span className="text-[9px] font-black text-muted uppercase tracking-widest">Global Status</span>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-200 animate-pulse" />
-              <span className="text-[10px] font-black text-sidebar uppercase">Amazon API Live</span>
+              <span className="text-[10px] font-black text-primary uppercase">Amazon API Live</span>
             </div>
           </div>
           <button
             onClick={handleRefreshFact}
             disabled={refreshing || syncing}
-            className="flex-1 sm:flex-none px-4 lg:px-6 py-2.5 text-[10px] lg:text-[11px] font-black border border-slate-200 bg-white text-primary rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-6 py-3 text-[10px] lg:text-[11px] font-black border border-white/10 bg-white/5 text-white rounded-2xl hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
           >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh Hub'}
           </button>
           <button
             onClick={handleSyncAll}
             disabled={syncing || refreshing}
-            className="flex-1 sm:flex-none px-4 lg:px-6 py-2.5 text-[10px] lg:text-[11px] font-black border border-brand-blue bg-brand-blue text-white rounded-xl hover:shadow-lg hover:shadow-brand-blue/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-6 py-3 text-[10px] lg:text-[11px] font-black border border-brand-blue/30 bg-brand-blue text-white rounded-2xl hover:shadow-xl hover:shadow-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
           >
-            {syncing ? 'Syncing...' : 'Full Sync'}
+            {syncing ? 'Syncing...' : 'Global Sync'}
           </button>
         </div>
       </div>
 
       {syncError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-[11px] font-black px-5 py-3 rounded-xl flex items-center gap-3 uppercase tracking-wider">
+        <div className="bg-red-50 border border-red-200 text-red-700 text-[11px] font-black px-5 py-3 rounded-2xl flex items-center gap-3 uppercase tracking-wider">
           <AlertTriangle className="w-4 h-4" />
           Protocol Error: {syncError}
         </div>
       )}
 
       {data && 'error' in data && (
-        <div className="p-6 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-start gap-4 shadow-sm">
+        <div className="p-6 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-start gap-4 shadow-sm">
           <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
           <div className="flex-1">
             <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">Channel Integration Error</h3>
@@ -550,7 +548,7 @@ export default function CommandCenter() {
       {/* ── KPI TILES ─────────────────────────────────────────────────────── */}
       {!loading && data && (
         <div className="space-y-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 lg:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 lg:gap-4">
             <KPITile
               label="Critical Stocks"
               value={criticalCount}
@@ -570,7 +568,7 @@ export default function CommandCenter() {
               value={oosRiskCount}
               sub="<14 days coverage"
               urgent={oosRiskCount > 0}
-              accentColor="border-l-orange-400"
+              accentColor="border-l-amber-500"
               icon={AlertCircle}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -583,7 +581,7 @@ export default function CommandCenter() {
               label="Ship Pending"
               value={data.ship_now.length}
               sub={`${totalShipUnits} Units (${totalShipBoxesAmazon + totalShipBoxesNoon} Boxes) staged - Send to FBA and FBN`}
-              accentColor="border-l-brand-blue"
+              accentColor="border-l-blue-500"
               icon={MoveRight}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -596,7 +594,7 @@ export default function CommandCenter() {
               label="Procurement"
               value={data.reorder_now.length}
               sub="Suggested Reorders"
-              accentColor="border-l-brand-amber"
+              accentColor="border-l-amber-400"
               icon={PlusCircle}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -609,7 +607,7 @@ export default function CommandCenter() {
               label="AMZ OOS Rate"
               value={`${(data.oos_pct_amazon ?? 0).toFixed(1)}%`}
               sub={`${data.oos_count_amazon ?? 0} OOS / ${data.live_skus_amazon ?? 0} Active SKUs`}
-              accentColor="border-l-indigo-400"
+              accentColor="border-l-slate-400"
               icon={TrendingUp}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -622,7 +620,7 @@ export default function CommandCenter() {
               label="Noon OOS Rate"
               value={`${(data.oos_pct_noon ?? 0).toFixed(1)}%`}
               sub={`${data.oos_count_noon ?? 0} OOS / ${data.live_skus_noon ?? 0} Active SKUs`}
-              accentColor="border-l-purple-400"
+              accentColor="border-l-slate-400"
               icon={TrendingUp}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -635,7 +633,7 @@ export default function CommandCenter() {
               label="Fleet Health"
               value={`${(100 - (data.oos_pct_total ?? 0)).toFixed(1)}%`}
               sub="Global Availability"
-              accentColor="border-l-emerald-400"
+              accentColor="border-l-emerald-500"
               icon={Activity}
               onDoubleClick={() => setDrillModal({
                 isOpen: true,
@@ -666,7 +664,7 @@ export default function CommandCenter() {
       {loading && (
         <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="bg-card border border-border-color rounded-xl p-5 border-l-[6px] border-l-slate-200 animate-pulse">
+            <div key={i} className="bg-card border border-border-color rounded-2xl p-5 border-l-[6px] border-l-slate-200 animate-pulse">
               <div className="h-2.5 bg-slate-100 rounded w-2/3 mb-3" />
               <div className="h-8 bg-slate-100 rounded w-1/2" />
             </div>
@@ -695,15 +693,15 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.alerts || [], 'high_priority_stockouts')}
-              className="px-3 py-1 text-[9px] font-black uppercase text-muted hover:text-primary transition-colors flex items-center gap-1 border border-slate-100 rounded-md hover:border-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="w-3 h-3" /> Download ALL
+              <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
           )}
         >
           <>
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
+              <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>SKU</Th>
                   <Th>Coverage</Th>
@@ -712,7 +710,7 @@ export default function CommandCenter() {
                   <Th>Risk State</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-color/50 bg-white">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={5} /> : (data?.alerts.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
                   data?.alerts.map(a => (
                     <tr key={a.sku} className="hover:bg-slate-50/50 transition-colors group">
@@ -760,15 +758,15 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.ship_now || [], 'staged_replenishment')}
-              className="px-3 py-1 text-[9px] font-black uppercase text-muted hover:text-primary transition-colors flex items-center gap-1 border border-slate-100 rounded-md hover:border-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="w-3 h-3" /> Download ALL
+              <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
           )}
         >
           <>
             <table className="w-full text-xs">
-              <thead className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
+              <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>SKU</Th>
                   <Th right>SV</Th>
@@ -777,7 +775,7 @@ export default function CommandCenter() {
                   <th className="px-4 pr-8 py-3 text-[10px] font-black text-muted uppercase tracking-[0.1em] text-left">Protocol</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-color/50 bg-white">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={5} /> : shipNowRows.length === 0 ? <EmptyRow cols={5} /> : (
                   shipNowRows.map((row, idx) => {
                     const sku = String(row.sku ?? '')
@@ -791,13 +789,13 @@ export default function CommandCenter() {
                             <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[150px]">{String(row.name)}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-primary">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
                           {toSafeNumber(row.blended_sv).toFixed(1)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-brand-blue">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
                           {toSafeNumber(row.total_units_to_ship)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
+                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
                           {sugAmz + sugNoon}
                         </td>
                         <td className="px-4 pr-8 py-2.5">
@@ -812,16 +810,16 @@ export default function CommandCenter() {
                 )}
               </tbody>
               {shipNowRows.length > 0 && (
-                <tfoot className="bg-slate-50/80 sticky bottom-0 z-10 backdrop-blur-md border-t-2 border-slate-200">
-                  <tr className="font-black text-primary">
-                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest">Totals</td>
+                <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
+                  <tr className="font-bold text-white">
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary">Totals</td>
                     <td className="px-4 py-2.5 text-right font-data text-[11px]">
                       {shipNowRows.reduce((sum, item) => sum + toSafeNumber(item.blended_sv), 0).toFixed(1)}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-brand-blue">
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
                       {totalShipUnits.toLocaleString()}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-muted">
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
                       {(totalShipBoxesAmazon + totalShipBoxesNoon).toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5"></td>
@@ -848,15 +846,15 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.reorder_now || [], 'procurement_orders')}
-              className="px-3 py-1 text-[9px] font-black uppercase text-muted hover:text-primary transition-colors flex items-center gap-1 border border-slate-100 rounded-md hover:border-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="w-3 h-3" /> Download ALL
+              <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
           )}
         >
           <>
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/50">
+              <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>SKU</Th>
                   <Th right>Req. Units</Th>
@@ -865,13 +863,13 @@ export default function CommandCenter() {
                   <Th>Action</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-color/50 bg-white">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
                   data?.reorder_now.map(r => (
-                    <tr key={r.sku} className="hover:bg-slate-50 transition-colors">
+                    <tr key={r.sku} className="hover:bg-white/5 transition-colors">
                       <td className="px-4 py-2.5"><SKULink sku={r.sku} /></td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-primary">{r.suggested_units}</td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-black text-emerald-600">
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">{r.suggested_units}</td>
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
                         {Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </td>
                       <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(r.projected_coverage)}`}>{formatCovDays(r.projected_coverage)}</td>
@@ -883,13 +881,13 @@ export default function CommandCenter() {
                 )}
               </tbody>
               {(data?.reorder_now.length ?? 0) > 0 && (
-                <tfoot className="bg-slate-50/80 sticky bottom-0 z-10 backdrop-blur-md border-t-2 border-slate-200">
-                  <tr className="font-black text-primary">
-                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest">Totals</td>
+                <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
+                  <tr className="font-bold text-white">
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary">Totals</td>
                     <td className="px-4 py-2.5 text-right font-data text-[11px]">
                       {(data?.reorder_now ?? []).reduce((sum, r) => sum + (r.suggested_units || 0), 0).toLocaleString()}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px] text-emerald-600">
+                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
                       {(data?.reorder_now ?? []).reduce((sum, r) => sum + (Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </td>
                     <td className="px-4 py-2.5 text-right font-data text-[11px]">
@@ -919,15 +917,15 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.inbound || [], 'supply_in_transit')}
-              className="px-3 py-1 text-[9px] font-black uppercase text-muted hover:text-primary transition-colors flex items-center gap-1 border border-slate-100 rounded-md hover:border-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="w-3 h-3" /> Download ALL
+              <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
           )}
         >
           <>
             <table className="w-full text-sm">
-              <thead className="bg-slate-50/50">
+              <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>PO #</Th>
                   <Th>SKU</Th>
@@ -935,7 +933,7 @@ export default function CommandCenter() {
                   <Th>ETA</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-color/50 bg-white">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={4} /> : (data?.inbound?.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
                   data?.inbound?.flatMap((b: any) => (b.line_items ?? []).map((li: any) => ({
                     po: b.po_number,
@@ -944,16 +942,16 @@ export default function CommandCenter() {
                     units: li.units_ordered,
                     eta: b.eta
                   }))).map((row: any) => (
-                    <tr key={`${row.po}-${row.sku}`} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-2.5 font-data text-[10px] font-bold text-muted">{row.po}</td>
+                    <tr key={`${row.po}-${row.sku}`} className="hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-2.5 font-data text-[10px] font-bold text-white">{row.po}</td>
                       <td className="px-4 py-2.5">
                         <div className="flex flex-col">
                           <SKULink sku={row.sku} />
                           <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[180px]">{row.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] text-primary">{row.units}</td>
-                      <td className="px-4 py-2.5 text-[10px] font-bold text-muted">{formatDate(row.eta)}</td>
+                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">{row.units}</td>
+                      <td className="px-4 py-2.5 text-[10px] font-bold text-white">{formatDate(row.eta)}</td>
                     </tr>
                   ))
                 )}

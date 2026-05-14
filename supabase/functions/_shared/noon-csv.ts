@@ -24,17 +24,30 @@
 // ---------------------------------------------------------------------------
 
 interface NoonOrderRow {
+  id_partner: string
+  src_country: string
+  country_code: string
+  dest_country: string
+  bayan_nr: string
+  item_nr: string
   partner_sku: string
+  sku: string
   status: string
   offer_price: number
+  gmv_lcy: number
   currency_code: string
-  order_timestamp: string
+  brand_code: string
+  family: string
   fulfillment_model: string
+  order_timestamp: string
+  shipment_timestamp: string
+  delivered_timestamp: string
 }
 
 export interface ParsedNoonData {
   sales: { sku: string; date: string; channel: 'noon' | 'noon_minutes'; units_sold: number }[]
   avg_prices: { sku: string; avg_sell_price_aed: number }[]
+  raw_rows: NoonOrderRow[]
   errors: { row: number; message: string }[]
 }
 
@@ -65,12 +78,12 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
   // Strip UTF-8 BOM if present
   const cleaned = csvText.replace(/^\uFEFF/, '').trim()
   if (!cleaned) {
-    return { sales: [], avg_prices: [], errors: [{ row: 0, message: 'Empty CSV file' }] }
+    return { sales: [], avg_prices: [], raw_rows: [], errors: [{ row: 0, message: 'Empty CSV file' }] }
   }
 
   const lines = cleaned.split(/\r?\n/)
   if (lines.length < 2) {
-    return { sales: [], avg_prices: [], errors: [{ row: 0, message: 'CSV has no data rows' }] }
+    return { sales: [], avg_prices: [], raw_rows: [], errors: [{ row: 0, message: 'CSV has no data rows' }] }
   }
 
   // Parse header (case-insensitive, strip whitespace)
@@ -100,10 +113,11 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
   }
 
   if (errors.length > 0) {
-    return { sales: [], avg_prices: [], errors }
+    return { sales: [], avg_prices: [], raw_rows: [], errors }
   }
 
   // Accumulators
+  const raw_rows: NoonOrderRow[] = []
   // Key: `${partner_sku}|${date}|${channel}`
   const salesMap = new Map<string, { units: number; channel: 'noon' | 'noon_minutes' }>()
   // Key: partner_sku — accumulate [sum_aed, count]
@@ -118,6 +132,7 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
 
     try {
       const rawRow = extractRow(cols, colIndex)
+      raw_rows.push(rawRow)
 
       // Status filter
       const status = rawRow.status.trim().toLowerCase()
@@ -191,7 +206,7 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
   }
   avg_prices.sort((a, b) => a.sku.localeCompare(b.sku))
 
-  return { sales, avg_prices, errors }
+  return { sales, avg_prices, raw_rows, errors }
 }
 
 // ---------------------------------------------------------------------------
@@ -217,12 +232,24 @@ function extractRow(
     return i !== undefined ? (cols[i] ?? '').trim() : ''
   }
   return {
+    id_partner: get('id_partner'),
+    src_country: get('src_country'),
+    country_code: get('country_code'),
+    dest_country: get('dest_country'),
+    bayan_nr: get('bayan_nr'),
+    item_nr: get('item_nr'),
     partner_sku: get('partner_sku'),
+    sku: get('sku'),
     status: get('status'),
     offer_price: parseFloat(get('offer_price').replace(/,/g, '')) || 0,
+    gmv_lcy: parseFloat(get('gmv_lcy').replace(/,/g, '')) || 0,
     currency_code: get('currency_code'),
-    order_timestamp: get('order_timestamp'),
+    brand_code: get('brand_code'),
+    family: get('family'),
     fulfillment_model: get('fulfillment_model'),
+    order_timestamp: get('order_timestamp'),
+    shipment_timestamp: get('shipment_timestamp'),
+    delivered_timestamp: get('delivered_timestamp'),
   }
 }
 

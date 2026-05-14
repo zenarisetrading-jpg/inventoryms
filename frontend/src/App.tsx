@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -172,8 +172,7 @@ export default function App() {
               <div className="space-y-1 mb-3 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 <SidebarLink icon={Package} label="SKU Master" path="/skus" current={route.name === 'skus' || route.name === 'sku'} isSubItem />
                 <SidebarLink icon={ClipboardList} label="PO Register" path="/po" current={route.name === 'po'} isSubItem />
-                <SidebarLink icon={Upload} label="Upload Centre" path="/upload" current={route.name === 'upload'} isSubItem />
-                <SidebarLink icon={Activity} label="Data Health" path="/health" current={route.name === 'health'} isSubItem />
+                <SidebarLink icon={Layers} label="Operations Hub" path="/upload" current={route.name === 'upload' || route.name === 'health'} isSubItem />
               </div>
             )}
 
@@ -192,7 +191,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        <header className="h-14 bg-white/50 backdrop-blur-sm border-b border-white/10 flex items-center justify-between px-4 lg:px-6 shrink-0">
+        <header className="h-14 bg-sidebar border-b border-white/5 flex items-center justify-between px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -200,15 +199,7 @@ export default function App() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            {!isSidebarCollapsed && (
-              <button 
-                onClick={() => setIsSidebarCollapsed(true)}
-                className="hidden lg:flex p-2 text-muted hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            )}
-            <div className="hidden sm:flex items-center gap-4 bg-white/50 px-3 py-1.5 rounded-lg border border-zinc-200 w-48 lg:w-80 overflow-hidden">
+            <div className="hidden sm:flex items-center gap-4 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 w-48 lg:w-80 overflow-hidden">
               <Search className="w-4 h-4 text-muted shrink-0" />
               <input
                 type="text"
@@ -221,26 +212,26 @@ export default function App() {
 
             <div 
               onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-3 group cursor-pointer hover:bg-slate-50 p-1.5 rounded-xl transition-colors"
+              className="flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-1.5 rounded-xl transition-colors"
             >
               <div className="hidden sm:flex flex-col items-end mr-1">
-                <p className="text-[10px] font-black text-slate-900 uppercase tracking-tight leading-none mb-1">
+                <p className="text-[10px] font-black text-white uppercase tracking-tight leading-none mb-1">
                   {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                 </p>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest leading-none">
                   {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
                 </p>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shadow-sm group-hover:shadow-indigo-200 transition-all">
-                <User className="w-4 h-4 text-indigo-600" />
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shadow-sm group-hover:shadow-indigo-500/20 transition-all">
+                <User className="w-4 h-4 text-white" />
               </div>
-              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-slate-300 group-hover:text-slate-600 group-hover:translate-y-0.5 transition-all" />
+              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-zinc-500 group-hover:text-white group-hover:translate-y-0.5 transition-all" />
             </div>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-body">
-          <div className="w-full">
+          <div className="w-full min-h-full flex flex-col">
             <ErrorBoundary>
               {route.name === 'dashboard' && <CommandCenter />}
               {route.name === 'sku' && <SKUDetail sku={route.sku} />}

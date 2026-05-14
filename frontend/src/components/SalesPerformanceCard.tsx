@@ -1,6 +1,13 @@
 import React from 'react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
+interface ChannelBreakdown {
+  label: string;
+  sales: number;
+  units: number;
+  color: string;
+}
+
 interface SalesPerformanceCardProps {
   title: string;
   dateRange: string;
@@ -8,6 +15,11 @@ interface SalesPerformanceCardProps {
   orders: number;
   units: number;
   refunds: number;
+  advCost: number;
+  payout: number;
+  grossProfit: number;
+  netProfit: number;
+  breakdown?: ChannelBreakdown[];
   growth?: number;
   headerColor: string;
 }
@@ -19,55 +31,105 @@ export function SalesPerformanceCard({
   orders,
   units,
   refunds,
+  advCost,
+  payout,
+  grossProfit,
+  netProfit,
+  breakdown,
   growth,
   headerColor
 }: SalesPerformanceCardProps) {
   const isPositive = growth && growth > 0;
   
+  const formatCurrency = (val: number) => 
+    val.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
-    <div className="flex flex-col bg-[#212121] rounded-lg overflow-hidden shadow-2xl border border-white/5 min-w-[200px] flex-1">
+    <div className="flex flex-col bg-[#1A1A1A] rounded-2xl overflow-hidden shadow-2xl border border-white/5 min-w-[260px] flex-1 transition-all hover:border-white/10">
       {/* Header */}
       <div className={`${headerColor} px-4 py-3 text-white`}>
-        <h3 className="text-sm font-black tracking-tight">{title}</h3>
-        <p className="text-[10px] font-bold opacity-80 uppercase tracking-wider">{dateRange}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-[11px] font-black tracking-tight">{title}</h3>
+            <p className="text-[9px] font-bold opacity-70 uppercase tracking-wider">{dateRange}</p>
+          </div>
+          {growth !== undefined && (
+            <div className={`px-2 py-1 rounded-full text-[10px] font-black flex items-center gap-0.5 bg-black/20 ${isPositive ? 'text-emerald-300' : 'text-rose-300'}`}>
+              {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+              {Math.abs(growth)}%
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Body */}
       <div className="p-4 space-y-4">
-        {/* Sales Section */}
+        {/* Main Sales Metric */}
         <div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Sales</span>
-            {growth !== undefined && (
-              <span className={`text-[9px] font-black flex items-center gap-0.5 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {isPositive ? '+' : ''}{growth}%
-              </span>
-            )}
-          </div>
-          <div className="flex items-baseline gap-1 mt-1">
+          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Total Sales</span>
+          <div className="flex items-baseline gap-1">
             <h2 className="text-2xl font-black text-white font-data tracking-tighter">
-              {sales.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(sales)}
             </h2>
-            <span className="text-lg font-black text-white/40">د.إ</span>
+            <span className="text-sm font-black text-white/40">AED</span>
           </div>
         </div>
         
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 gap-4 pt-2">
-          <div>
-            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Orders / Units</p>
-            <p className="text-sm font-black text-white mt-1 font-data">
-              {orders} <span className="text-zinc-600 font-normal mx-0.5">/</span> {units}
-            </p>
-          </div>
-          <div>
-            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Refunds</p>
-            <p className="text-sm font-black text-blue-400 mt-1 font-data">
-              {refunds}
-            </p>
-          </div>
+        {/* Secondary Metrics Grid */}
+        <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+          <MetricBox label="Orders / Units" value={`${orders} / ${units}`} />
+          <MetricBox label="Refunds" value={refunds} valueColor="text-blue-400" />
+          <MetricBox label="Adv. cost" value={formatCurrency(advCost)} isCurrency />
+          <MetricBox label="Est. payout" value={formatCurrency(payout)} isCurrency />
+          <MetricBox label="Gross profit" value={formatCurrency(grossProfit)} isCurrency valueColor={grossProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
+          <MetricBox label="Net profit" value={formatCurrency(netProfit)} isCurrency valueColor={netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
         </div>
+
+        {/* Channel Breakdown */}
+        {breakdown && breakdown.length > 0 && (
+          <div className="pt-4 border-t border-white/5 space-y-2">
+            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Marketplace Split</span>
+            {breakdown.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between group/item">
+                <div className="flex items-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
+                  <span className="text-[9px] font-bold text-zinc-400 group-hover/item:text-white transition-colors uppercase">{item.label}</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-white font-data leading-none mb-0.5">
+                    {formatCurrency(item.sales)} <span className="text-[7px] text-zinc-600 ml-0.5">AED</span>
+                  </p>
+                  <p className="text-[8px] font-bold text-zinc-500 leading-none">
+                    {item.units} <span className="text-[7px] opacity-40 lowercase">units</span>
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button className="w-full mt-2 py-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest border-t border-white/5 hover:text-white transition-colors flex items-center justify-center gap-2">
+          Analytics Report <ArrowUpRight className="w-3 h-3" />
+        </button>
       </div>
     </div>
   );
 }
+
+
+function MetricBox({ label, value, isCurrency, valueColor = "text-white" }: { 
+  label: string; 
+  value: string | number; 
+  isCurrency?: boolean;
+  valueColor?: string;
+}) {
+  return (
+    <div className="space-y-0.5">
+      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{label}</p>
+      <p className={`text-xs font-black font-data ${valueColor}`}>
+        {value} {isCurrency && <span className="text-[9px] opacity-40 ml-0.5">AED</span>}
+      </p>
+    </div>
+  );
+}
+

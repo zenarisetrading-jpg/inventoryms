@@ -76,28 +76,28 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sidebar/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[98vw] 2xl:max-w-[90vw] max-h-[90vh] flex flex-col overflow-hidden border border-white/20 scale-in-center transition-transform">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-[#111827] rounded-2xl shadow-2xl w-full max-w-[98vw] 2xl:max-w-[90vw] max-h-[90vh] flex flex-col overflow-hidden border border-white/10 scale-in-center transition-transform">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/5">
           <div>
-            <h3 className="text-sm font-black text-sidebar uppercase tracking-widest">{title}</h3>
-            <p className="text-[10px] text-muted font-bold mt-0.5 uppercase tracking-tighter opacity-70">
+            <h3 className="text-sm font-black text-white uppercase tracking-widest">{title}</h3>
+            <p className="text-[10px] text-zinc-400 font-bold mt-0.5 uppercase tracking-tighter opacity-70">
               Listing {safeData.length} affected product lines
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-muted hover:text-primary rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border border-slate-200"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
               title="Export to CSV"
             >
               <Download className="w-3.5 h-3.5" />
-              Download CSV
+              DOWNLOAD ALL
             </button>
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-slate-200/50 rounded-xl transition-colors text-muted hover:text-primary"
+              className="p-2 hover:bg-white/10 rounded-xl transition-colors text-zinc-400 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -107,7 +107,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
         {/* Content */}
         <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-fit min-w-full text-sm border-separate border-spacing-0">
-            <thead className="bg-white sticky top-0 z-30 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.07)]">
+            <thead className="bg-[#111827] sticky top-0 z-30 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.5)]">
               <tr>
                 <HeaderCell>SKU</HeaderCell>
                 <HeaderCell>Product Name</HeaderCell>
@@ -169,32 +169,32 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-white/5">
               {safeData.map((item, i) => (
-                <tr key={i} className="group hover:bg-slate-50/80 transition-all duration-150">
+                <tr key={i} className="group hover:bg-white/5 transition-all duration-150">
                   <td className="py-3 px-2">
                     <button
                       onClick={() => {
                         navigate('/sku/' + item.sku)
                         onClose()
                       }}
-                      className="font-data text-[11px] font-black text-brand-blue hover:underline bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50 whitespace-nowrap"
+                      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-1 rounded border whitespace-nowrap font-data text-[11px] font-black"
                     >
                       {item.sku}
                     </button>
                   </td>
                   <td className="py-3 px-2">
-                    <p className="text-[11px] font-semibold text-primary truncate max-w-[280px]">
+                    <p className="text-[11px] font-semibold text-white truncate max-w-[280px]">
                       {item.name}
                     </p>
                   </td>
 
                   {type === 'alerts' && (
                     <>
-                      <td className={`py-3 px-2 text-right font-data text-[11px] ${coverageColor(item.coverage_amazon)}`}>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {formatCov(item.coverage_amazon)}
                       </td>
-                      <td className={`py-3 px-2 text-right font-data text-[11px] ${coverageColor(item.coverage_noon)}`}>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {formatCov(item.coverage_noon)}
                       </td>
                       <td className="py-3 px-2">
@@ -207,27 +207,27 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     </>
                   )}
 
-                   {type === 'ship_now' && (
+                  {type === 'ship_now' && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-muted">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.blended_sv || 0).toFixed(2)}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-blue">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.total_units_to_ship || item.units_to_ship}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-blue">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.send_to_fba_units ?? 0}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-brand-amber">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.send_to_fbn_units ?? 0}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-bold text-primary">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-blue">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_boxes_amazon ?? 0}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-amber">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_boxes_noon ?? 0}
                       </td>
                       <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase">
@@ -244,16 +244,16 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
                   {type === 'reorder_now' && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-muted">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.blended_sv || 0).toFixed(2)}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-amber">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_units}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-emerald-600">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-muted">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.moq || '—'}
                       </td>
                     </>
@@ -278,10 +278,10 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                           onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
                         />
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-primary">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.total_units}
                       </td>
-                      <td className="py-3 px-2 text-[10px] text-muted font-bold">
+                      <td className="py-3 px-2 text-[10px] text-white font-bold">
                         {item.eta ? new Date(item.eta).toLocaleDateString() : '—'}
                       </td>
                     </>
@@ -289,18 +289,18 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
                   {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_total') && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-muted">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.blended_sv || 0).toFixed(2)}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-red-600">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {type === 'oos_amazon' ? (item.fba_units || 0) : 
                          type === 'oos_noon' ? ((item.fbn_units || 0) + (item.minutes_units || 0)) : 
                          ((item.fba_units || 0) + (item.fbn_units || 0) + (item.minutes_units || 0))}
                       </td>
-                      <td className={`py-3 px-2 text-right font-data text-[11px] ${coverageColor(item.coverage_amazon)}`}>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {formatCov(item.coverage_amazon)}
                       </td>
-                      <td className={`py-3 px-2 text-right font-data text-[11px] ${coverageColor(item.coverage_noon)}`}>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {formatCov(item.coverage_noon)}
                       </td>
                       <td className="py-3 px-2">
@@ -328,13 +328,13 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       <td className="py-3 px-2 text-[10px] font-bold text-muted uppercase truncate max-w-[100px]">
                         {item.sub_category || '—'}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-primary">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.blended_sv || 0).toFixed(2)}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-brand-amber">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_units?.toLocaleString() || 0}
                       </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] font-black text-emerald-600">
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {Number(item.total_cost_aed || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                     </>
@@ -344,27 +344,27 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
             </tbody>
             {type === 'ship_now' && (
               <tfoot className="bg-slate-50 sticky bottom-0 z-30 shadow-[0_-2px_10px_-3px_rgba(0,0,0,0.07)] border-t-2 border-slate-200">
-                <tr className="font-black text-sidebar">
-                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest" colSpan={2}>Totals</td>
+                <tr className="font-bold text-white bg-[#111827]">
+                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}>Totals</td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.blended_sv) || 0), 0).toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.send_to_fba_units) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-amber">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.send_to_fbn_units) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-primary">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-blue">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_amazon) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-amber">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_noon) || 0), 0).toLocaleString()}
                   </td>
                   <td colSpan={2}></td>
@@ -373,15 +373,15 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
             )}
             {type === 'reorder_now' && (
               <tfoot className="bg-slate-50 sticky bottom-0 z-20 border-t-2 border-slate-200">
-                <tr className="font-black text-sidebar">
-                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest" colSpan={2}>Totals</td>
+                <tr className="font-bold text-white bg-[#111827]">
+                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}>Totals</td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.blended_sv) || 0), 0).toFixed(2)}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-brand-amber">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_units) || 0), 0).toLocaleString()}
                   </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px] text-emerald-600">
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td colSpan={1}></td>
@@ -392,7 +392,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 text-[10px] text-muted font-black uppercase tracking-widest flex justify-between">
+        <div className="px-6 py-4 bg-white/5 border-t border-white/5 text-[10px] text-zinc-500 font-black uppercase tracking-widest flex justify-between">
           <span>S2C Dynamics - Inventory OS</span>
           <span>Security Protocol Active</span>
         </div>
@@ -403,7 +403,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
 function HeaderCell({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
-    <th className={`px-6 py-3 border-b border-slate-100 text-[10px] font-black text-muted uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}>
+    <th className={`px-6 py-3 border-b border-white/5 text-[10px] font-black text-zinc-400 uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}>
       {children}
     </th>
   )
@@ -416,8 +416,5 @@ function formatCov(days: any) {
 }
 
 function coverageColor(days: number | null | undefined): string {
-  if (days == null || !Number.isFinite(days) || days <= 0) return 'text-red-600 font-black'
-  if (days <= 7) return 'text-red-500 font-bold'
-  if (days <= 14) return 'text-orange-500'
-  return 'text-primary'
+  return 'text-white font-bold'
 }

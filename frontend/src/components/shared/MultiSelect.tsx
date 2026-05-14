@@ -31,26 +31,12 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Apply changes when dropdown closes OR after a 2.5s debounce while open
+  // Apply changes instantly when local selections change
   useEffect(() => {
-    let timer: NodeJS.Timeout
-    
-    if (!isOpen) {
-      // Instantly apply when closed
-      if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
-        onChange(localSelected)
-      }
-    } else {
-      // Wait 10 seconds while open before auto-applying
-      timer = setTimeout(() => {
-        if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
-          onChange(localSelected)
-        }
-      }, 10000)
+    if (JSON.stringify(localSelected) !== JSON.stringify(selected)) {
+      onChange(localSelected)
     }
-    
-    return () => clearTimeout(timer)
-  }, [isOpen, localSelected, selected, onChange])
+  }, [localSelected, selected, onChange])
 
   const toggleOption = (val: string) => {
     if (localSelected.includes(val)) {
@@ -70,28 +56,28 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
     <div ref={containerRef} className="relative w-full lg:w-auto lg:min-w-[160px]">
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-2 lg:py-2.5 bg-zinc-50 border border-zinc-100 rounded-lg lg:rounded-xl cursor-pointer hover:border-brand-blue transition-all shadow-inner group"
+        className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-4 py-2 lg:py-2.5 bg-white/5 border border-white/10 rounded-lg lg:rounded-xl cursor-pointer hover:border-brand-blue transition-all group"
       >
-        {Icon && <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-colors ${selected.length > 0 ? 'text-brand-blue' : 'text-zinc-400'}`} />}
+        {Icon && <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 transition-colors ${selected.length > 0 ? 'text-brand-blue' : 'text-zinc-500'}`} />}
         <div className="flex-1 flex items-center gap-1 overflow-hidden">
           {localSelected.length === 0 ? (
-            <span className="text-[10px] lg:text-sm font-bold text-zinc-400 uppercase truncate">{placeholder}</span>
+            <span className="text-[10px] lg:text-sm font-bold text-zinc-500 uppercase truncate">{placeholder}</span>
           ) : (
-            <span className="text-[10px] lg:text-sm font-black text-zinc-900 uppercase truncate">
+            <span className="text-[10px] lg:text-sm font-black text-white uppercase truncate">
               {localSelected.length === 1 ? options.find(o => o.value === localSelected[0])?.label : `${localSelected.length} SELECTED`}
             </span>
           )}
         </div>
         {localSelected.length > 0 && (
-          <button onClick={clearAll} className="p-0.5 hover:bg-zinc-200 rounded-md transition-colors shrink-0">
-            <X className="w-3 h-3 text-zinc-400" />
+          <button onClick={clearAll} className="p-0.5 hover:bg-white/10 rounded-md transition-colors shrink-0">
+            <X className="w-3 h-3 text-zinc-500" />
           </button>
         )}
-        <ChevronDown className={`w-3.5 h-3.5 lg:w-4 lg:h-4 text-zinc-300 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3.5 h-3.5 lg:w-4 lg:h-4 text-zinc-500 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 top-full left-0 mt-2 w-full min-w-[200px] bg-white border border-zinc-200 rounded-xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute z-50 top-full left-0 mt-2 w-full min-w-[200px] bg-[#111827] border border-white/10 rounded-xl shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
           <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-0.5">
             {options.map(opt => {
               const isActive = localSelected.includes(opt.value)
@@ -99,12 +85,12 @@ export function MultiSelect({ label, options, selected, onChange, icon: Icon, pl
                 <div
                   key={opt.value}
                   onClick={() => toggleOption(opt.value)}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-brand-blue/5' : 'hover:bg-zinc-50'}`}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-brand-blue/10' : 'hover:bg-white/5'}`}
                 >
-                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isActive ? 'bg-brand-blue border-brand-blue' : 'border-zinc-300 bg-white'}`}>
+                  <div className={`w-4 h-4 rounded flex items-center justify-center transition-colors border ${isActive ? 'bg-brand-blue border-brand-blue' : 'border-white/20 bg-transparent'}`}>
                     {isActive && <Check className="w-3 h-3 text-white stroke-[3px]" />}
                   </div>
-                  <span className={`text-[12px] font-black uppercase tracking-tight ${isActive ? 'text-brand-blue' : 'text-zinc-600'}`}>
+                  <span className={`text-[12px] font-black uppercase tracking-tight ${isActive ? 'text-brand-blue' : 'text-zinc-400'}`}>
                     {opt.label}
                   </span>
                 </div>

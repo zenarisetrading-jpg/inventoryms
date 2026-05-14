@@ -36,13 +36,13 @@ function StatusIndicator({ status }: { status: 'fresh' | 'stale' | 'old' | 'miss
 
 function StatusLabel({ status }: { status: 'fresh' | 'stale' | 'old' | 'missing' | 'ok' | 'error' | 'warning' }) {
   const cfg = {
-    fresh: { cls: 'bg-green-100 text-green-700 border-green-200', label: 'Fresh' },
-    ok: { cls: 'bg-green-100 text-green-700 border-green-200', label: 'OK' },
-    stale: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Stale' },
-    warning: { cls: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Warning' },
-    old: { cls: 'bg-red-100 text-red-700 border-red-200', label: 'Old' },
-    missing: { cls: 'bg-red-100 text-red-700 border-red-200', label: 'Missing' },
-    error: { cls: 'bg-red-100 text-red-700 border-red-200', label: 'Error' },
+    fresh: { cls: 'bg-green-500/10 text-green-400 border-green-500/20', label: 'Fresh' },
+    ok: { cls: 'bg-green-500/10 text-green-400 border-green-500/20', label: 'OK' },
+    stale: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Stale' },
+    warning: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Warning' },
+    old: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Old' },
+    missing: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Missing' },
+    error: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Error' },
   }[status]
 
   return (
@@ -128,9 +128,9 @@ function buildHealthRows(syncStatus: SyncStatus): HealthRow[] {
 
 function SummaryCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg px-5 py-4">
-      <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{label}</div>
-      <div className={`text-2xl font-bold font-data ${color}`}>{value}</div>
+    <div className="bg-card border border-white/5 rounded-xl px-5 py-4">
+      <div className="text-xs font-black text-zinc-400 uppercase tracking-[0.1em] mb-2">{label}</div>
+      <div className={`text-2xl font-black font-data ${color} tracking-tight`}>{value}</div>
     </div>
   )
 }
@@ -172,14 +172,14 @@ export default function HealthPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-zinc-900 tracking-tight">System Data Health</h1>
-          <p className="text-sm text-zinc-500">Monitor data freshness and synchronization status across all connectors</p>
+          <h1 className="text-xl lg:text-2xl font-black text-white uppercase tracking-tight">System Data Health</h1>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider opacity-60 mt-1">Monitor data freshness and synchronization status across all connectors</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={load}
             disabled={loading}
-            className="p-2 text-zinc-500 hover:bg-zinc-100 rounded-lg transition-colors border border-zinc-200"
+            className="p-2 text-zinc-400 hover:bg-white/5 rounded-lg transition-colors border border-white/10"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -208,23 +208,23 @@ export default function HealthPage() {
       </div>
 
       {/* Health table */}
-      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden shadow-sm">
-        <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex justify-between items-center">
+      <div className="bg-card border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+        <div className="px-5 py-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
           <h2 className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Source Connectivity Matrix</h2>
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Auto-refreshing every 5m</div>
+          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Auto-refreshing every 5m</div>
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-100">
-              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Source Entity</th>
-              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Integration</th>
-              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Last Payload</th>
-              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Freshness</th>
-              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Diagnostic Detail</th>
-              <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest">Action</th>
+            <tr className="border-b border-white/5">
+              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Source Entity</th>
+              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Integration</th>
+              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Last Payload</th>
+              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Freshness</th>
+              <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Diagnostic Detail</th>
+              <th className="px-5 py-3 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-white/5">
             {loading ? (
               [...Array(4)].map((_, i) => (
                 <tr key={i}>
@@ -243,7 +243,7 @@ export default function HealthPage() {
               </tr>
             ) : (
               rows.map(row => (
-                <tr key={row.source} className="hover:bg-zinc-50/50 transition-colors group">
+                <tr key={row.source} className="hover:bg-white/5 transition-colors group">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-2 h-2 rounded-full ${
@@ -251,17 +251,17 @@ export default function HealthPage() {
                         row.status === 'warning' || row.status === 'stale' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' :
                         'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
                       }`} />
-                      <span className="font-bold text-zinc-900">{row.source}</span>
+                      <span className="font-black text-white uppercase tracking-tight">{row.source}</span>
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wider bg-zinc-100 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-1 rounded">
                       {row.type}
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-data text-xs text-zinc-600">
+                  <td className="px-5 py-4 font-data text-xs text-zinc-400">
                     {row.lastUpdated ? formatRelativeTime(row.lastUpdated) : (
-                      <span className="text-zinc-300 italic">No data</span>
+                      <span className="text-zinc-600 italic">No data</span>
                     )}
                   </td>
                   <td className="px-5 py-4">

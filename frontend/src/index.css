@@ -7,14 +7,14 @@
 
 :root {
   /* Premium Midnight Palette */
-  --sidebar-bg: #050B20;
-  --body-bg: #D6E4F8;
-  --card-bg: #FFFFFF;
-  --brand-blue: #2563EB;
+  --sidebar-bg: #030712;
+  --body-bg: #0B0F1A;
+  --card-bg: #111827;
+  --brand-blue: #3B82F6;
   --brand-amber: #F59E0B;
-  --primary-text: #0F172A;
-  --muted-text: #475569;
-  --border-color: #E2E8F0;
+  --primary-text: #F8FAFC;
+  --muted-text: #94A3B8;
+  --border-color: rgba(255, 255, 255, 0.08);
 }
 
 @layer base {

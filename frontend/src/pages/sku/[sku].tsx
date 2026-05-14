@@ -34,26 +34,26 @@ function getTrend(sv7: number, sv90: number): { icon: string; label: string; col
 }
 
 function coverageColor(days: number): string {
-  if (days <= 0) return 'text-red-600'
-  if (days <= 7) return 'text-red-600'
-  if (days <= 14) return 'text-orange-500'
-  if (days <= 30) return 'text-amber-600'
-  return 'text-green-600'
+  if (days <= 0) return 'text-red-400'
+  if (days <= 7) return 'text-red-400'
+  if (days <= 14) return 'text-orange-400'
+  if (days <= 30) return 'text-amber-400'
+  return 'text-emerald-400'
 }
 
 function CoverageBar({ days }: { days: number }) {
   const pct = Math.min((days / 90) * 100, 100)
-  let bg = 'bg-green-500'
+  let bg = 'bg-emerald-500'
   if (days <= 7) bg = 'bg-red-500'
   else if (days <= 14) bg = 'bg-orange-500'
   else if (days <= 30) bg = 'bg-amber-500'
 
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-zinc-200 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div className={`h-full ${bg} rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`font-data text-xs font-medium ${coverageColor(days)} w-12 text-right`}>
+      <span className={`font-data text-xs font-black ${coverageColor(days)} w-12 text-right`}>
         {typeof days === 'number' && Number.isFinite(days) ? days.toFixed(1) : '—'}d
       </span>
     </div>
@@ -66,9 +66,9 @@ function formatDate(iso: string): string {
 
 function Card({ title, accent, children }: { title: React.ReactNode; accent: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-      <div className={`px-4 py-3 border-b border-zinc-200 border-l-4 ${accent} bg-zinc-50`}>
-        <div className="text-sm font-semibold text-zinc-800">{title}</div>
+    <div className="bg-card border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+      <div className={`px-5 py-4 border-b border-white/5 border-l-[6px] ${accent} bg-white/5`}>
+        <div className="text-xs font-black text-zinc-400 uppercase tracking-widest">{title}</div>
       </div>
       {children}
     </div>
@@ -76,7 +76,7 @@ function Card({ title, accent, children }: { title: React.ReactNode; accent: str
 }
 
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-zinc-100 rounded ${className ?? 'h-4 w-full'}`} />
+  return <div className={`animate-pulse bg-white/5 rounded-xl ${className ?? 'h-4 w-full'}`} />
 }
 
 export default function SKUDetail({ sku }: { sku: string }) {
@@ -98,33 +98,35 @@ export default function SKUDetail({ sku }: { sku: string }) {
   return (
     <div className="w-full space-y-5 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto py-6">
       {/* Back + Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-white/10 pb-6">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/skus')}
-            className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500"
+            className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-6 w-6" />
           </button>
           {loading ? (
-            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-8 w-80" />
           ) : data ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">{data.name}</h1>
-              <span className="font-data text-xs font-bold text-muted bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">{data.sku}</span>
-              {data.category && (
-                <span className="text-[10px] font-black text-white bg-sidebar px-2 py-0.5 rounded uppercase tracking-widest">
-                  Cat {data.category}
-                </span>
-              )}
-              <ActionFlagBadge flag={data.action_flag as ActionFlag} />
+            <div className="flex flex-col gap-2">
+              <h1 className="text-xl lg:text-3xl font-black text-white uppercase tracking-tight leading-none">{data.name}</h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="font-data text-xs font-black text-zinc-400 bg-white/5 px-3 py-1 rounded-full uppercase tracking-wider border border-white/10">{data.sku}</span>
+                {data.category && (
+                  <span className="text-[10px] font-black text-white bg-brand-blue px-3 py-1 rounded-full uppercase tracking-widest">
+                    CAT {data.category}
+                  </span>
+                )}
+                <ActionFlagBadge flag={data.action_flag as ActionFlag} />
+              </div>
             </div>
           ) : null}
         </div>
         {data && (
           <button
             onClick={() => navigate('/po/new')}
-            className="w-full sm:w-auto px-6 py-2 text-xs font-black bg-brand-amber text-sidebar rounded-lg hover:shadow-lg transition-all uppercase tracking-widest"
+            className="w-full sm:w-auto px-8 py-3.5 text-xs font-black bg-brand-amber text-sidebar rounded-2xl hover:shadow-xl hover:shadow-brand-amber/20 transition-all uppercase tracking-widest active:scale-95"
           >
             Create PO
           </button>
@@ -146,9 +148,9 @@ export default function SKUDetail({ sku }: { sku: string }) {
       ) : data ? (
         <>
           {/* ── DEMAND METRICS ── */}
-          <Card title="Demand Metrics" accent="border-l-amber-500">
+          <Card title="Demand Metrics" accent="border-l-brand-amber">
             {data.demand ? (
-              <div className="grid grid-cols-3 divide-x divide-zinc-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/5">
                 {[
                   { label: '7-day avg', value: data.demand.sv_7, note: 'units/day' },
                   { label: '90-day avg', value: data.demand.sv_90, note: 'units/day' },
@@ -156,15 +158,15 @@ export default function SKUDetail({ sku }: { sku: string }) {
                 ].map(({ label, value, note, accent }) => {
                   const trend = label === '7-day avg' ? getTrend(data.demand.sv_7, data.demand.sv_90) : null
                   return (
-                    <div key={label} className="px-5 py-4">
-                      <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2">{label}</div>
-                      <div className={`text-3xl font-bold font-data tabular-nums ${accent ? 'text-blue-600' : 'text-zinc-900'}`}>
+                    <div key={label} className="px-6 py-5">
+                      <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">{label}</div>
+                      <div className={`text-4xl font-black font-data tabular-nums ${accent ? 'text-brand-blue' : 'text-white'}`}>
                         {typeof value === 'number' ? value.toFixed(1) : '—'}
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-zinc-400">{note}</span>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className="text-[10px] font-bold text-zinc-600 uppercase">{note}</span>
                         {trend && (
-                          <span className={`text-xs font-medium ${trend.color}`}>
+                          <span className={`text-[10px] font-black uppercase ${trend.color}`}>
                             {trend.icon} {trend.label}
                           </span>
                         )}
@@ -174,47 +176,47 @@ export default function SKUDetail({ sku }: { sku: string }) {
                 })}
               </div>
             ) : (
-              <div className="px-5 py-4 text-sm text-zinc-400">No demand data — run sync to compute metrics</div>
+              <div className="px-6 py-5 text-sm text-zinc-500">No demand data — run sync to compute metrics</div>
             )}
           </Card>
 
           {/* ── SUPPLY BY NODE ── */}
-          <Card title="Supply by Node" accent="border-l-blue-500">
+          <Card title="Supply by Node" accent="border-l-brand-blue">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
+                <thead className="bg-white/5 border-b border-white/5">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 w-28" />
-                    <th className="text-center px-4 py-2.5 text-xs font-medium text-zinc-700 uppercase tracking-wider">Amazon FBA</th>
-                    <th className="text-center px-4 py-2.5 text-xs font-medium text-zinc-700 uppercase tracking-wider">Noon FBN</th>
-                    <th className="text-center px-4 py-2.5 text-xs font-medium text-zinc-700 uppercase tracking-wider">Locad WH</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest w-28" />
+                    <th className="text-center px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Amazon FBA</th>
+                    <th className="text-center px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Noon FBN</th>
+                    <th className="text-center px-5 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Locad WH</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody className="divide-y divide-white/5">
                   <tr>
-                    <td className="px-4 py-2.5 text-xs text-zinc-500 uppercase tracking-wider">Available</td>
-                    <td className="px-4 py-2.5 text-center font-data font-semibold text-zinc-900">{data.supply.amazon_fba.available}</td>
-                    <td className="px-4 py-2.5 text-center font-data font-semibold text-zinc-900">{data.supply.noon_fbn.available}</td>
-                    <td className="px-4 py-2.5 text-center font-data font-semibold text-zinc-900">{data.supply.locad_warehouse.available}</td>
+                    <td className="px-5 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Available</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-white text-base">{data.supply.amazon_fba.available.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-white text-base">{data.supply.noon_fbn.available.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-white text-base">{data.supply.locad_warehouse.available.toLocaleString()}</td>
                   </tr>
                   <tr>
-                    <td className="px-4 py-2.5 text-xs text-zinc-500 uppercase tracking-wider">Inbound</td>
-                    <td className="px-4 py-2.5 text-center font-data text-zinc-700">{data.supply.amazon_fba.inbound}</td>
-                    <td className="px-4 py-2.5 text-center font-data text-zinc-700">{data.supply.noon_fbn.inbound}</td>
-                    <td className="px-4 py-2.5 text-center font-data text-zinc-700">{data.supply.locad_warehouse.inbound}</td>
+                    <td className="px-5 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Inbound</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-zinc-400 text-sm">{data.supply.amazon_fba.inbound.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-zinc-400 text-sm">{data.supply.noon_fbn.inbound.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-center font-data font-black text-zinc-400 text-sm">{data.supply.locad_warehouse.inbound.toLocaleString()}</td>
                   </tr>
                   {'reserved' in data.supply.amazon_fba && (
                     <tr>
-                      <td className="px-4 py-2.5 text-xs text-zinc-500 uppercase tracking-wider">Reserved</td>
-                      <td className="px-4 py-2.5 text-center font-data text-zinc-500">{data.supply.amazon_fba.reserved}</td>
-                      <td className="px-4 py-2.5 text-center text-zinc-300">—</td>
-                      <td className="px-4 py-2.5 text-center text-zinc-300">—</td>
+                      <td className="px-5 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Reserved</td>
+                      <td className="px-5 py-4 text-center font-data font-black text-zinc-500 text-sm">{data.supply.amazon_fba.reserved}</td>
+                      <td className="px-5 py-4 text-center text-zinc-700">—</td>
+                      <td className="px-5 py-4 text-center text-zinc-700">—</td>
                     </tr>
                   )}
                   <tr>
-                    <td className="px-4 py-2.5 text-xs text-zinc-500 uppercase tracking-wider">Coverage</td>
+                    <td className="px-5 py-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Coverage</td>
                     {[data.supply.amazon_fba.coverage_days, data.supply.noon_fbn.coverage_days, data.supply.locad_warehouse.coverage_days].map((days, i) => (
-                      <td key={i} className="px-4 py-3">
+                      <td key={i} className="px-5 py-4">
                         <CoverageBar days={days} />
                       </td>
                     ))}
@@ -224,58 +226,58 @@ export default function SKUDetail({ sku }: { sku: string }) {
             </div>
 
             {/* Totals */}
-            <div className="px-4 py-3 border-t border-zinc-100 bg-zinc-50 flex items-center gap-8 flex-wrap">
+            <div className="px-6 py-5 border-t border-white/5 bg-white/5 flex items-center gap-10 flex-wrap">
               <div>
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Total Coverage</div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-lg font-bold font-data ${coverageColor(data.total_coverage_days)}`}>
+                <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">Total Coverage</div>
+                <div className="flex items-center gap-4">
+                  <span className={`text-xl font-black font-data ${coverageColor(data.total_coverage_days)}`}>
                     {typeof data.total_coverage_days === 'number' ? data.total_coverage_days.toFixed(1) : '—'}d
                   </span>
-                  <div className="w-32">
+                  <div className="w-32 lg:w-40">
                     <CoverageBar days={data.total_coverage_days} />
                   </div>
                 </div>
               </div>
               <div>
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Projected (incl. POs)</div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-lg font-bold font-data ${coverageColor(data.projected_coverage_days)}`}>
+                <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1.5">Projected (incl. POs)</div>
+                <div className="flex items-center gap-4">
+                  <span className={`text-xl font-black font-data ${coverageColor(data.projected_coverage_days)}`}>
                     {typeof data.projected_coverage_days === 'number' ? data.projected_coverage_days.toFixed(1) : '—'}d
                   </span>
-                  <div className="w-32">
+                  <div className="w-32 lg:w-40">
                     <CoverageBar days={data.projected_coverage_days} />
                   </div>
                 </div>
               </div>
-              <div className="ml-auto text-xs text-zinc-500 font-data space-x-3">
-                <span>MOQ: <span className="text-zinc-700">{data.moq ?? '—'}</span></span>
-                <span>Lead: <span className="text-zinc-700">{data.lead_time_days ?? '—'}d</span></span>
-                <span>Units/box: <span className="text-zinc-700">{data.units_per_box}</span></span>
+              <div className="ml-auto text-[10px] font-black text-zinc-400 font-data space-x-6 uppercase tracking-widest">
+                <span>MOQ: <span className="text-white ml-1">{data.moq ?? '—'}</span></span>
+                <span>Lead: <span className="text-white ml-1">{data.lead_time_days ?? '—'}d</span></span>
+                <span>Units/box: <span className="text-white ml-1">{data.units_per_box}</span></span>
               </div>
             </div>
           </Card>
 
           {/* ── INCOMING POs ── */}
-          <Card title={`Incoming POs (${data.pending_pos.length})`} accent="border-l-green-500">
+          <Card title={`Incoming POs (${data.pending_pos.length})`} accent="border-l-emerald-500">
             {data.pending_pos.length === 0 ? (
-              <div className="px-4 py-4 text-sm text-zinc-400">No incoming purchase orders</div>
+              <div className="px-6 py-6 text-sm text-zinc-500 uppercase font-black tracking-widest opacity-40">No incoming purchase orders</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-zinc-50 border-b border-zinc-200">
+                <thead className="bg-white/5 border-b border-white/5">
                   <tr>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500">PO #</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-zinc-500">Units</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500">ETA</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500">Status</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">PO #</th>
+                    <th className="text-right px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Units</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">ETA</th>
+                    <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100">
+                <tbody className="divide-y divide-white/5">
                   {data.pending_pos.map(po => (
-                    <tr key={po.po_number} className="hover:bg-zinc-50 transition-colors">
-                      <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{po.po_number}</td>
-                      <td className="px-4 py-2.5 text-right font-data font-semibold text-zinc-900">{po.units_incoming}</td>
-                      <td className="px-4 py-2.5 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
-                      <td className="px-4 py-2.5"><StatusBadge status={po.status} /></td>
+                    <tr key={po.po_number} className="hover:bg-white/5 transition-colors">
+                      <td className="px-5 py-4 font-data text-xs text-zinc-400 font-black">{po.po_number}</td>
+                      <td className="px-5 py-4 text-right font-data font-black text-white text-base">{po.units_incoming.toLocaleString()}</td>
+                      <td className="px-5 py-4 font-data text-xs text-zinc-500">{formatDate(po.eta)}</td>
+                      <td className="px-5 py-4"><StatusBadge status={po.status} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -286,28 +288,28 @@ export default function SKUDetail({ sku }: { sku: string }) {
           {/* ── RECOMMENDED ACTION ── */}
           {(() => {
             const flagColors: Record<string, { border: string; bg: string; text: string }> = {
-              CRITICAL_OOS_RISK: { border: 'border-red-300', bg: 'bg-red-50', text: 'text-red-900' },
-              OOS_RISK: { border: 'border-orange-300', bg: 'bg-orange-50', text: 'text-orange-900' },
-              SHIP_NOW: { border: 'border-amber-300', bg: 'bg-amber-50', text: 'text-amber-900' },
-              REORDER: { border: 'border-blue-300', bg: 'bg-blue-50', text: 'text-blue-900' },
-              EXCESS: { border: 'border-zinc-300', bg: 'bg-zinc-50', text: 'text-zinc-700' },
-              OK: { border: 'border-green-300', bg: 'bg-green-50', text: 'text-green-900' },
+              CRITICAL_OOS_RISK: { border: 'border-red-500/20', bg: 'bg-red-500/10', text: 'text-red-400' },
+              OOS_RISK: { border: 'border-orange-500/20', bg: 'bg-orange-500/10', text: 'text-orange-400' },
+              SHIP_NOW: { border: 'border-amber-500/20', bg: 'bg-amber-500/10', text: 'text-amber-400' },
+              REORDER: { border: 'border-blue-500/20', bg: 'bg-blue-500/10', text: 'text-blue-400' },
+              EXCESS: { border: 'border-white/10', bg: 'bg-white/5', text: 'text-zinc-400' },
+              OK: { border: 'border-emerald-500/20', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
             }
             const { border, bg, text } = flagColors[data.action_flag] ?? flagColors.OK
 
             return (
-              <div className={`border ${border} ${bg} rounded-lg overflow-hidden`}>
-                <div className={`px-4 py-3 border-b ${border} flex items-center gap-3`}>
-                  <span className="text-sm font-semibold text-zinc-700">Recommended Action</span>
+              <div className={`border ${border} ${bg} rounded-2xl overflow-hidden shadow-2xl`}>
+                <div className={`px-6 py-4 border-b ${border} flex items-center gap-4`}>
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Recommended Action</span>
                   <ActionFlagBadge flag={data.action_flag as ActionFlag} />
                 </div>
-                <div className="px-4 py-4">
-                  <p className={`text-sm leading-relaxed ${text}`}>{getActionDescription(data)}</p>
+                <div className="px-6 py-6">
+                  <p className={`text-sm lg:text-base font-bold leading-relaxed ${text} uppercase tracking-tight`}>{getActionDescription(data)}</p>
                   {(['SHIP_NOW', 'REORDER', 'CRITICAL_OOS_RISK', 'OOS_RISK'] as ActionFlag[]).includes(data.action_flag) && (
-                    <div className="mt-4">
+                    <div className="mt-6">
                       <button
                         onClick={() => navigate('/po')}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-400 rounded px-4 py-2 transition-colors"
+                        className="text-[10px] font-black text-white bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl px-6 py-3 transition-all uppercase tracking-widest shadow-xl"
                       >
                         Go to PO Register →
                       </button>

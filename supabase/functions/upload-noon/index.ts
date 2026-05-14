@@ -26,6 +26,7 @@ interface NoonAvgPrice {
 interface ParseResult {
   sales: NoonSaleRow[]
   avg_prices: NoonAvgPrice[]
+  raw_rows: any[]
   errors: { row: number; message: string }[]
 }
 
@@ -113,14 +114,16 @@ serve(async (req: Request) => {
 
     const supabase = getSupabaseAdmin()
     const skusUpdated = new Set<string>()
+    const { raw_rows } = parseResult
+    let rawInserted = 0
 
     // -----------------------------------------------------------------------
-    // Step 3: Upsert sales_snapshot rows (one per unique sku+date)
+    // Step 3: Upsert sales_snapshot and noon_sales
     // -----------------------------------------------------------------------
-    // sales from the parser are already aggregated to (sku, date, units_sold).
-    // Filter to only SKUs that exist in sku_master — Noon partner_sku values
-    // that don't match any internal SKU would cause a FK violation.
     if (sales.length > 0) {
+      // -----------------------------------------------------------------------
+      // Step 3a: Aggregate and Upsert sales_snapshot
+      // -----------------------------------------------------------------------
       // Load all active master SKUs to build a robust mapping dictionary
       const { data: skuMasterRows } = await supabase
         .from('sku_master')
@@ -185,6 +188,42 @@ serve(async (req: Request) => {
             500
           )
         }
+      }
+
+      // -----------------------------------------------------------------------
+      // Step 3b: Load Raw Detailed Data into noon_sales
+      // -----------------------------------------------------------------------
+      if (raw_rows && raw_rows.length > 0) {
+        const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
+        const filteredRaw = raw_rows.filter((r: any) => r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase()))
+
+        const dbRows = filteredRaw.map((r: any) => ({
+          id_partner: parseInt(r.id_partner) || null,
+          src_country: r.src_country,
+          country_code: r.country_code,
+          dest_country: r.dest_country,
+          bayan_nr: r.bayan_nr,
+          item_nr: r.item_nr,
+          partner_sku: r.partner_sku,
+          sku: r.sku,
+          status: r.status,
+          offer_price: r.offer_price,
+          gmv_lcy: parseFloat(r.gmv_lcy) || 0,
+          currency_code: r.currency_code,
+          brand_code: r.brand_code,
+          family: r.family,
+          fulfillment_model: r.fulfillment_model,
+          order_timestamp: r.order_timestamp,
+          shipment_timestamp: r.shipment_timestamp || null,
+          delivered_timestamp: r.delivered_timestamp || null
+        }))
+
+        const { error: noonSalesError } = await supabase.from('noon_sales').insert(dbRows)
+        if (noonSalesError) {
+          console.error('[upload-noon] noon_sales insert error:', noonSalesError)
+          return jsonResponse({ error: `noon_sales insert failed: ${noonSalesError.message}` }, 500)
+        }
+        rawInserted = dbRows.length
       }
 
       // Track unique SKUs that had data written
@@ -252,6 +291,7 @@ serve(async (req: Request) => {
     // -----------------------------------------------------------------------
     return jsonResponse({
       rows_processed: sales.length,
+      raw_rows_inserted: rawInserted,
       skus_updated: Array.from(skusUpdated).sort(),
       errors: parseErrors,
     })

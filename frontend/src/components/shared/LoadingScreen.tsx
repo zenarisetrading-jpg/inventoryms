@@ -8,7 +8,7 @@ interface LoadingScreenProps {
 
 export function LoadingScreen({ message = 'Loading System Resources...', fullScreen = false }: LoadingScreenProps) {
   return (
-    <div className={`flex flex-col items-center justify-center ${fullScreen ? 'h-screen w-full fixed inset-0 z-[100] bg-slate-950' : 'py-20 w-full'}`}>
+    <div className={`flex flex-col items-center justify-center ${fullScreen ? 'h-screen w-full fixed inset-0 z-[100] bg-slate-950' : 'flex-1 min-h-[60vh] w-full'}`}>
       <div className="relative mb-8">
         {/* Animated Rings */}
         <div className="absolute inset-[-20px] border border-blue-500/10 rounded-full animate-[ping_3s_infinite]" />

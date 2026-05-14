@@ -4,6 +4,20 @@ import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { parseNoonOrderCSV } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
+interface NoonSaleRow {
+  sku: string
+  date: string
+  channel: 'noon' | 'noon_minutes'
+  units_sold: number
+}
+
+interface ParseResult {
+  sales: NoonSaleRow[]
+  avg_prices: any[]
+  raw_rows: any[]
+  errors: { row: number; message: string }[]
+}
+
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -21,7 +35,7 @@ serve(async (req: Request) => {
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const csvText = await file.text()
-    const parseResult = parseNoonOrderCSV(csvText)
+    const parseResult = parseNoonOrderCSV(csvText) as ParseResult
     const { sales, errors: parseErrors } = parseResult
 
     if (sales.length === 0 && parseErrors.length > 0) {
@@ -67,10 +81,66 @@ serve(async (req: Request) => {
       if (error) return jsonResponse({ error: error.message }, 500)
     }
 
+    // -----------------------------------------------------------------------
+    // Step 4: Load Raw Detailed Data into minutes_sales
+    // -----------------------------------------------------------------------
+    const { raw_rows } = parseResult
+    let rawInserted = 0
+    
+    if (raw_rows && raw_rows.length > 0) {
+      const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
+      const filteredRaw = raw_rows.filter((r: any) => r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase()))
+
+      const dbRows = filteredRaw.map((r: any) => {
+        // Robust numeric parsing
+        const cleanInt = (val: any) => {
+          if (!val) return null
+          const num = parseInt(String(val).replace(/[^\d-]/g, ''))
+          return isNaN(num) ? null : num
+        }
+        const cleanFloat = (val: any) => {
+          if (!val) return 0
+          const num = parseFloat(String(val).replace(/[^\d.-]/g, ''))
+          return isNaN(num) ? 0 : num
+        }
+
+        return {
+          id_partner: cleanInt(r.id_partner),
+          src_country: r.src_country || null,
+          country_code: r.country_code || null,
+          dest_country: r.dest_country || null,
+          bayan_nr: r.bayan_nr || null,
+          item_nr: r.item_nr || null,
+          partner_sku: r.partner_sku || null,
+          sku: r.sku || null,
+          status: r.status || null,
+          offer_price: cleanFloat(r.offer_price),
+          gmv_lcy: cleanFloat(r.gmv_lcy),
+          currency_code: r.currency_code || null,
+          brand_code: r.brand_code || null,
+          family: r.family || null,
+          fulfillment_model: r.fulfillment_model || null,
+          order_timestamp: r.order_timestamp || null,
+          shipment_timestamp: r.shipment_timestamp || null,
+          delivered_timestamp: r.delivered_timestamp || null
+        }
+      })
+
+      if (dbRows.length > 0) {
+        const { error: minutesError } = await supabase.from('minutes_sales').insert(dbRows)
+        if (minutesError) {
+          console.error('[upload-noon-minutes] minutes_sales insert error:', minutesError)
+          return jsonResponse({ error: `minutes_sales insert failed: ${minutesError.message}` }, 500)
+        }
+        rawInserted = dbRows.length
+      }
+    }
+
     await refreshAllMetrics(supabase)
 
     return jsonResponse({
       rows_processed: sales.length,
+      raw_rows_inserted: rawInserted,
       skus_updated: Array.from(new Set(upsertRows.map(r => r.sku))).sort(),
       errors: parseErrors,
     })

@@ -160,31 +160,36 @@ export default function InventoryPage() {
   return (
     <div className="flex flex-col gap-6 lg:gap-10 pb-20 px-0 sm:px-4">
       {/* ── TOP CONTROL PANEL ────────────────────────────────────────── */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center justify-between bg-white p-6 lg:p-8 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40">
-        <div className="flex items-center gap-3 lg:gap-4">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg shrink-0">
-            <Layers className="w-5 h-5 lg:w-6 lg:h-6" />
+      <div className="relative z-50 bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
+        {/* Top: Centered Header */}
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-amber shadow-2xl border border-white/5">
+            <Layers className="w-7 h-7 lg:w-8 lg:h-8" />
           </div>
-          <div>
-            <h1 className="text-lg lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">Inventory Matrix</h1>
-            <p className="text-[8px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 opacity-60">fact_inventory_planning • RAW DATA FEED</p>
+          <div className="text-center">
+            <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">Inventory Matrix</h1>
+            <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-brand-amber animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              fact_inventory_planning • Live System Feed
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:gap-4 w-full lg:flex-1 lg:justify-end">
-          {/* Search */}
-          <div className="relative group flex-1 min-w-[140px] lg:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
+        {/* Bottom: Unified Controls Row */}
+        <div className="flex flex-wrap items-center justify-center gap-4 w-full border-t border-white/5 pt-8">
+          {/* Search Bar */}
+          <div className="relative group w-full lg:max-w-xs xl:max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-brand-blue transition-colors" />
             <input
               type="text"
-              placeholder="SCAN..."
-              className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-100 rounded-xl text-xs font-semibold uppercase focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue outline-none transition-all placeholder:text-zinc-400"
+              placeholder="SEARCH CATALOG..."
+              className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] lg:text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/50 transition-all placeholder:text-zinc-600 font-black uppercase tracking-widest"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <MultiSelect
               label="Tiers"
               placeholder="TIERS"
@@ -213,22 +218,23 @@ export default function InventoryPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 ml-auto lg:ml-0">
+          <div className="h-8 w-px bg-white/10 hidden lg:block mx-1" />
+
+          <div className="flex items-center gap-3">
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-zinc-200 rounded-xl text-[10px] font-black uppercase text-zinc-900 hover:bg-zinc-50 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
+              className="flex items-center gap-2 px-6 py-3.5 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               SYNC
             </button>
-
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-sidebar text-brand-amber rounded-xl text-[10px] font-black uppercase hover:bg-sidebar/90 transition-all shadow-md active:scale-95 transition-transform"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="h-3.5 w-3.5" />
-              EXPORT
+              <Download className="w-3.5 h-3.5" />
+              DOWNLOAD ALL
             </button>
           </div>
         </div>
@@ -293,7 +299,7 @@ export default function InventoryPage() {
       )}
 
       {/* ── GRID SYSTEM ────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-210px)]">
+      <div className="relative z-10 bg-card border-white/5 shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-210px)]">
         {error && (
           <div className="m-8 p-6 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-6">
             <AlertTriangle className="h-8 w-8 text-rose-500" />
@@ -302,10 +308,10 @@ export default function InventoryPage() {
         )}
 
         {!error && processedData.length > 0 && (
-          <div className="overflow-auto custom-scrollbar flex-1 relative bg-white">
+          <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
             <table className="w-fit min-w-full border-collapse">
-              <thead className="sticky top-0 z-30 bg-white">
-                <tr className="bg-zinc-900">
+              <thead className="sticky top-0 z-30 bg-card">
+                <tr className="bg-white/5">
                   {columns.map((col, i) => (
                     <th
                       key={col.key}
@@ -315,35 +321,35 @@ export default function InventoryPage() {
                         else { setSortKey(col.key); setSortDir('desc') }
                       }}
                       className={`
-                        px-4 py-3 text-left cursor-pointer transition-all hover:bg-zinc-800 group border-b border-zinc-800
-                        ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 border-r border-zinc-800' : ''}
+                        px-4 py-3 text-left cursor-pointer transition-all hover:bg-white/10 group border-b border-white/10
+                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] border-r border-white/10' : ''}
                       `}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[13px] font-black text-zinc-400 uppercase tracking-[0.1em] group-hover:text-white transition-colors">
                           {col.label}
                         </span>
-                        <ArrowUpDown className={`h-4 w-4 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-600 opacity-0 group-hover:opacity-100'}`} />
+                        <ArrowUpDown className={`h-4 w-4 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-400 opacity-0 group-hover:opacity-100'}`} />
                       </div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {processedData.map((row: any, idx) => (
-                  <tr key={idx} className={`group hover:bg-brand-blue/5 transition-colors ${row.is_active === false ? 'bg-zinc-50/80 opacity-60' : ''}`}>
+                  <tr key={idx} className={`group hover:bg-white/5 transition-colors ${row.is_active === false ? 'bg-white/5 opacity-40' : ''}`}>
                     {columns.map((col, i) => (
                       <td
                         key={col.key}
                         style={{ width: col.width, minWidth: col.width }}
                         className={`
-                          px-4 py-2 border-zinc-50 h-[48px]
-                          ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
+                          px-4 py-2 border-white/5 h-[48px]
+                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-white/5 border-r border-white/10' : ''}
                         `}
                       >
                         <span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
-                            (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-sidebar' :
-                              'font-semibold text-zinc-600'
+                            (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-primary' :
+                              'font-semibold text-zinc-300'
                           }`}>
                           {renderCell(col.key, row[col.key])}
                         </span>
@@ -377,7 +383,7 @@ export default function InventoryPage() {
         )}
 
         {/* Global Footer Meta */}
-        <div className="px-8 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0 z-30">
+        <div className="px-8 py-4 bg-white/5 border-white/5 shadow-none">
           <div className="flex items-center gap-6">
             <p className="text-[12px] font-bold uppercase text-zinc-500">RECORDS: {processedData.length}</p>
             <div className="flex items-center gap-2">
@@ -390,21 +396,10 @@ export default function InventoryPage() {
       </div>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 10px;
-          height: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 5px;
-          border: 2px solid #f8fafc;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0B0F1A; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 5px; border: 2px solid #0B0F1A; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
       `}</style>
     </div>
   )
@@ -428,16 +423,16 @@ function renderCell(key: string, val: any) {
 
 function InventoryStatCard({ title, items, icon: Icon, accent }: { title: string, items: { label: string, value: any }[], icon: any, accent: string }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-2xl p-4 lg:p-6 shadow-sm hover:shadow-md transition-all flex flex-col gap-4 lg:gap-5 group min-w-0">
-      <div className="flex items-center justify-between border-b border-zinc-100 pb-2 lg:pb-3">
-        <h3 className="text-[10px] lg:text-[12px] font-black text-sidebar uppercase tracking-[0.1em] whitespace-nowrap">{title}</h3>
-        <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${accent} opacity-40 group-hover:opacity-100 transition-opacity flex-shrink-0`} />
+    <div className="bg-white/5 p-6 lg:p-8 rounded-2xl border border-white/5 shadow-2xl transition-all hover:scale-[1.01]">
+      <div className="flex items-center justify-center gap-3 border-b border-white/5 pb-1 lg:pb-2 mb-4 lg:mb-6">
+        <h3 className="text-[10px] lg:text-[11px] font-black text-primary uppercase tracking-[0.2em] whitespace-nowrap">{title}</h3>
+        <Icon className={`w-3.5 h-3.5 lg:w-4 lg:h-4 ${accent} opacity-60 flex-shrink-0`} />
       </div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3 lg:gap-x-4 lg:gap-y-5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-4 lg:gap-x-6 lg:gap-y-6">
         {items.map((item, i) => (
           <div key={i} className="flex flex-col gap-1 min-w-0">
             <span className="text-[9px] lg:text-[10px] font-black text-zinc-400 uppercase tracking-wider truncate">{item.label}</span>
-            <span className="text-[16px] lg:text-[20px] font-black text-sidebar tracking-tighter leading-tight break-words">{item.value}</span>
+            <span className="text-[16px] lg:text-[20px] font-black text-primary tracking-tighter leading-tight break-words">{item.value}</span>
           </div>
         ))}
       </div>

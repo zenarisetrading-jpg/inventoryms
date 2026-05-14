@@ -1,114 +1,20 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
-import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown } from 'lucide-react'
+import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown, Layers } from 'lucide-react'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
-
-// Custom MultiSelect Component
-function MultiSelect({ 
-  options, 
-  value, 
-  onChange, 
-  label 
-}: { 
-  options: { label: string, value: string }[], 
-  value: string[], 
-  onChange: (val: string[]) => void, 
-  label: string 
-}) {
-  const [isOpen, setIsOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const toggleOption = (optValue: string) => {
-    if (value.includes(optValue)) {
-      onChange(value.filter(v => v !== optValue))
-    } else {
-      onChange([...value, optValue])
-    }
-  }
-
-  const displayText = value.length === 0 
-    ? `ALL ${label}S` 
-    : value.length === 1 
-      ? options.find(o => o.value === value[0])?.label || label
-      : `${value.length} ${label}S`
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 bg-zinc-50 border text-[11px] font-bold uppercase rounded-lg px-3 py-1.5 transition-colors ${
-          value.length > 0 
-            ? 'border-brand-blue/50 text-brand-blue bg-brand-blue/5' 
-            : 'border-zinc-200 text-zinc-700 hover:border-zinc-300'
-        }`}
-      >
-        <span className="truncate max-w-[120px]">{displayText}</span>
-        <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-      </button>
-
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-zinc-200 rounded-xl shadow-xl z-50 overflow-hidden flex flex-col max-h-[300px]">
-          <div className="p-2 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</span>
-            {value.length > 0 && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); onChange([]); }}
-                className="text-[9px] font-bold text-rose-500 hover:text-rose-600 uppercase"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <div className="overflow-y-auto p-1 custom-scrollbar">
-            {options.map(opt => (
-              <label 
-                key={opt.value} 
-                onClick={(e) => {
-                  e.preventDefault()
-                  toggleOption(opt.value)
-                }}
-                className="flex items-center gap-2.5 px-3 py-2 hover:bg-zinc-50 rounded-lg cursor-pointer transition-colors group"
-              >
-                <div className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${
-                  value.includes(opt.value) 
-                    ? 'bg-brand-blue border-brand-blue text-white' 
-                    : 'border-zinc-300 group-hover:border-brand-blue'
-                }`}>
-                  {value.includes(opt.value) && <Check className="w-2.5 h-2.5" />}
-                </div>
-                <span className="text-xs font-semibold text-zinc-700 uppercase">{opt.label}</span>
-              </label>
-            ))}
-            {options.length === 0 && (
-              <div className="px-3 py-4 text-center text-xs font-medium text-zinc-400">No options</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+import { navigate } from '../lib/router'
+import { MultiSelect } from '../components/shared/MultiSelect'
 
 
 export default function SKUCatalog() {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
+
   // Search, Sort & Filter State
   const [searchQuery, setSearchQuery] = useState('')
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
-  
+
   // Arrays represent selected values. Empty array means ALL.
   const [filters, setFilters] = useState({
     categories: [] as string[],
@@ -119,7 +25,7 @@ export default function SKUCatalog() {
   })
 
   const [updating, setUpdating] = useState<string | null>(null)
-  const [editingCogs, setEditingCogs] = useState<{sku: string, value: string} | null>(null)
+  const [editingCogs, setEditingCogs] = useState<{ sku: string, value: string } | null>(null)
 
   const fetchData = async () => {
     setLoading(true)
@@ -129,7 +35,7 @@ export default function SKUCatalog() {
       if ((response as any).error) {
         throw new Error((response as any).error)
       }
-      
+
       setData((response as any).skus || [])
     } catch (e: any) {
       setError(e.message || 'Failed to fetch SKUs')
@@ -147,10 +53,10 @@ export default function SKUCatalog() {
     try {
       const res = await api.updateSKU(sku, { [field]: value })
       if ((res as any).error) throw new Error((res as any).error)
-      
+
       // Optimistically update local state
       setData(prev => prev.map(row => row.sku === sku ? { ...row, [field]: value } : row))
-      
+
       if (field === 'cogs') {
         setEditingCogs(null)
       }
@@ -184,7 +90,7 @@ export default function SKUCatalog() {
       // 1. Dropdown Filters
       if (filters.categories.length > 0 && !filters.categories.includes(row.category)) return false
       if (filters.sub_categories.length > 0 && !filters.sub_categories.includes(row.sub_category)) return false
-      
+
       if (filters.is_active.length > 0) {
         const rowStatus = row.is_active === true ? 'TRUE' : 'FALSE'
         if (!filters.is_active.includes(rowStatus)) return false
@@ -201,7 +107,7 @@ export default function SKUCatalog() {
       // 2. Search Query
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
-        const matchesSearch = Object.values(row).some(val => 
+        const matchesSearch = Object.values(row).some(val =>
           String(val).toLowerCase().includes(q)
         )
         if (!matchesSearch) return false
@@ -220,7 +126,7 @@ export default function SKUCatalog() {
         if (bVal === null || bVal === undefined) return sortConfig.direction === 'asc' ? -1 : 1
 
         if (typeof aVal === 'string' && typeof bVal === 'string') {
-          return sortConfig.direction === 'asc' 
+          return sortConfig.direction === 'asc'
             ? aVal.localeCompare(bVal)
             : bVal.localeCompare(aVal)
         }
@@ -236,7 +142,7 @@ export default function SKUCatalog() {
 
   // Fixed column order including physical properties and flags
   const columns = [
-    'sku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days', 
+    'sku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days',
     'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
     'is_active', 'amazon_active', 'noon_active'
   ]
@@ -258,19 +164,17 @@ export default function SKUCatalog() {
   const renderStatusToggle = (row: any, field: string) => {
     const isActive = row[field] === true
     const isUpdating = updating === `${row.sku}-${field}`
-    
+
     return (
       <button
         onClick={() => handleUpdateField(row.sku, field, !isActive)}
         disabled={isUpdating}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:ring-offset-1 disabled:opacity-50 ${
-          isActive ? 'bg-emerald-500' : 'bg-zinc-300'
-        }`}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue/20 focus:ring-offset-1 disabled:opacity-50 ${isActive ? 'bg-emerald-500' : 'bg-zinc-300'
+          }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-            isActive ? 'translate-x-4.5' : 'translate-x-1'
-          }`}
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-4.5' : 'translate-x-1'
+            }`}
           style={{ transform: isActive ? 'translateX(18px)' : 'translateX(4px)' }}
         />
       </button>
@@ -281,130 +185,108 @@ export default function SKUCatalog() {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 -mt-4 lg:-mt-8 px-0 sm:px-4">
-      {/* HEADER & MAIN TOOLBAR */}
-      <div className="flex flex-col gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-zinc-200 shadow-sm sticky top-0 z-40 lg:top-[-32px]">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl bg-sidebar flex items-center justify-center text-brand-amber shadow-lg text-lg font-black shrink-0">
-              <Package className="w-5 h-5 lg:w-6 lg:h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight leading-none">SKU Master</h1>
-              <p className="text-[9px] lg:text-[11px] font-bold text-muted uppercase tracking-[0.2em] mt-1 lg:mt-2 opacity-60">RAW DATA FEED</p>
-            </div>
+      {/* HEADER & CONSOLIDATED TOOLBAR */}
+      <div className="relative z-50 bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
+        {/* Top: Centered Header */}
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-amber shadow-2xl border border-white/5">
+            <Package className="w-7 h-7 lg:w-8 lg:h-8" />
           </div>
-
-          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-            <div className="relative group min-w-[280px] flex-1 lg:flex-none">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
-              <input
-                type="text"
-                placeholder="SEARCH SKUS..."
-                className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-transparent rounded-xl text-sm font-semibold uppercase focus:ring-4 focus:ring-brand-blue/10 focus:border-brand-blue outline-none transition-all placeholder:text-zinc-400"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={fetchData}
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs font-black uppercase text-zinc-900 hover:bg-zinc-50 transition-all disabled:opacity-50 active:scale-95 shadow-sm"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                RELOAD
-              </button>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-2 px-6 py-2.5 bg-sidebar text-brand-amber rounded-xl text-xs font-black uppercase hover:bg-sidebar/90 transition-all shadow-md active:scale-95 transition-transform"
-              >
-                <Download className="h-4 w-4" />
-                EXPORT
-              </button>
-            </div>
+          <div className="text-center">
+            <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">SKU Master</h1>
+            <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-brand-amber animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              Inventory Source of Truth • Live Data Feed
+            </p>
           </div>
         </div>
 
-        {/* SECONDARY TOOLBAR: FILTERS */}
-        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-zinc-100">
-          <div className="flex items-center gap-2 text-zinc-400 mr-2">
-            <Filter className="w-4 h-4" />
-            <span className="text-[10px] font-black uppercase tracking-widest">FILTERS</span>
+        {/* Bottom: Unified Controls Row */}
+        <div className="flex flex-wrap items-center justify-center gap-4 w-full border-t border-white/5 pt-8">
+          {/* Search Bar */}
+          <div className="relative group w-full lg:max-w-xs xl:max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 group-focus-within:text-brand-blue transition-colors" />
+            <input
+              type="text"
+              placeholder="SEARCH SKUS..."
+              className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] lg:text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/50 transition-all placeholder:text-zinc-600 font-black uppercase tracking-widest"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
           </div>
-          
-          <MultiSelect 
-            label="Category"
-            options={[
-              { label: 'Category A', value: 'A' },
-              { label: 'Category B', value: 'B' },
-              { label: 'Category C', value: 'C' },
-            ]}
-            value={filters.categories}
-            onChange={(val) => {
-              setFilters(prev => {
-                const next = { ...prev, categories: val }
-                // if we are restricting categories, prune invalid sub_categories
-                if (val.length > 0) {
-                  const validSubs = new Set(data.filter(r => val.includes(r.category)).map(r => r.sub_category))
-                  next.sub_categories = prev.sub_categories.filter(s => validSubs.has(s))
-                }
-                return next
-              })
-            }}
-          />
 
-          <MultiSelect 
-            label="Sub-Category"
-            options={validSubCategories.map(sub => ({ label: sub, value: sub }))}
-            value={filters.sub_categories}
-            onChange={(val) => setFilters(prev => ({ ...prev, sub_categories: val }))}
-          />
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <MultiSelect 
+              label="Class"
+              placeholder="ALL CLASSS"
+              icon={Filter}
+              options={[{ label: 'CATEGORY A', value: 'A' }, { label: 'CATEGORY B', value: 'B' }, { label: 'CATEGORY C', value: 'C' }]}
+              selected={filters.categories}
+              onChange={(val) => {
+                setFilters(prev => {
+                  const next = { ...prev, categories: val }
+                  if (val.length > 0) {
+                    const validSubs = new Set(data.filter(r => val.includes(r.category)).map(r => r.sub_category))
+                    next.sub_categories = prev.sub_categories.filter(s => validSubs.has(s))
+                  }
+                  return next
+                })
+              }}
+            />
 
-          <MultiSelect 
-            label="System Status"
-            options={[
-              { label: 'Active', value: 'TRUE' },
-              { label: 'Inactive', value: 'FALSE' },
-            ]}
-            value={filters.is_active}
-            onChange={(val) => setFilters(prev => ({ ...prev, is_active: val }))}
-          />
+            <MultiSelect 
+              label="Sub-Category"
+              placeholder="ALL SUB-CATEGORYS"
+              icon={Layers}
+              options={validSubCategories.map(sub => ({ label: sub.toUpperCase(), value: sub }))}
+              selected={filters.sub_categories}
+              onChange={(val) => setFilters(prev => ({ ...prev, sub_categories: val }))}
+            />
 
-          <MultiSelect 
-            label="Amazon"
-            options={[
-              { label: 'Active', value: 'TRUE' },
-              { label: 'Inactive', value: 'FALSE' },
-            ]}
-            value={filters.amazon_active}
-            onChange={(val) => setFilters(prev => ({ ...prev, amazon_active: val }))}
-          />
+            <MultiSelect 
+              label="Status"
+              placeholder="ALL STATUSS"
+              icon={Filter}
+              options={[{ label: 'ACTIVE ONLY', value: 'TRUE' }, { label: 'INACTIVE ONLY', value: 'FALSE' }]}
+              selected={filters.is_active}
+              onChange={(val) => setFilters(prev => ({ ...prev, is_active: val }))}
+            />
+          </div>
 
-          <MultiSelect 
-            label="Noon"
-            options={[
-              { label: 'Active', value: 'TRUE' },
-              { label: 'Inactive', value: 'FALSE' },
-            ]}
-            value={filters.noon_active}
-            onChange={(val) => setFilters(prev => ({ ...prev, noon_active: val }))}
-          />
+          <div className="h-8 w-px bg-white/10 hidden lg:block mx-1" />
 
-          {isAnyFilterActive && (
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [] })}
-              className="text-[10px] font-bold text-rose-500 uppercase hover:text-rose-600 transition-colors ml-auto flex items-center gap-1"
+              onClick={fetchData}
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3.5 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
             >
-              <X className="w-3 h-3" />
-              Clear Filters
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              RELOAD
             </button>
-          )}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+            >
+              <Download className="w-3.5 h-3.5" />
+              DOWNLOAD ALL
+            </button>
+
+            {isAnyFilterActive && (
+              <button
+                onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [] })}
+                className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/20 transition-all"
+                title="Clear Filters"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-200px)]">
+      <div className="relative z-10 bg-card border-white/5 shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-200px)]">
         {error && (
           <div className="m-8 p-6 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-6">
             <AlertTriangle className="h-8 w-8 text-rose-500" />
@@ -421,17 +303,17 @@ export default function SKUCatalog() {
         )}
 
         {!error && data.length > 0 && (
-          <div className="overflow-auto custom-scrollbar flex-1 relative bg-white">
+          <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
             <table className="w-fit min-w-full border-collapse">
-              <thead className="sticky top-0 z-30 bg-white">
-                <tr className="bg-zinc-900">
+              <thead className="sticky top-0 z-30 bg-card">
+                <tr className="bg-white/5">
                   {columns.map((col, i) => (
                     <th
                       key={col}
                       onClick={() => handleSort(col)}
                       className={`
-                        px-4 py-3 text-left border-b border-zinc-800 whitespace-nowrap cursor-pointer hover:bg-zinc-800 transition-colors group/header select-none
-                        ${i === 0 ? 'sticky left-0 z-40 bg-zinc-900 group-hover/header:bg-zinc-800 border-r border-zinc-800' : ''}
+                        px-4 py-3 text-left border-b border-white/10 whitespace-nowrap cursor-pointer hover:bg-white/10 transition-colors group/header select-none
+                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] group-hover/header:bg-white/5 border-r border-white/10' : ''}
                       `}
                     >
                       <div className="flex items-center gap-2">
@@ -450,15 +332,20 @@ export default function SKUCatalog() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-white/5 bg-transparent">
                 {sortedAndFilteredData.map((row, idx) => (
-                  <tr key={idx} className="group hover:bg-brand-blue/5 transition-colors">
+                  <tr
+                    key={idx}
+                    onDoubleClick={() => navigate(`/sku/${row.sku}`)}
+                    className="group hover:bg-white/5 transition-colors cursor-pointer select-none"
+                    title="Double-click to view details"
+                  >
                     {columns.map((col, i) => (
                       <td
                         key={col}
                         className={`
-                          px-4 py-2 border-zinc-50 h-[48px] whitespace-nowrap
-                          ${i === 0 ? 'sticky left-0 z-20 bg-white group-hover:bg-brand-blue/5 border-r border-zinc-100' : ''}
+                          px-4 py-2 border-white/5 h-[48px] whitespace-nowrap
+                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-white/5 border-r border-white/10' : ''}
                         `}
                       >
                         {col === 'is_active' || col === 'amazon_active' || col === 'noon_active' ? (
@@ -473,7 +360,7 @@ export default function SKUCatalog() {
                             value={row.category || 'C'}
                             onChange={(e) => handleUpdateField(row.sku, 'category', e.target.value)}
                             disabled={updating === `${row.sku}-category`}
-                            className="bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs rounded focus:ring-brand-blue focus:border-brand-blue block w-16 p-1 font-bold uppercase disabled:opacity-50 cursor-pointer"
+                            className="bg-[#111827] border border-white/10 text-white text-xs rounded focus:ring-brand-blue focus:border-brand-blue block w-16 p-1 font-bold uppercase disabled:opacity-50 cursor-pointer"
                           >
                             <option value="A">A</option>
                             <option value="B">B</option>
@@ -507,12 +394,12 @@ export default function SKUCatalog() {
                               </div>
                             ) : (
                               <>
-                                <span className="text-[13px] font-semibold text-zinc-600">
+                                <span className="text-[13px] font-semibold text-zinc-400">
                                   {row[col] === null || row[col] === undefined ? '-' : Number(row[col]).toFixed(2)}
                                 </span>
                                 <button
                                   onClick={() => setEditingCogs({ sku: row.sku, value: String(row.cogs || 0) })}
-                                  className="p-1 text-zinc-400 hover:text-brand-blue hover:bg-brand-blue/10 rounded transition-colors"
+                                  className="p-1 text-zinc-500 hover:text-brand-blue hover:bg-white/5 rounded transition-colors"
                                 >
                                   <Edit2 className="w-3 h-3" />
                                 </button>
@@ -520,7 +407,7 @@ export default function SKUCatalog() {
                             )}
                           </div>
                         ) : (
-                          <span className={`text-[13px] uppercase ${i === 0 ? 'font-black text-brand-blue' : 'font-semibold text-zinc-600'}`}>
+                          <span className={`text-[13px] uppercase ${i === 0 ? 'font-black text-brand-blue' : 'font-semibold text-zinc-300'}`}>
                             {row[col] === null || row[col] === undefined ? '-' : String(row[col])}
                           </span>
                         )}
@@ -533,18 +420,18 @@ export default function SKUCatalog() {
           </div>
         )}
 
-        <div className="px-8 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between shrink-0 z-30">
+        <div className="px-8 py-4 bg-transparent border-t border-white/5 flex items-center justify-between shrink-0 z-30">
           <div className="flex items-center gap-6">
             <p className="text-[12px] font-bold uppercase text-zinc-500">RECORDS: {sortedAndFilteredData.length}</p>
           </div>
         </div>
       </div>
-      
+
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0B0F1A; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 5px; border: 2px solid #0B0F1A; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #374151; }
       `}</style>
     </div>
   )

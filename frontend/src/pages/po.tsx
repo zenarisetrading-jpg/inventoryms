@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, Fragment } from 'react'
-import { X, Upload, Check, Edit2, Plus, Trash2, Download } from 'lucide-react'
+import { X, Upload, Check, Edit2, Plus, Trash2, Download, Search, TrendingUp } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
@@ -415,119 +415,132 @@ export default function POPage() {
 
   return (
     <div className="w-full space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">PO Register</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { setShowBulkModal(true); setBulkFile(null); setBulkResult(null); setBulkError(null) }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] lg:text-xs font-black border border-zinc-200 text-muted rounded-lg hover:bg-zinc-50 transition-all uppercase tracking-widest"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Bulk Upload
-          </button>
-          <button
-            onClick={handleExport}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] lg:text-xs font-black border border-zinc-200 text-muted rounded-lg hover:bg-zinc-50 transition-all uppercase tracking-widest"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export
-          </button>
-          <button
-            onClick={() => navigate('/po/new')}
-            className="flex-1 sm:flex-none px-4 py-2 text-[10px] lg:text-xs font-black bg-brand-amber text-sidebar rounded-lg hover:shadow-lg transition-all uppercase tracking-widest"
-          >
-            + New PO
-          </button>
+      {/* HEADER & CONSOLIDATED TOOLBAR */}
+      <div className="bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
+        {/* Top: Centered Header */}
+        <div className="flex flex-col items-center gap-5">
+          <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-amber shadow-2xl border border-white/5">
+            <TrendingUp className="w-7 h-7 lg:w-8 lg:h-8" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">PO Register</h1>
+            <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-brand-amber animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              Procurement & Supply Chain • Live Audit
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Filter and Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-nowrap gap-0 border-b border-zinc-200 overflow-x-auto custom-scrollbar">
-          {STATUS_TABS.map(tab => (
+        {/* Bottom: Unified Controls Row */}
+        <div className="flex flex-wrap items-center justify-center gap-4 w-full border-t border-white/5 pt-8">
+          {/* Status Tabs */}
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10 shrink-0 overflow-x-auto no-scrollbar">
+            {STATUS_TABS.map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === tab.value ? 'bg-brand-amber text-primary shadow-lg shadow-brand-amber/20' : 'text-zinc-500 hover:text-brand-amber hover:bg-zinc-50/5'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden xl:block mx-1" />
+
+          {/* Search Bar */}
+          <div className="relative group w-full lg:max-w-xs xl:max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-brand-blue transition-colors" />
+            <input
+              type="text"
+              placeholder="SEARCH ORDERS..."
+              className="w-full pl-10 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] lg:text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-blue/50 transition-all placeholder:text-zinc-600 font-black uppercase tracking-widest"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="h-8 w-px bg-white/10 hidden xl:block mx-1" />
+
+          {/* Actions */}
+          <div className="flex items-center gap-3">
             <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className={`px-4 py-2.5 text-[10px] lg:text-sm font-black whitespace-nowrap border-b-2 transition-colors -mb-px uppercase tracking-widest ${
-                activeTab === tab.value
-                  ? 'text-brand-blue border-brand-blue'
-                  : 'text-muted border-transparent hover:text-primary'
-              }`}
+              onClick={() => { setShowBulkModal(true); setBulkFile(null); setBulkResult(null); setBulkError(null) }}
+              className="flex items-center gap-2 px-5 py-3.5 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest"
             >
-              {tab.label}
+              <Upload className="h-4 w-4" />
+              BULK
             </button>
-          ))}
-        </div>
-
-        <div className="relative w-full sm:max-w-xs">
-          <input
-            type="text"
-            placeholder="Search PO#, Supplier, or SKU..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-3 pr-10 py-2 text-sm border border-zinc-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white text-zinc-900"
-          />
-          <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-400">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+            >
+              <Download className="w-3.5 h-3.5" />
+              DOWNLOAD ALL
+            </button>
+            <button
+              onClick={() => navigate('/po/new')}
+              className="flex items-center gap-2 px-6 py-3.5 bg-brand-amber text-sidebar rounded-2xl text-[10px] font-black uppercase hover:shadow-xl hover:shadow-brand-amber/30 transition-all active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              NEW PO
+            </button>
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-zinc-200 rounded-xl overflow-x-auto shadow-sm custom-scrollbar">
+      <div className="bg-card border-white/5 shadow-2xl">
         <table className="w-full table-fixed text-sm min-w-[1000px] lg:min-w-0">
-          <thead className="bg-zinc-50 border-b border-zinc-200">
-            <tr>
-              <th className="w-[4%] px-3 py-2.5" />
+          <thead className="bg-white/5 border-white/10">
+            <tr className="bg-white/5">
+              <th className="w-[3%] text-center px-4 py-3" />
               <th 
-                className="w-[16%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('po_number')}
               >
-                PO # {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                PO ID {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[20%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[15%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('supplier')}
               >
                 Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[6%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[8%] text-right px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('skus')}
               >
                 SKUs {sortConfig?.key === 'skus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[10%] text-right px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[10%] text-right px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('units')}
               >
                 Units {sortConfig?.key === 'units' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('order_date')}
               >
                 Order Date {sortConfig?.key === 'order_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[12%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('eta')}
               >
                 ETA {sortConfig?.key === 'eta' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[10%] text-left px-4 py-2.5 text-xs font-medium text-zinc-500 uppercase tracking-wider cursor-pointer hover:bg-zinc-100"
+                className="w-[10%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('status')}
               >
                 Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="w-[10%] pl-4 pr-8 py-2.5 text-right text-xs font-medium text-zinc-500 uppercase tracking-wider">Action</th>
+              <th className="w-[10%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-white/10">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-white/5 bg-transparent">
             {loading ? (
               <><SkeletonRow cols={9} /><SkeletonRow cols={9} /><SkeletonRow cols={9} /></>
             ) : filteredPOs.length === 0 ? (
@@ -545,31 +558,31 @@ export default function POPage() {
                 return (
                   <Fragment key={po.id}>
                     <tr
-                      className="hover:bg-zinc-50 transition-colors cursor-pointer"
+                      className="hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5"
                       onClick={() => setExpandedId(isExpanded ? null : po.id)}
                     >
-                      <td className="px-3 py-2.5 text-center text-zinc-400 text-xs">
+                      <td className="px-3 py-2.5 text-center text-zinc-500 text-xs">
                         {isExpanded ? '▼' : '▶'}
                       </td>
-                      <td className="px-4 py-4 font-data text-sm font-semibold text-zinc-900">
+                      <td className="px-4 py-4 font-data text-sm font-semibold text-white">
                         {po.po_number}
                         <InlineEdit 
                           value={po.po_name} 
                           placeholder="+ Add Name"
-                          className="text-xs font-semibold text-zinc-500 mt-0.5 font-sans"
-                          inputClassName="w-32 text-xs font-semibold text-zinc-900"
+                          className="text-xs font-semibold text-zinc-400 mt-0.5 font-sans"
+                          inputClassName="w-32 text-xs font-semibold text-white"
                           onSave={async (val) => {
                             await api.updatePO(po.id, { po_name: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, po_name: val } : p))
                           }}
                         />
                       </td>
-                      <td className="px-4 py-4 text-sm text-zinc-900">{po.supplier}</td>
-                      <td className="px-4 py-4 text-right font-data text-sm text-zinc-600">{po.line_items.length}</td>
-                      <td className="px-4 py-4 text-right font-data text-sm font-semibold text-zinc-900">
+                      <td className="px-4 py-4 text-sm text-zinc-300">{po.supplier}</td>
+                      <td className="px-4 py-4 text-right font-data text-sm text-zinc-400">{po.line_items.length}</td>
+                      <td className="px-4 py-4 text-right font-data text-sm font-semibold text-white">
                         {totalUnits.toLocaleString()}
                       </td>
-                      <td className="px-4 py-4 font-data text-xs text-zinc-500">
+                      <td className="px-4 py-4 font-data text-xs text-zinc-400">
                         <InlineEdit 
                           type="date"
                           value={po.order_date} 
@@ -582,7 +595,7 @@ export default function POPage() {
                           }}
                         />
                       </td>
-                      <td className="px-4 py-4 font-data text-xs text-zinc-500">
+                      <td className="px-4 py-4 font-data text-xs text-zinc-400">
                         <InlineEdit 
                           type="date"
                           value={po.eta} 
@@ -619,24 +632,24 @@ export default function POPage() {
 
                     {/* Expanded row */}
                     {isExpanded && (
-                      <tr key={`${po.id}-expanded`} className="bg-zinc-50">
-                        <td colSpan={8} className="px-8 py-4">
-                          <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">Line Items</div>
+                      <tr key={`${po.id}-expanded`} className="bg-white/5 border-b border-white/5">
+                        <td colSpan={8} className="px-8 py-6">
+                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Line Items Breakdown</div>
                           <table className="w-full text-left border-collapse">
                             <thead>
-                              <tr className="border-b border-zinc-100">
-                                <th className="py-2 pr-4 text-[10px] font-black text-zinc-400 uppercase tracking-wider w-[20%]">SKU</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Ord.</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Recv.</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">U/Box</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Boxes</th>
-                                <th className="py-2 pr-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-wider w-24">Dims</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">COGS</th>
-                                <th className="py-2 pr-4 text-right text-[10px] font-black text-zinc-400 uppercase tracking-wider">Ship</th>
-                                <th className="py-2 text-left text-[10px] font-black text-zinc-400 uppercase tracking-wider">Notes</th>
+                              <tr className="border-b border-white/5">
+                                <th className="py-3 pr-4 text-[10px] font-black text-zinc-500 uppercase tracking-widest w-[20%]">SKU</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Ordered</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Received</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">U/Box</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Boxes</th>
+                                <th className="py-3 pr-4 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest w-24">Dims</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">COGS</th>
+                                <th className="py-3 pr-4 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Ship</th>
+                                <th className="py-3 text-left text-[10px] font-black text-zinc-500 uppercase tracking-widest">Notes</th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100">
+                            <tbody className="divide-y divide-white/5 bg-transparent">
                               {(() => {
                                 const saveItems = async (newItems: any[]) => {
                                   const oldItems = po.line_items
@@ -667,7 +680,7 @@ export default function POPage() {
                                           <InlineEdit 
                                             value={li.sku} 
                                             suggestions={skuSuggestions}
-                                            inputClassName="w-full"
+                                            inputClassName="w-full text-white"
                                             autoEdit={li.sku === '' && i === po.line_items.length - 1}
                                             onSave={async (val) => {
                                               const newItems = [...po.line_items]
@@ -676,7 +689,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-sm text-zinc-900">
+                                        <td className="py-2 pr-4 text-right font-data text-sm text-white">
                                           <InlineEdit 
                                             type="number"
                                             value={li.units_ordered} 
@@ -689,7 +702,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-sm text-zinc-500">
+                                        <td className="py-2 pr-4 text-right font-data text-sm text-zinc-400">
                                           <InlineEdit 
                                             type="number"
                                             value={li.units_received} 
@@ -702,7 +715,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-400">
                                           <InlineEdit 
                                             type="number"
                                             value={li.units_per_box} 
@@ -715,7 +728,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-400">
                                           <InlineEdit 
                                             type="number"
                                             value={li.box_count} 
@@ -728,10 +741,10 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-400">
+                                        <td className="py-2 pr-4 text-left font-data text-[10px] text-zinc-500">
                                           <InlineEdit 
                                             value={li.dimensions} 
-                                            inputClassName="w-32 text-[10px]"
+                                            inputClassName="w-32 text-[10px] text-white"
                                             onSave={async (val) => {
                                               const newItems = [...po.line_items]
                                               newItems[i] = { ...li, dimensions: val }
@@ -739,7 +752,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-400">
                                           <InlineEdit 
                                             type="number"
                                             value={li.cogs_per_unit} 
@@ -752,7 +765,7 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-500">
+                                        <td className="py-2 pr-4 text-right font-data text-xs text-zinc-400">
                                           <InlineEdit 
                                             type="number"
                                             value={li.shipping_cost_per_unit} 
@@ -765,10 +778,10 @@ export default function POPage() {
                                             }}
                                           />
                                         </td>
-                                        <td className="py-2 text-left font-data text-[10px] text-zinc-400 relative">
+                                        <td className="py-2 text-left font-data text-[10px] text-zinc-500 relative">
                                           <InlineEdit 
                                             value={li.notes} 
-                                            inputClassName="w-48 text-[10px]"
+                                            inputClassName="w-48 text-[10px] text-white"
                                             onSave={async (val) => {
                                               const newItems = [...po.line_items]
                                               newItems[i] = { ...li, notes: val }
@@ -782,7 +795,7 @@ export default function POPage() {
                                                 await saveItems(newItems)
                                               }
                                             }}
-                                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-600 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
                                           >
                                             <Trash2 className="h-3 w-3" />
                                           </button>

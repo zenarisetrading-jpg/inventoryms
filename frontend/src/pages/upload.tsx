@@ -1,87 +1,450 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Upload, CheckCircle2, AlertCircle, Package, Download } from 'lucide-react'
+import { X, Upload, CheckCircle2, AlertCircle, Package, Download, Activity, RefreshCw, AlertTriangle, XCircle, Layers, ShieldCheck, Database, History } from 'lucide-react'
 import { api } from '../lib/api'
 import type { SyncStatus, UploadLocadResponse, UploadNoonResponse, UploadNoonInventoryResponse } from '../types'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
+import { navigate } from '../lib/router'
 
-// ─── Drop Zone ────────────────────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-interface DropZoneProps {
-  accept: string
-  label: string
-  hint?: string
-  onFile: (f: File) => void
-  disabled?: boolean
+function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return 'Never'
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
 }
 
-function DropZone({ accept, label, hint, onFile, disabled }: DropZoneProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
+function staleness(iso: string | null | undefined): 'fresh' | 'stale' | 'old' | 'missing' {
+  if (!iso) return 'missing'
+  const diffHrs = (Date.now() - new Date(iso).getTime()) / 3600000
+  if (diffHrs < 6) return 'fresh'
+  if (diffHrs < 48) return 'stale'
+  return 'old'
+}
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) onFile(file)
-  }
+function StatusLabel({ status }: { status: 'fresh' | 'stale' | 'old' | 'missing' | 'ok' | 'error' | 'warning' }) {
+  const cfg = {
+    fresh: { cls: 'bg-green-500/10 text-green-400 border-green-500/20', label: 'Fresh' },
+    ok: { cls: 'bg-green-500/10 text-green-400 border-green-500/20', label: 'OK' },
+    stale: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Stale' },
+    warning: { cls: 'bg-amber-500/10 text-amber-400 border-amber-500/20', label: 'Warning' },
+    old: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Old' },
+    missing: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Missing' },
+    error: { cls: 'bg-red-500/10 text-red-400 border-red-500/20', label: 'Error' },
+  }[status]
 
   return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase border tracking-widest ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  )
+}
+
+interface HealthRow {
+  source: string
+  type: string
+  lastUpdated: string | null
+  status: 'fresh' | 'stale' | 'old' | 'missing' | 'ok' | 'error' | 'warning'
+  detail?: string
+}
+
+function buildHealthRows(syncStatus: SyncStatus): HealthRow[] {
+  const rows: HealthRow[] = []
+
+  // Amazon
+  const amzStatus = syncStatus.amazon?.status === 'connected'
+    ? staleness(syncStatus.amazon.last_synced) === 'missing' ? 'warning' : staleness(syncStatus.amazon.last_synced) === 'fresh' ? 'ok' : 'stale'
+    : 'error'
+  rows.push({ source: 'Amazon', type: 'Auto (Saddl)', lastUpdated: syncStatus.amazon?.last_synced ?? null, status: amzStatus })
+
+  // Locad
+  const locadTs = syncStatus.locad_api?.last_synced ?? syncStatus.locad_xlsx?.last_uploaded ?? null
+  rows.push({ source: 'Locad', type: syncStatus.locad_api?.last_synced ? 'API' : 'Manual', lastUpdated: locadTs, status: staleness(locadTs) })
+
+  // Noon Sales
+  const noonTs = syncStatus.noon_csv?.last_uploaded ?? null
+  rows.push({ source: 'Noon Sales', type: 'Manual CSV', lastUpdated: noonTs, status: staleness(noonTs) })
+
+  // Noon Inventory
+  const noonInvTs = syncStatus.noon_inventory?.last_uploaded ?? null
+  rows.push({ source: 'Noon Inventory', type: 'Manual CSV', lastUpdated: noonInvTs, status: staleness(noonInvTs) })
+
+  return rows
+}
+
+// ─── COMPONENTS ───────────────────────────────────────────────────────────────
+
+function DropZone({ accept, label, hint, onFile, disabled }: { accept: string, label: string, hint?: string, onFile: (f: File) => void, disabled?: boolean }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragging, setDragging] = useState(false)
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) onFile(file) }
+  return (
     <div
-      className={`border-2 border-dashed rounded-lg px-6 py-8 text-center cursor-pointer transition-all ${
-        disabled
-          ? 'border-zinc-200 bg-zinc-50 cursor-not-allowed'
-          : dragging
-            ? 'border-amber-400 bg-amber-50'
-            : 'border-zinc-300 bg-white hover:border-amber-300 hover:bg-amber-50/30'
+      className={`border-2 border-dashed rounded-2xl px-4 py-6 text-center cursor-pointer transition-all ${
+        disabled ? 'border-white/5 bg-white/5 cursor-not-allowed opacity-50' :
+        dragging ? 'border-brand-amber bg-brand-amber/10' : 'border-white/10 bg-white/5 hover:border-brand-amber/50 hover:bg-white/10'
       }`}
       onDragOver={e => { e.preventDefault(); if (!disabled) setDragging(true) }}
       onDragLeave={() => setDragging(false)}
       onDrop={disabled ? undefined : handleDrop}
       onClick={() => { if (!disabled) inputRef.current?.click() }}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={accept}
-        className="hidden"
-        disabled={disabled}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }}
-      />
-      <Upload className={`mx-auto h-8 w-8 mb-2 ${disabled ? 'text-zinc-300' : dragging ? 'text-amber-500' : 'text-zinc-400'}`} />
-      <div className={`text-sm font-medium mb-1 ${disabled ? 'text-zinc-400' : 'text-zinc-700'}`}>
-        {label}
-      </div>
-      <div className="text-xs text-zinc-400">
-        {disabled ? 'Not available' : hint ?? 'Drag and drop or click to browse'}
-      </div>
+      <input ref={inputRef} type="file" accept={accept} className="hidden" disabled={disabled} onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = '' }} />
+      <Upload className={`mx-auto h-6 w-6 mb-2 ${disabled ? 'text-zinc-600' : dragging ? 'text-brand-amber' : 'text-zinc-500'}`} />
+      <div className={`text-[11px] font-black uppercase tracking-tight mb-1 ${disabled ? 'text-zinc-500' : 'text-zinc-300'}`}>{label}</div>
+      <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{disabled ? 'Not available' : hint ?? 'Drag/Drop or Click'}</div>
     </div>
   )
 }
 
-// ─── Uploading Spinner ────────────────────────────────────────────────────────
-
-function UploadingZone() {
+function UploadingState({ label = "Processing Payload..." }: { label?: string }) {
   return (
-    <div className="border-2 border-dashed border-zinc-200 rounded-lg px-6 py-8 text-center bg-zinc-50 flex flex-col items-center gap-3">
-      <LoadingScreen message="Uploading & Processing..." />
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 min-h-[140px]">
+      <RefreshCw className="h-8 w-8 text-brand-blue animate-spin" />
+      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</span>
     </div>
   )
 }
 
-// ─── SKU Mapping Modal ────────────────────────────────────────────────────────
-
-interface UnmatchedEntry {
-  locad_sku: string
-  product_name: string
+function SectionTile({ icon: Icon, title, subtitle, accent, children }: { icon: any, title: string, subtitle: string, accent: string, children: React.ReactNode }) {
+  return (
+    <div className={`bg-card border border-white/5 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-t-4 ${accent}`}>
+      <div className="px-6 py-5 border-b border-white/5 bg-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-white/5 rounded-2xl shadow-inner text-zinc-300"><Icon className="h-5 w-5" /></div>
+          <div>
+            <h2 className="text-sm font-black text-white uppercase tracking-tight leading-none">{title}</h2>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest opacity-60 mt-1.5">{subtitle}</p>
+          </div>
+        </div>
+      </div>
+      <div className="flex-1 p-6 flex flex-col">
+        {children}
+      </div>
+    </div>
+  )
 }
 
-interface MappingModalProps {
-  onClose: () => void
-  onSaved: () => void
-  internalSKUs: string[]
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+
+export default function OperationsHub() {
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showMappingModal, setShowMappingModal] = useState(false)
+  const [triggerLoading, setTriggerLoading] = useState(false)
+
+  // Upload States
+  const [locadState, setLocadState] = useState<{loading: boolean, error: string|null, result: UploadLocadResponse|null}>({loading: false, error: null, result: null})
+  const [noonSalesState, setNoonSalesState] = useState<{loading: boolean, error: string|null, result: UploadNoonResponse|null}>({loading: false, error: null, result: null})
+  const [noonInvState, setNoonInvState] = useState<{loading: boolean, error: string|null, result: UploadNoonInventoryResponse|null}>({loading: false, error: null, result: null})
+  const [minutesState, setMinutesState] = useState<{loading: boolean, error: string|null, result: UploadNoonResponse|null}>({loading: false, error: null, result: null})
+
+  const loadData = () => {
+    setLoading(true)
+    api.getSyncStatus().then(res => {
+      const resAny = res as any
+      if (!resAny.error) setSyncStatus(res as SyncStatus)
+      setLoading(false)
+    })
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const handleUpload = async (type: 'locad'|'noon-sales'|'noon-inv'|'minutes', file: File) => {
+    if (type === 'locad') {
+      setLocadState({loading: true, error: null, result: null})
+      const res = await api.uploadLocadXLSX(file) as any
+      setLocadState({loading: false, error: res.error || null, result: res.error ? null : res})
+      if (!res.error) loadData()
+    } else if (type === 'noon-sales') {
+      setNoonSalesState({loading: true, error: null, result: null})
+      const res = await api.uploadNoonCSV(file) as any
+      setNoonSalesState({loading: false, error: res.error || null, result: res.error ? null : res})
+      if (!res.error) loadData()
+    } else if (type === 'noon-inv') {
+      setNoonInvState({loading: true, error: null, result: null})
+      const res = await api.uploadNoonInventory(file) as any
+      setNoonInvState({loading: false, error: res.error || null, result: res.error ? null : res})
+      if (!res.error) loadData()
+    } else if (type === 'minutes') {
+      setMinutesState({loading: true, error: null, result: null})
+      const res = await api.uploadNoonMinutesSales(file) as any
+      setMinutesState({loading: false, error: res.error || null, result: res.error ? null : res})
+      if (!res.error) loadData()
+    }
+  }
+
+  const handleForceSync = async () => {
+    setTriggerLoading(true)
+    await api.triggerSync('amazon')
+    setTriggerLoading(false)
+    loadData()
+  }
+
+  if (loading && !syncStatus) return <LoadingScreen message="Initializing Operations Hub..." />
+
+  const healthRows = syncStatus ? buildHealthRows(syncStatus) : []
+  const freshCount = healthRows.filter(r => r.status === 'fresh' || r.status === 'ok').length
+  const staleCount = healthRows.filter(r => r.status === 'stale' || r.status === 'warning').length
+  const criticalCount = healthRows.filter(r => r.status === 'old' || r.status === 'missing' || r.status === 'error').length
+
+  return (
+    <div className="w-full max-w-[1920px] mx-auto space-y-6 px-4 sm:px-6 lg:px-8 py-6">
+      {/* HEADER SECTION */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
+        <div>
+          <h1 className="text-xl lg:text-3xl font-black text-white uppercase tracking-tight">Operations Hub</h1>
+          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1.5 opacity-80">System Health • Data Inbound • Ecosystem Sync</p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-6 bg-white/5 border border-white/10 rounded-2xl px-6 py-3.5">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Healthy</span>
+              <span className="text-lg font-black text-green-400 leading-none">{freshCount}</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Stale</span>
+              <span className="text-lg font-black text-amber-400 leading-none">{staleCount}</span>
+            </div>
+            <div className="w-px h-8 bg-white/10" />
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Critical</span>
+              <span className="text-lg font-black text-red-400 leading-none">{criticalCount}</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleForceSync}
+            disabled={triggerLoading}
+            className="flex items-center gap-3 px-6 py-3.5 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue/90 shadow-xl shadow-brand-blue/20 transition-all active:scale-95"
+          >
+            <RefreshCw className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
+            Sync Amazon
+          </button>
+        </div>
+      </div>
+
+      {/* 2x2 GRID SYSTEM */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        
+        {/* TILE 1: SYSTEM CONNECTIVITY & HEALTH */}
+        <SectionTile 
+          icon={ShieldCheck} 
+          title="Connectivity Status" 
+          subtitle="Real-time integration health monitoring"
+          accent="border-t-emerald-500"
+        >
+          <div className="flex-1 overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Entity</th>
+                  <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Type</th>
+                  <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Last Payload</th>
+                  <th className="pb-3 text-right text-[10px] font-black text-zinc-500 uppercase tracking-widest">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {healthRows.map(row => (
+                  <tr key={row.source} className="group">
+                    <td className="py-4 font-black text-white text-[11px] uppercase tracking-tight">{row.source}</td>
+                    <td className="py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{row.type}</td>
+                    <td className="py-4 font-data text-xs text-zinc-400">{formatRelativeTime(row.lastUpdated)}</td>
+                    <td className="py-4 text-right"><StatusLabel status={row.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div className="mt-8 pt-8 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4 text-zinc-500" />
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Local Buffer: <span className="text-green-400">OPTIMIZED</span></span>
+              </div>
+              <button onClick={loadData} className="text-[10px] font-black text-white uppercase tracking-widest hover:text-brand-blue transition-colors flex items-center gap-2.5 bg-white/5 border border-white/10 px-4 py-2 rounded-2xl shadow-xl">
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Connectivity Diagnostics
+              </button>
+            </div>
+          </div>
+        </SectionTile>
+
+        {/* TILE 2: LOCAD ECOSYSTEM */}
+        <SectionTile 
+          icon={Package} 
+          title="Locad Logistics Sync" 
+          subtitle="Inventory reports & warehouse matching"
+          accent="border-t-brand-blue"
+        >
+          <div className="flex flex-col h-full space-y-6">
+            <div className="flex-1">
+              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed mb-4 tracking-wider">
+                Reports → Inventory Report → Export (.xlsx)
+              </p>
+              {locadState.loading ? (
+                <div className="h-32 flex flex-col items-center justify-center gap-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
+                  <RefreshCw className="h-8 w-8 text-brand-blue animate-spin" />
+                  <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Processing Payload...</span>
+                </div>
+              ) : (
+                <DropZone 
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  label="Drop Locad XLSX"
+                  onFile={(f) => handleUpload('locad', f)}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Unmapped SKUs</span>
+                <span className={`text-xl font-black ${(syncStatus?.locad_xlsx?.rows_unmatched ?? 0) > 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                  {syncStatus?.locad_xlsx?.rows_unmatched ?? 0}
+                </span>
+              </div>
+              <button 
+                onClick={() => setShowMappingModal(true)}
+                disabled={(syncStatus?.locad_xlsx?.rows_unmatched ?? 0) === 0}
+                className="px-6 py-2.5 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                Mapping Manager
+              </button>
+            </div>
+            
+            {locadState.result && (
+              <div className="flex items-center gap-2 text-green-400 text-[10px] font-black uppercase tracking-widest bg-green-500/10 px-3 py-2 rounded-lg">
+                <CheckCircle2 className="h-3 w-3" /> {locadState.result.rows_matched} SKUs Synchronized
+              </div>
+            )}
+            {locadState.error && <div className="text-red-400 text-[10px] font-black uppercase tracking-widest">{locadState.error}</div>}
+          </div>
+        </SectionTile>
+
+        {/* TILE 3: NOON CORE SYNC */}
+        <SectionTile 
+          icon={Layers} 
+          title="Noon Marketplace Sync" 
+          subtitle="Sales velocity & FBN inventory payloads"
+          accent="border-t-amber-500"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-3">
+                <History className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Sales Data</span>
+              </div>
+              {noonSalesState.loading ? <UploadingState /> : (
+                <DropZone 
+                  accept=".csv,text/csv"
+                  label="Sales CSV"
+                  hint="Account Health → Sales"
+                  onFile={(f) => handleUpload('noon-sales', f)}
+                />
+              )}
+              {noonSalesState.result && (
+                <div className="mt-2 flex flex-col gap-1 bg-green-500/10 px-2 py-1.5 rounded-lg border border-green-500/10">
+                  <div className="text-green-400 text-[9px] font-black uppercase flex items-center gap-1.5">
+                    <CheckCircle2 className="h-2.5 w-2.5" /> {noonSalesState.result.rows_processed} Orders
+                  </div>
+                  {(noonSalesState.result as any).raw_rows_inserted !== undefined && (
+                    <div className="text-green-400/60 text-[8px] font-bold uppercase flex items-center gap-1.5">
+                      <Database className="h-2.5 w-2.5" /> {(noonSalesState.result as any).raw_rows_inserted} Raw Saved
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-3">
+                <Database className="h-3.5 w-3.5 text-green-500" />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">FBN Inventory</span>
+              </div>
+              {noonInvState.loading ? <UploadingState label="Syncing Inventory..." /> : (
+                <DropZone 
+                  accept=".csv,text/csv"
+                  label="Inventory CSV"
+                  hint="FBN → My Inventory"
+                  onFile={(f) => handleUpload('noon-inv', f)}
+                />
+              )}
+              {noonInvState.result && <div className="mt-2 text-green-400 text-[9px] font-black uppercase">{noonInvState.result.rows_matched} SKUs</div>}
+            </div>
+          </div>
+          {noonSalesState.error && <div className="mt-4 text-red-400 text-[10px] font-black uppercase">{noonSalesState.error}</div>}
+          {noonInvState.error && <div className="mt-4 text-red-400 text-[10px] font-black uppercase">{noonInvState.error}</div>}
+        </SectionTile>
+
+        {/* TILE 4: SPECIAL CHANNELS */}
+        <SectionTile 
+          icon={Activity} 
+          title="Minutes & Micro-Sales" 
+          subtitle="Quick-commerce & secondary payloads"
+          accent="border-t-purple-500"
+        >
+          <div className="flex flex-col h-full space-y-6">
+            <div className="flex-1">
+              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed mb-4 tracking-wider">
+                Minutes Sales Export → CSV Feed
+              </p>
+              {minutesState.loading ? <UploadingState label="Injecting Minutes Data..." /> : (
+                <DropZone 
+                  accept=".csv,text/csv"
+                  label="Drop Minutes CSV"
+                  onFile={(f) => handleUpload('minutes', f)}
+                />
+              )}
+            </div>
+            
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Channel Resolution</span>
+              </div>
+              <span className="text-[10px] font-black text-white uppercase tracking-widest">High Precision</span>
+            </div>
+
+            {minutesState.result && (
+              <div className="flex flex-col gap-2 bg-green-500/10 px-3 py-2 rounded-lg">
+                <div className="flex items-center gap-2 text-green-400 text-[10px] font-black uppercase tracking-widest">
+                  <CheckCircle2 className="h-3 w-3" /> {minutesState.result.rows_processed} Orders Injected
+                </div>
+                {(minutesState.result as any).raw_rows_inserted !== undefined && (
+                  <div className="flex items-center gap-2 text-green-400/70 text-[9px] font-bold uppercase tracking-widest">
+                    <Database className="h-3 w-3" /> {(minutesState.result as any).raw_rows_inserted} Raw Rows Saved
+                  </div>
+                )}
+              </div>
+            )}
+            {minutesState.error && <div className="text-red-400 text-[10px] font-black uppercase tracking-widest">{minutesState.error}</div>}
+          </div>
+        </SectionTile>
+
+      </div>
+
+      {/* MAPPING MODAL */}
+      {showMappingModal && (
+        <MappingModal
+          onClose={() => setShowMappingModal(false)}
+          onSaved={loadData}
+          internalSKUs={[]}
+        />
+      )}
+    </div>
+  )
 }
 
-function MappingModal({ onClose, onSaved, internalSKUs }: MappingModalProps) {
+// ─── MODALS ──────────────────────────────────────────────────────────────────
+
+interface UnmatchedEntry { locad_sku: string; product_name: string }
+
+function MappingModal({ onClose, onSaved, internalSKUs }: { onClose: () => void, onSaved: () => void, internalSKUs: string[] }) {
   const [unmatched, setUnmatched] = useState<UnmatchedEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [mappings, setMappings] = useState<Record<string, string>>({})
@@ -90,7 +453,7 @@ function MappingModal({ onClose, onSaved, internalSKUs }: MappingModalProps) {
 
   useEffect(() => {
     api.getLocadUnmatched().then(res => {
-      const resAny = res as unknown as { error?: string; unmatched?: UnmatchedEntry[] }
+      const resAny = res as any
       if (resAny.error) setError(resAny.error)
       else setUnmatched(resAny.unmatched ?? [])
       setLoading(false)
@@ -102,351 +465,64 @@ function MappingModal({ onClose, onSaved, internalSKUs }: MappingModalProps) {
     setError(null)
     const entries = Object.entries(mappings).filter(([, v]) => v !== '')
     for (const [locad_sku, internal_sku] of entries) {
-      const result = await api.mapLocadSKU(locad_sku, internal_sku)
-      const resultAny = result as unknown as { error?: string }
-      if (resultAny.error) {
-        setError(`Failed to map ${locad_sku}: ${resultAny.error}`)
-        setSaving(false)
-        return
-      }
+      const result = await api.mapLocadSKU(locad_sku, internal_sku) as any
+      if (result.error) { setError(`Failed to map ${locad_sku}: ${result.error}`); setSaving(false); return }
     }
     setSaving(false)
-    onSaved()
-    onClose()
+    onSaved(); onClose()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[80vh] flex flex-col bg-white rounded-xl border border-zinc-200 shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[80vh] flex flex-col bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/5">
           <div>
-            <h2 className="text-base font-semibold text-zinc-900">Map Locad SKUs</h2>
-            <p className="text-xs text-zinc-500 mt-0.5">Match Locad identifiers to internal SKUs</p>
+            <h2 className="text-base font-black text-white uppercase tracking-tight">Locad SKU Mapper</h2>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Resolution of unknown identifiers</p>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
-            <X className="h-5 w-5" />
-          </button>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors"><X className="h-6 w-6" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-md mb-4">
-              {error}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {error && <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold uppercase rounded-2xl">{error}</div>}
+          {loading ? <LoadingScreen message="Resolving SKUs..." /> : unmatched.length === 0 ? (
+            <div className="py-12 text-center flex flex-col items-center gap-4">
+              <CheckCircle2 className="h-12 w-12 text-green-500" />
+              <p className="text-sm font-black text-white uppercase tracking-widest">Database Synchronized</p>
+              <p className="text-xs text-zinc-500 uppercase font-bold">All Locad identifiers are currently matched.</p>
             </div>
-          )}
-
-          {loading ? (
-            <LoadingScreen message="Fetching Unmapped SKUs..." />
-          ) : unmatched.length === 0 ? (
-            <div className="py-10 text-center">
-              <CheckCircle2 className="mx-auto h-10 w-10 text-green-500 mb-2" />
-              <p className="text-sm font-medium text-zinc-700">All Locad SKUs mapped</p>
-              <p className="text-xs text-zinc-400 mt-1">No unmatched identifiers found.</p>
-            </div>
-          ) : (
-            <div>
-              <div className="grid grid-cols-3 gap-3 text-xs font-medium text-zinc-500 uppercase tracking-wider mb-2 px-1">
-                <span>Locad SKU</span>
-                <span>Product Name</span>
-                <span>Internal SKU</span>
+          ) : unmatched.map(u => (
+            <div key={u.locad_sku} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center bg-white/5 border border-white/5 rounded-2xl p-4">
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Locad SKU</span>
+                <span className="font-data text-xs text-white truncate">{u.locad_sku}</span>
               </div>
-              <div className="space-y-2">
-                {unmatched.map(u => (
-                  <div key={u.locad_sku} className="grid grid-cols-3 gap-3 items-center border border-zinc-200 rounded-lg px-3 py-2.5">
-                    <span className="font-data text-xs text-zinc-700 truncate">{u.locad_sku}</span>
-                    <span className="text-xs text-zinc-500 truncate">{u.product_name}</span>
-                    <input
-                      list={`sku-list-${u.locad_sku}`}
-                      value={mappings[u.locad_sku] ?? ''}
-                      onChange={e => setMappings(prev => ({ ...prev, [u.locad_sku]: e.target.value }))}
-                      placeholder="Select SKU…"
-                      className="border border-zinc-300 rounded-md px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 font-data"
-                    />
-                    {internalSKUs.length > 0 && (
-                      <datalist id={`sku-list-${u.locad_sku}`}>
-                        {internalSKUs.map(s => <option key={s} value={s} />)}
-                      </datalist>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Entity Name</span>
+                <span className="text-[11px] font-bold text-zinc-400 truncate uppercase">{u.product_name}</span>
               </div>
+              <input
+                value={mappings[u.locad_sku] ?? ''}
+                onChange={e => setMappings(prev => ({ ...prev, [u.locad_sku]: e.target.value }))}
+                placeholder="Match SKU..."
+                className="bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-brand-blue font-data uppercase"
+              />
             </div>
-          )}
+          ))}
         </div>
 
-        <div className="px-5 py-4 border-t border-zinc-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 font-medium transition-colors">
-            Cancel
-          </button>
+        <div className="px-6 py-5 border-t border-white/5 flex justify-end gap-3 bg-white/5">
+          <button onClick={onClose} className="px-6 py-2.5 text-[10px] font-black text-zinc-500 hover:text-white uppercase tracking-widest">Cancel</button>
           <button
             onClick={handleSave}
             disabled={saving || Object.values(mappings).every(v => !v)}
-            className="px-4 py-2 text-sm font-semibold bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2.5 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue/90 disabled:opacity-30 transition-all"
           >
-            {saving ? 'Saving…' : 'Save Mapping'}
+            {saving ? 'Saving...' : 'Commit Mappings'}
           </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-function SectionCard({
-  icon,
-  title,
-  subtitle,
-  accentColor,
-  children,
-}: {
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  accentColor: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className={`bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden border-l-4 ${accentColor}`}>
-      <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-white rounded-lg shadow-sm text-zinc-500">{icon}</div>
-          <div>
-            <h2 className="text-sm font-black text-sidebar uppercase tracking-tight">{title}</h2>
-            <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60 mt-0.5">{subtitle}</p>
-          </div>
-        </div>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function ResultRow({ icon, text, color }: { icon: React.ReactNode; text: string; color: string }) {
-  return (
-    <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-tight ${color}`}>
-      {icon}
-      <span>{text}</span>
-    </div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-export default function UploadPage() {
-  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
-  const [statusLoading, setStatusLoading] = useState(true)
-  const [showMappingModal, setShowMappingModal] = useState(false)
-
-  const [locadUploading, setLocadUploading] = useState(false)
-  const [locadResult, setLocadResult] = useState<UploadLocadResponse | null>(null)
-  const [locadError, setLocadError] = useState<string | null>(null)
-
-  const [noonUploading, setNoonUploading] = useState(false)
-  const [noonResult, setNoonResult] = useState<UploadNoonResponse | null>(null)
-  const [noonError, setNoonError] = useState<string | null>(null)
-
-  const [noonInvUploading, setNoonInvUploading] = useState(false)
-  const [noonInvResult, setNoonInvResult] = useState<UploadNoonInventoryResponse | null>(null)
-  const [noonInvError, setNoonInvError] = useState<string | null>(null)
-
-  const [minutesUploading, setMinutesUploading] = useState(false)
-  const [minutesResult, setMinutesResult] = useState<UploadNoonResponse | null>(null)
-  const [minutesError, setMinutesError] = useState<string | null>(null)
-
-  const loadStatus = () => {
-    setStatusLoading(true)
-    api.getSyncStatus().then(res => {
-      const resAny = res as unknown as { error?: string }
-      if (!resAny.error) setSyncStatus(res as unknown as SyncStatus)
-      setStatusLoading(false)
-    })
-  }
-
-  useEffect(() => { loadStatus() }, [])
-
-  const handleLocadUpload = async (file: File) => {
-    setLocadUploading(true)
-    setLocadError(null)
-    setLocadResult(null)
-    const res = await api.uploadLocadXLSX(file)
-    setLocadUploading(false)
-    const resAny = res as unknown as { error?: string }
-    if (resAny.error) setLocadError(resAny.error)
-    else { setLocadResult(res as unknown as UploadLocadResponse); loadStatus() }
-  }
-
-  const handleNoonUpload = async (file: File) => {
-    setNoonUploading(true)
-    setNoonError(null)
-    setNoonResult(null)
-    const res = await api.uploadNoonCSV(file)
-    setNoonUploading(false)
-    const resAny = res as unknown as { error?: string }
-    if (resAny.error) setNoonError(resAny.error)
-    else { setNoonResult(res as unknown as UploadNoonResponse); loadStatus() }
-  }
-
-  const handleNoonInvUpload = async (file: File) => {
-    setNoonInvUploading(true)
-    setNoonInvError(null)
-    setNoonInvResult(null)
-    const res = await api.uploadNoonInventory(file)
-    setNoonInvUploading(false)
-    const resAny = res as unknown as { error?: string }
-    if (resAny.error) setNoonInvError(resAny.error)
-    else { setNoonInvResult(res as unknown as UploadNoonInventoryResponse); loadStatus() }
-  }
-
-  const handleMinutesUpload = async (file: File) => {
-    setMinutesUploading(true)
-    setMinutesError(null)
-    setMinutesResult(null)
-    const res = await api.uploadNoonMinutesSales(file)
-    setMinutesUploading(false)
-    const resAny = res as unknown as { error?: string }
-    if (resAny.error) setMinutesError(resAny.error)
-    else { setMinutesResult(res as unknown as UploadNoonResponse); loadStatus() }
-  }
-
-  const locadXlsx = syncStatus?.locad_xlsx
-  const hasUnmapped = (locadXlsx?.rows_unmatched ?? 0) > 0
-
-  return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6 px-4 sm:px-6 lg:px-8 py-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">Upload Center</h1>
-          <p className="text-xs font-bold text-muted uppercase tracking-wider opacity-60 mt-1">Sync logistics, sales, and catalog data</p>
-        </div>
-        {!statusLoading && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white border border-border-color rounded-xl px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-              <span className={`w-2 h-2 rounded-full ${syncStatus?.locad_api?.status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' : 'bg-zinc-300'}`} />
-              <span className="text-muted">Locad API:</span>
-              <span className={syncStatus?.locad_api?.status === 'connected' ? 'text-green-600' : 'text-zinc-500'}>{syncStatus?.locad_api?.status === 'connected' ? 'Connected' : 'Disconnected'}</span>
-            </div>
-            {hasUnmapped && (
-              <button
-                onClick={() => setShowMappingModal(true)}
-                className="text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg px-2.5 py-1.5 transition-all w-full sm:w-auto text-center"
-              >
-                {locadXlsx!.rows_unmatched} Mappings Required
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      <SectionCard 
-        title="Inventory & Sales Inbound" 
-        subtitle="Manage all data imports in one place" 
-        icon={<Upload className="h-5 w-5" />} 
-        accentColor="border-l-brand-blue"
-      >
-        <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* 1. Locad XLSX */}
-            <div className="flex flex-col h-full space-y-4 p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:border-brand-blue/30 transition-all group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                  <Package className="h-4 w-4 text-brand-blue" />
-                </div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Locad Inventory</h4>
-              </div>
-              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed min-h-[30px]">
-                Dashboard → Reports → Inventory Report → Export (.xlsx)
-              </p>
-              {locadUploading ? <UploadingZone /> : (
-                <DropZone
-                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                  label="Drop Locad XLSX here"
-                  onFile={handleLocadUpload}
-                />
-              )}
-              {locadError && <p className="text-[10px] text-red-600 font-bold uppercase">{locadError}</p>}
-              {locadResult && (
-                <div className="space-y-1">
-                  <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${locadResult.rows_matched} synced`} color="text-green-600" />
-                  {locadResult.rows_unmatched > 0 && <button onClick={() => setShowMappingModal(true)} className="text-[10px] font-bold text-amber-600 underline">MAP {locadResult.rows_unmatched} SKUS</button>}
-                </div>
-              )}
-            </div>
-
-            {/* 2. Noon Sales CSV */}
-            <div className="flex flex-col h-full space-y-4 p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:border-amber-500/30 transition-all group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                  <Download className="h-4 w-4 text-amber-500" />
-                </div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Noon Sales</h4>
-              </div>
-              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed min-h-[30px]">
-                Noon Seller Portal → Account Health & Reports → Sales → Export
-              </p>
-              {noonUploading ? <UploadingZone /> : (
-                <DropZone
-                  accept=".csv,text/csv"
-                  label="Drop Noon Sales CSV"
-                  onFile={handleNoonUpload}
-                />
-              )}
-              {noonError && <p className="text-[10px] text-red-600 font-bold uppercase">{noonError}</p>}
-              {noonResult && <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${noonResult.rows_processed} orders processed`} color="text-green-600" />}
-            </div>
-
-            {/* 3. Noon Inventory CSV */}
-            <div className="flex flex-col h-full space-y-4 p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:border-green-500/30 transition-all group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                  <Package className="h-4 w-4 text-green-500" />
-                </div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Noon Inventory</h4>
-              </div>
-              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed min-h-[30px]">
-                Noon Seller Portal → FBN → My Inventory → Export
-              </p>
-              {noonInvUploading ? <UploadingZone /> : (
-                <DropZone
-                  accept=".csv,text/csv"
-                  label="Drop Noon Inv CSV"
-                  onFile={handleNoonInvUpload}
-                />
-              )}
-              {noonInvError && <p className="text-[10px] text-red-600 font-bold uppercase">{noonInvError}</p>}
-              {noonInvResult && <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${noonInvResult.rows_matched} FBN SKUs updated`} color="text-green-600" />}
-            </div>
-
-            {/* 4. Noon Minutes Sales CSV */}
-            <div className="flex flex-col h-full space-y-4 p-6 rounded-2xl bg-zinc-50/50 border border-zinc-100 hover:border-purple-500/30 transition-all group">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                  <Download className="h-4 w-4 text-purple-500" />
-                </div>
-                <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Minutes Sales</h4>
-              </div>
-              <p className="text-[10px] text-zinc-500 uppercase font-bold leading-relaxed min-h-[30px]">
-                Noon Seller Portal → Minutes Sales Export
-              </p>
-              {minutesUploading ? <UploadingZone /> : (
-                <DropZone
-                  accept=".csv,text/csv"
-                  label="Drop Minutes Sales CSV"
-                  onFile={handleMinutesUpload}
-                />
-              )}
-              {minutesError && <p className="text-[10px] text-red-600 font-bold uppercase">{minutesError}</p>}
-              {minutesResult && <ResultRow icon={<CheckCircle2 className="h-3 w-3" />} text={`${minutesResult.rows_processed} minutes orders processed`} color="text-green-600" />}
-            </div>
-        </div>
-      </SectionCard>
-
-      {/* Mapping Modal */}
-      {showMappingModal && (
-        <MappingModal
-          onClose={() => setShowMappingModal(false)}
-          onSaved={loadStatus}
-          internalSKUs={[]}
-        />
-      )}
     </div>
   )
 }
