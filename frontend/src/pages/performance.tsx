@@ -127,6 +127,7 @@ export default function PerformancePage() {
   // Filters & Sorting
   const [search, setSearch] = useState('')
   const [selCategories, setSelCategories] = useState<string[]>([])
+  const [selProductCategories, setSelProductCategories] = useState<string[]>([])
   const [selSubCategories, setSelSubCategories] = useState<string[]>([])
   const [sortField, setSortField] = useState<string>('total_units')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
@@ -180,19 +181,31 @@ export default function PerformancePage() {
   }, [trendData])
 
   const categories = useMemo(() => [...new Set(detailedSales.map(s => s.category))].sort(), [detailedSales])
+  const productCategories = useMemo(() => {
+    let list = detailedSales
+    if (selCategories.length > 0) list = list.filter(s => selCategories.includes(s.category))
+    return [...new Set(list.map(s => s.product_category))].sort()
+  }, [detailedSales, selCategories])
   const subCategories = useMemo(() => {
     let list = detailedSales
     if (selCategories.length > 0) list = list.filter(s => selCategories.includes(s.category))
+    if (selProductCategories.length > 0) list = list.filter(s => selProductCategories.includes(s.product_category))
     return [...new Set(list.map(s => s.sub_category))].sort()
-  }, [detailedSales, selCategories])
+  }, [detailedSales, selCategories, selProductCategories])
 
   const filteredAndSortedSales = useMemo(() => {
     let result = [...detailedSales]
     if (search) {
       const s = search.toLowerCase()
-      result = result.filter(r => r.sku.toLowerCase().includes(s) || r.category.toLowerCase().includes(s) || r.sub_category.toLowerCase().includes(s))
+      result = result.filter(r => 
+        r.sku.toLowerCase().includes(s) || 
+        r.category.toLowerCase().includes(s) || 
+        r.product_category.toLowerCase().includes(s) || 
+        r.sub_category.toLowerCase().includes(s)
+      )
     }
     if (selCategories.length > 0) result = result.filter(r => selCategories.includes(r.category))
+    if (selProductCategories.length > 0) result = result.filter(r => selProductCategories.includes(r.product_category))
     if (selSubCategories.length > 0) result = result.filter(r => selSubCategories.includes(r.sub_category))
 
     result.sort((a, b) => {
@@ -201,7 +214,7 @@ export default function PerformancePage() {
       return sortOrder === 'asc' ? valA - valB : valB - valA
     })
     return result
-  }, [detailedSales, search, selCategories, selSubCategories, sortField, sortOrder])
+  }, [detailedSales, search, selCategories, selProductCategories, selSubCategories, sortField, sortOrder])
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
@@ -411,7 +424,8 @@ export default function PerformancePage() {
 
           <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1 justify-end max-w-5xl">
             <div className="flex items-center gap-3">
-              <MultiSelect label="CATEGORIES" options={categories} selected={selCategories} onChange={setSelCategories} />
+              <MultiSelect label="ABC CLASS" options={categories} selected={selCategories} onChange={setSelCategories} />
+              <MultiSelect label="CATEGORIES" options={productCategories} selected={selProductCategories} onChange={setSelProductCategories} />
               <MultiSelect label="SUB-CATEGORIES" options={subCategories} selected={selSubCategories} onChange={setSelSubCategories} />
             </div>
             <div className="relative w-full md:w-80">
@@ -432,7 +446,8 @@ export default function PerformancePage() {
             <thead className="sticky top-0 z-20 bg-zinc-50 shadow-sm">
               <tr className="border-b border-zinc-200">
                 <th onClick={() => toggleSort('total_units')} className="px-6 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest w-16 cursor-pointer hover:text-brand-blue text-center">#</th>
-                <th onClick={() => toggleSort('category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Category</th>
+                <th onClick={() => toggleSort('category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Class</th>
+                <th onClick={() => toggleSort('product_category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Category</th>
                 <th onClick={() => toggleSort('sub_category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Sub-Category</th>
                 <th onClick={() => toggleSort('sku')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">SKU</th>
                 <th onClick={() => toggleSort('amazon_units')} className="px-8 py-5 text-[11px] font-black text-brand-amber uppercase tracking-widest cursor-pointer hover:text-sidebar text-right">Amazon</th>
@@ -446,6 +461,7 @@ export default function PerformancePage() {
                 <tr key={i} className="hover:bg-zinc-50/50 transition-colors group">
                   <td className="px-6 py-5 text-center text-[11px] font-black text-zinc-400">{i + 1}</td>
                   <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.category}</td>
+                  <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.product_category}</td>
                   <td className="px-8 py-5 text-[12px] font-black text-zinc-600 uppercase">{row.sub_category}</td>
                   <td className="px-8 py-5 text-[12px] font-black text-sidebar font-data uppercase">{row.sku}</td>
                   <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-amber">{row.amazon_units?.toLocaleString()}</td>

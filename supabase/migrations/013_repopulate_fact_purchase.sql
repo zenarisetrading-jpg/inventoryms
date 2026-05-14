@@ -1,4 +1,4 @@
--- 023_repopulate_fact_purchase.sql
+-- 013_repopulate_fact_purchase.sql
 -- Drop and recreate fact_purchase with data from CSV
 
 DROP TABLE IF EXISTS fact_purchase;

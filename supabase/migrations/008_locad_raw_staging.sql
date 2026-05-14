@@ -1,4 +1,4 @@
--- 009_locad_raw_staging.sql
+-- 008_locad_raw_staging.sql
 -- Stores every row returned by the Locad API before FNSKU matching.
 -- Purpose: audit tool for diagnosing stale/missing SKU maps.
 -- Each API sync run is identified by sync_run_id (UUID generated at sync start).

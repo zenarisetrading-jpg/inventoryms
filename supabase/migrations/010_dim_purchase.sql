@@ -1,4 +1,4 @@
--- 015_dim_purchase.sql
+-- 010_dim_purchase.sql
 -- Renaming dim_sku to dim_purchase and populating fact_purchase defaults
 
 -- 1. Rename dim_sku to dim_purchase if it exists

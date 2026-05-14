@@ -1,4 +1,4 @@
--- 008_schedule_full_sync_daily.sql
+-- 007_schedule_full_sync_daily.sql
 -- Replaces individual sync jobs with a full daily sync (Amazon + Locad) at 10:00 AM IST (04:30 AM UTC).
 
 -- 1. Remove the old Locad-only sync job

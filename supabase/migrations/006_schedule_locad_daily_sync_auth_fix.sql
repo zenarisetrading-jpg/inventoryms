@@ -1,4 +1,4 @@
--- 007_schedule_locad_daily_sync_auth_fix.sql
+-- 006_schedule_locad_daily_sync_auth_fix.sql
 -- Ensure daily Locad cron job uses explicit anon JWT for Edge Function auth.
 
 select cron.unschedule('daily_locad_sync')

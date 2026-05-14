@@ -1,4 +1,4 @@
--- 006_schedule_locad_daily_sync.sql
+-- 005_schedule_locad_daily_sync.sql
 -- Daily Locad inventory sync scheduler via pg_cron + pg_net.
 -- Runs at 03:15 UTC every day (07:15 UAE, UTC+4).
 

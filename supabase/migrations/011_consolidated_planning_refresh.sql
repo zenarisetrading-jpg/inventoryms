@@ -1,4 +1,4 @@
--- Migration: 022_consolidated_planning_refresh.sql
+-- 011_consolidated_planning_refresh.sql
 
 DROP TABLE IF EXISTS fact_inventory_planning CASCADE;
 
