@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 
 interface ChannelBreakdown {
   label: string;
@@ -15,10 +15,6 @@ interface SalesPerformanceCardProps {
   orders: number;
   units: number;
   refunds: number;
-  advCost: number;
-  payout: number;
-  grossProfit: number;
-  netProfit: number;
   breakdown?: ChannelBreakdown[];
   growth?: number;
   headerColor: string;
@@ -31,10 +27,6 @@ export function SalesPerformanceCard({
   orders,
   units,
   refunds,
-  advCost,
-  payout,
-  grossProfit,
-  netProfit,
   breakdown,
   growth,
   headerColor
@@ -49,9 +41,11 @@ export function SalesPerformanceCard({
       {/* Header */}
       <div className={`${headerColor} px-4 py-3 text-white`}>
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-[11px] font-black tracking-tight">{title}</h3>
-            <p className="text-[9px] font-bold opacity-70 uppercase tracking-wider">{dateRange}</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h3 className="text-[11px] font-black tracking-tight">{title}</h3>
+              <p className="text-[9px] font-bold opacity-70 uppercase tracking-wider">{dateRange}</p>
+            </div>
           </div>
           {growth !== undefined && (
             <div className={`px-2 py-1 rounded-full text-[10px] font-black flex items-center gap-0.5 bg-black/20 ${isPositive ? 'text-emerald-300' : 'text-rose-300'}`}>
@@ -79,10 +73,6 @@ export function SalesPerformanceCard({
         <div className="grid grid-cols-2 gap-y-4 gap-x-2">
           <MetricBox label="Orders / Units" value={`${orders} / ${units}`} />
           <MetricBox label="Refunds" value={refunds} valueColor="text-blue-400" />
-          <MetricBox label="Adv. cost" value={formatCurrency(advCost)} isCurrency />
-          <MetricBox label="Est. payout" value={formatCurrency(payout)} isCurrency />
-          <MetricBox label="Gross profit" value={formatCurrency(grossProfit)} isCurrency valueColor={grossProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
-          <MetricBox label="Net profit" value={formatCurrency(netProfit)} isCurrency valueColor={netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'} />
         </div>
 
         {/* Channel Breakdown */}

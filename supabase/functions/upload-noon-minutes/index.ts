@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getSupabaseAdmin } from '../_shared/supabase.ts'
-import { parseNoonOrderCSV } from '../_shared/noon-csv.ts'
+import { parseMinutesOrderCSV, type ParsedMinutesData } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
 interface NoonSaleRow {
@@ -9,13 +9,6 @@ interface NoonSaleRow {
   date: string
   channel: 'noon' | 'noon_minutes'
   units_sold: number
-}
-
-interface ParseResult {
-  sales: NoonSaleRow[]
-  avg_prices: any[]
-  raw_rows: any[]
-  errors: { row: number; message: string }[]
 }
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -35,7 +28,7 @@ serve(async (req: Request) => {
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const csvText = await file.text()
-    const parseResult = parseNoonOrderCSV(csvText) as ParseResult
+    const parseResult = parseMinutesOrderCSV(csvText) as ParsedMinutesData
     const { sales, errors: parseErrors } = parseResult
 
     if (sales.length === 0 && parseErrors.length > 0) {
@@ -43,6 +36,8 @@ serve(async (req: Request) => {
     }
 
     const supabase = getSupabaseAdmin()
+    
+    // Build internal SKU mapping (handling 's' suffix case-insensitively)
     const { data: skuMasterRows } = await supabase
       .from('sku_master')
       .select('sku')
@@ -55,18 +50,19 @@ serve(async (req: Request) => {
       noonToInternal.set(internalSku.toUpperCase(), internalSku)
     }
 
-    const deduped = new Map<string, any>()
+    // -----------------------------------------------------------------------
+    // Step 3: Upsert into sales_snapshot (Aggregated)
+    // -----------------------------------------------------------------------
+    const deduped = new Map<string, NoonSaleRow>()
     for (const r of sales) {
       const internalSku = noonToInternal.get(r.sku.trim().toUpperCase())
       if (internalSku) {
-        // FORCE channel to noon_minutes for this specific upload
-        const channel = 'noon_minutes'
-        const key = `${internalSku}|${r.date}|${channel}`
+        const key = `${internalSku}|${r.date}`
         const ex = deduped.get(key)
         if (ex) {
           ex.units_sold += r.units_sold
         } else {
-          deduped.set(key, { sku: internalSku, date: r.date, channel, units_sold: r.units_sold })
+          deduped.set(key, { sku: internalSku, date: r.date, channel: 'noon_minutes', units_sold: r.units_sold })
         }
       }
     }
@@ -82,61 +78,51 @@ serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: Load Raw Detailed Data into minutes_sales
+    // Step 4: Load Raw Detailed Data into minutes_sales (Chunked for Memory)
     // -----------------------------------------------------------------------
     const { raw_rows } = parseResult
     let rawInserted = 0
     
     if (raw_rows && raw_rows.length > 0) {
       const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
-      const filteredRaw = raw_rows.filter((r: any) => r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase()))
-
-      const dbRows = filteredRaw.map((r: any) => {
-        // Robust numeric parsing
-        const cleanInt = (val: any) => {
-          if (!val) return null
-          const num = parseInt(String(val).replace(/[^\d-]/g, ''))
-          return isNaN(num) ? null : num
+      
+      // Filter and map in one pass
+      const dbRows = []
+      for (const r of raw_rows) {
+        if (r.item_status && CONFIRMED_STATUSES.has(r.item_status.toLowerCase())) {
+          dbRows.push({
+            country_code: r.country_code,
+            order_nr: r.order_nr,
+            item_nr: r.item_nr,
+            order_date: r.order_date,
+            sku: r.sku,
+            title_en: r.title_en,
+            title_ar: r.title_ar,
+            brand_en: r.brand_en,
+            brand_ar: r.brand_ar,
+            currency_code: r.currency_code,
+            price: r.price,
+            partner_sku: r.partner_sku,
+            item_status: r.item_status,
+            return_date: r.return_date || null
+          })
         }
-        const cleanFloat = (val: any) => {
-          if (!val) return 0
-          const num = parseFloat(String(val).replace(/[^\d.-]/g, ''))
-          return isNaN(num) ? 0 : num
-        }
+      }
 
-        return {
-          id_partner: cleanInt(r.id_partner),
-          src_country: r.src_country || null,
-          country_code: r.country_code || null,
-          dest_country: r.dest_country || null,
-          bayan_nr: r.bayan_nr || null,
-          item_nr: r.item_nr || null,
-          partner_sku: r.partner_sku || null,
-          sku: r.sku || null,
-          status: r.status || null,
-          offer_price: cleanFloat(r.offer_price),
-          gmv_lcy: cleanFloat(r.gmv_lcy),
-          currency_code: r.currency_code || null,
-          brand_code: r.brand_code || null,
-          family: r.family || null,
-          fulfillment_model: r.fulfillment_model || null,
-          order_timestamp: r.order_timestamp || null,
-          shipment_timestamp: r.shipment_timestamp || null,
-          delivered_timestamp: r.delivered_timestamp || null
-        }
-      })
-
-      if (dbRows.length > 0) {
-        const { error: minutesError } = await supabase.from('minutes_sales').insert(dbRows)
+      // Insert in batches of 500
+      const CHUNK_SIZE = 500
+      for (let i = 0; i < dbRows.length; i += CHUNK_SIZE) {
+        const chunk = dbRows.slice(i, i + CHUNK_SIZE)
+        const { error: minutesError } = await supabase.from('minutes_sales').insert(chunk)
         if (minutesError) {
-          console.error('[upload-noon-minutes] minutes_sales insert error:', minutesError)
+          console.error(`[upload-noon-minutes] minutes_sales insert error at chunk ${i}:`, minutesError)
           return jsonResponse({ error: `minutes_sales insert failed: ${minutesError.message}` }, 500)
         }
-        rawInserted = dbRows.length
       }
+      rawInserted = dbRows.length
     }
 
-    await refreshAllMetrics(supabase)
+    // await refreshAllMetrics(supabase)
 
     return jsonResponse({
       rows_processed: sales.length,

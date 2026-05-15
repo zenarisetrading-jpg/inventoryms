@@ -335,16 +335,19 @@ async function handleSync(
 
 async function handleRefreshFact(): Promise<Response> {
   const supabase = getSupabaseAdmin()
-  const { error } = await supabase.rpc('refresh_fact_inventory_planning')
+  const [res1, res2] = await Promise.all([
+    supabase.rpc('refresh_fact_inventory_planning'),
+    supabase.rpc('refresh_fact_sales_data')
+  ])
 
-  if (error) {
-    console.error('[sync] refresh_fact_inventory_planning error:', error)
-    return jsonResponse({ error: error.message }, 500)
+  if (res1.error || res2.error) {
+    console.error('[sync] refresh_fact error:', res1.error || res2.error)
+    return jsonResponse({ error: res1.error?.message || res2.error?.message }, 500)
   }
 
   return jsonResponse({
     status: 'ok',
-    message: 'Fact table refreshed successfully'
+    message: 'All Fact tables refreshed successfully'
   })
 }
 

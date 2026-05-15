@@ -44,10 +44,34 @@ interface NoonOrderRow {
   delivered_timestamp: string
 }
 
+export interface MinutesOrderRow {
+  country_code: string
+  order_nr: string
+  item_nr: string
+  order_date: string
+  sku: string
+  title_en: string
+  title_ar: string
+  brand_en: string
+  brand_ar: string
+  currency_code: string
+  price: number
+  partner_sku: string
+  item_status: string
+  return_date: string
+}
+
 export interface ParsedNoonData {
   sales: { sku: string; date: string; channel: 'noon' | 'noon_minutes'; units_sold: number }[]
   avg_prices: { sku: string; avg_sell_price_aed: number }[]
   raw_rows: NoonOrderRow[]
+  errors: { row: number; message: string }[]
+}
+
+export interface ParsedMinutesData {
+  sales: { sku: string; date: string; channel: 'noon_minutes'; units_sold: number }[]
+  avg_prices: { sku: string; avg_sell_price_aed: number }[]
+  raw_rows: MinutesOrderRow[]
   errors: { row: number; message: string }[]
 }
 
@@ -205,6 +229,127 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
     })
   }
   avg_prices.sort((a, b) => a.sku.localeCompare(b.sku))
+
+  return { sales, avg_prices, raw_rows, errors }
+}
+
+// ---------------------------------------------------------------------------
+// parseMinutesOrderCSV
+// ---------------------------------------------------------------------------
+
+export function parseMinutesOrderCSV(csvText: string): ParsedMinutesData {
+  const errors: { row: number; message: string }[] = []
+  const cleaned = csvText.replace(/^\uFEFF/, '').trim()
+  if (!cleaned) {
+    return { sales: [], avg_prices: [], raw_rows: [], errors: [{ row: 0, message: 'Empty CSV file' }] }
+  }
+
+  const lines = cleaned.split(/\r?\n/)
+  if (lines.length < 2) {
+    return { sales: [], avg_prices: [], raw_rows: [], errors: [{ row: 0, message: 'CSV has no data rows' }] }
+  }
+
+  const headers = parseCSVRow(lines[0]).map((h) => h.trim().toLowerCase().replace(/\s+/g, '_'))
+  const colIndex = buildColumnIndex(headers)
+
+  // Required for sales_snapshot
+  const required = ['partner_sku', 'item_status', 'price', 'currency_code', 'order_date']
+  for (const col of required) {
+    if (colIndex[col] === undefined) {
+      // Alternatives
+      if (col === 'partner_sku' && colIndex['sku'] !== undefined) colIndex['partner_sku'] = colIndex['sku']
+      else if (col === 'item_status' && colIndex['status'] !== undefined) colIndex['item_status'] = colIndex['status']
+      else errors.push({ row: 0, message: `Missing required column: "${col}"` })
+    }
+  }
+
+  if (errors.length > 0) return { sales: [], avg_prices: [], raw_rows: [], errors }
+
+  const raw_rows: MinutesOrderRow[] = []
+  const salesMap = new Map<string, number>()
+  const priceMap = new Map<string, [number, number]>()
+  const CHANNEL: 'noon_minutes' = 'noon_minutes'
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const rowNum = i + 1
+    const cols = parseCSVRow(line)
+
+    try {
+      const get = (key: string): string => {
+        const idx = colIndex[key]
+        return idx !== undefined ? (cols[idx] ?? '').trim() : ''
+      }
+
+      const rawRow: MinutesOrderRow = {
+        country_code: get('country_code'),
+        order_nr: get('order_nr'),
+        item_nr: get('item_nr'),
+        order_date: get('order_date'),
+        sku: get('sku'),
+        title_en: get('title_en'),
+        title_ar: get('title_ar'),
+        brand_en: get('brand_en'),
+        brand_ar: get('brand_ar'),
+        currency_code: get('currency_code'),
+        price: parseFloat(get('price').replace(/,/g, '')) || 0,
+        partner_sku: get('partner_sku'),
+        item_status: get('item_status'),
+        return_date: get('return_date'),
+      }
+      raw_rows.push(rawRow)
+
+      // Status filter
+      const status = rawRow.item_status.toLowerCase()
+      if (!CONFIRMED_STATUSES.has(status)) continue
+
+      const partner_sku = rawRow.partner_sku.trim()
+      if (!partner_sku) continue
+
+      // Date format check (YYYY-MM-DD)
+      let date = rawRow.order_date.trim().slice(0, 10)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        // Try to handle M/D/YYYY
+        const parts = date.split('/')
+        if (parts.length === 3) {
+          const m = parts[0].padStart(2, '0')
+          const d = parts[1].padStart(2, '0')
+          const y = parts[2]
+          date = `${y}-${m}-${d}`
+        }
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+
+      // Currency
+      const currency = rawRow.currency_code.trim().toUpperCase()
+      const rate = CURRENCY_TO_AED[currency] ?? 1.0
+      const priceAed = rawRow.price * rate
+
+      // Accumulate
+      const salesKey = `${partner_sku}|${date}`
+      salesMap.set(salesKey, (salesMap.get(salesKey) || 0) + 1)
+
+      const p = priceMap.get(partner_sku) || [0, 0]
+      p[0] += priceAed
+      p[1] += 1
+      priceMap.set(partner_sku, p)
+
+    } catch (err) {
+      errors.push({ row: rowNum, message: String(err) })
+    }
+  }
+
+  const sales = Array.from(salesMap.entries()).map(([key, units]) => {
+    const [sku, date] = key.split('|')
+    return { sku, date, channel: CHANNEL, units_sold: units }
+  })
+
+  const avg_prices = Array.from(priceMap.entries()).map(([sku, [sum, count]]) => ({
+    sku,
+    avg_sell_price_aed: count > 0 ? Math.round((sum / count) * 100) / 100 : 0,
+  }))
 
   return { sales, avg_prices, raw_rows, errors }
 }

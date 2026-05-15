@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { api } from '../lib/api'
-import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown, Layers } from 'lucide-react'
+import { Package, Search, Download, AlertTriangle, RefreshCw, CheckCircle2, XCircle, Edit2, Check, X, ArrowUpDown, ArrowUp, ArrowDown, Filter, ChevronDown, Layers, Plus } from 'lucide-react'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { navigate } from '../lib/router'
 import { MultiSelect } from '../components/shared/MultiSelect'
@@ -25,7 +25,7 @@ export default function SKUCatalog() {
   })
 
   const [updating, setUpdating] = useState<string | null>(null)
-  const [editingCogs, setEditingCogs] = useState<{ sku: string, value: string } | null>(null)
+  const [editingCell, setEditingCell] = useState<{ sku: string, field: string, value: string } | null>(null)
 
   const fetchData = async () => {
     setLoading(true)
@@ -57,9 +57,7 @@ export default function SKUCatalog() {
       // Optimistically update local state
       setData(prev => prev.map(row => row.sku === sku ? { ...row, [field]: value } : row))
 
-      if (field === 'cogs') {
-        setEditingCogs(null)
-      }
+      setEditingCell(null)
     } catch (e: any) {
       alert(`Failed to update ${field}: ${e.message}`)
     } finally {
@@ -142,7 +140,7 @@ export default function SKUCatalog() {
 
   // Fixed column order including physical properties and flags
   const columns = [
-    'sku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days',
+    'sku', 'asin', 'fnsku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days',
     'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
     'is_active', 'amazon_active', 'noon_active'
   ]
@@ -257,6 +255,14 @@ export default function SKUCatalog() {
 
           <div className="flex items-center gap-3">
             <button
+              onClick={() => navigate('/skus/new')}
+              className="flex items-center gap-2 px-6 py-3.5 bg-brand-blue text-white hover:bg-brand-blue/90 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-brand-blue/20"
+            >
+              <Plus className="h-4 w-4" />
+              NEW SKU
+            </button>
+
+            <button
               onClick={fetchData}
               disabled={loading}
               className="flex items-center gap-2 px-6 py-3.5 bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
@@ -264,6 +270,7 @@ export default function SKUCatalog() {
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               RELOAD
             </button>
+            
             <button
               onClick={handleExport}
               className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
@@ -366,44 +373,46 @@ export default function SKUCatalog() {
                             <option value="B">B</option>
                             <option value="C">C</option>
                           </select>
-                        ) : col === 'cogs' ? (
-                          <div className="flex items-center gap-2 min-w-[100px]">
-                            {editingCogs && editingCogs.sku === row.sku ? (
+                        ) : (col === 'cogs' || col === 'asin' || col === 'fnsku') ? (
+                          <div className="flex items-center gap-2 min-w-[80px]">
+                            {editingCell && editingCell.sku === row.sku && editingCell.field === col ? (
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number"
-                                  step="0.01"
-                                  className="w-16 p-1 text-xs border border-brand-blue rounded bg-white text-zinc-900 font-semibold focus:outline-none"
-                                  value={editingCogs.value}
-                                  onChange={e => setEditingCogs({ sku: editingCogs.sku, value: e.target.value })}
+                                  type={col === 'cogs' ? "number" : "text"}
+                                  step={col === 'cogs' ? "0.01" : undefined}
+                                  className="w-24 p-1 text-[11px] border border-brand-blue rounded bg-white text-zinc-900 font-bold focus:outline-none uppercase"
+                                  value={editingCell.value}
+                                  onChange={e => setEditingCell({ ...editingCell, value: e.target.value })}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleUpdateField(row.sku, col, col === 'cogs' ? parseFloat(editingCell.value) : editingCell.value)
+                                    if (e.key === 'Escape') setEditingCell(null)
+                                  }}
                                   autoFocus
                                 />
                                 <button
-                                  onClick={() => handleUpdateField(row.sku, 'cogs', parseFloat(editingCogs.value))}
-                                  disabled={updating === `${row.sku}-cogs`}
+                                  onClick={() => handleUpdateField(row.sku, col, col === 'cogs' ? parseFloat(editingCell.value) : editingCell.value)}
+                                  disabled={updating === `${row.sku}-${col}`}
                                   className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
                                 <button
-                                  onClick={() => setEditingCogs(null)}
+                                  onClick={() => setEditingCell(null)}
                                   className="p-1 text-rose-500 hover:bg-rose-50 rounded transition-colors"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                 </button>
                               </div>
                             ) : (
-                              <>
-                                <span className="text-[13px] font-semibold text-zinc-400">
-                                  {row[col] === null || row[col] === undefined ? '-' : Number(row[col]).toFixed(2)}
+                              <div 
+                                className="flex items-center gap-2 group/cell cursor-pointer"
+                                onClick={() => setEditingCell({ sku: row.sku, field: col, value: String(row[col] || '') })}
+                              >
+                                <span className={`text-[13px] font-semibold ${col === 'cogs' ? 'text-zinc-400' : 'text-zinc-300'}`}>
+                                  {row[col] === null || row[col] === undefined || row[col] === '' ? '-' : (col === 'cogs' ? Number(row[col]).toFixed(2) : String(row[col]))}
                                 </span>
-                                <button
-                                  onClick={() => setEditingCogs({ sku: row.sku, value: String(row.cogs || 0) })}
-                                  className="p-1 text-zinc-500 hover:text-brand-blue hover:bg-white/5 rounded transition-colors"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                              </>
+                                <Edit2 className="w-3 h-3 text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-all" />
+                              </div>
                             )}
                           </div>
                         ) : (

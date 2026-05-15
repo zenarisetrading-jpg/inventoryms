@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Upload, CheckCircle2, AlertCircle, Package, Download, Activity, RefreshCw, AlertTriangle, XCircle, Layers, ShieldCheck, Database, History } from 'lucide-react'
+import { X, Upload, CheckCircle2, AlertCircle, Package, Download, Activity, RefreshCw, AlertTriangle, XCircle, Layers, ShieldCheck, Database, History, Zap } from 'lucide-react'
 import { api } from '../lib/api'
 import type { SyncStatus, UploadLocadResponse, UploadNoonResponse, UploadNoonInventoryResponse } from '../types'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
@@ -241,6 +241,20 @@ export default function OperationsHub() {
           >
             <Database className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
             Refresh Remote Amazon
+          </button>
+
+          <button
+            onClick={async () => {
+              setTriggerLoading(true)
+              await api.refreshFactTable()
+              setTriggerLoading(false)
+              loadData()
+            }}
+            disabled={triggerLoading}
+            className="flex items-center gap-3 px-6 py-3.5 bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 shadow-xl shadow-black/20 transition-all active:scale-95 border border-white/5"
+          >
+            <Zap className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
+            Refresh Dashboard Metrics
           </button>
         </div>
       </div>

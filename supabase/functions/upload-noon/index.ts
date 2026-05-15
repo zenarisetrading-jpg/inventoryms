@@ -174,54 +174,63 @@ serve(async (req: Request) => {
       console.log(`[upload-noon] ${salesUpsertRows.length} rows to upsert, ${unknownCount} Noon SKUs could not be mapped`)
 
       if (salesUpsertRows.length > 0) {
-        const { error: salesError } = await supabase
-          .from('sales_snapshot')
-          .upsert(salesUpsertRows, {
-            onConflict: 'sku,date,channel',
-          })
+        // Chunked upsert for sales_snapshot to avoid CPU timeout
+        const SALES_CHUNK_SIZE = 500
+        for (let i = 0; i < salesUpsertRows.length; i += SALES_CHUNK_SIZE) {
+          const chunk = salesUpsertRows.slice(i, i + SALES_CHUNK_SIZE)
+          const { error: salesError } = await supabase
+            .from('sales_snapshot')
+            .upsert(chunk, { onConflict: 'sku,date,channel' })
 
-        if (salesError) {
-          console.error('[upload-noon] sales_snapshot upsert error:', salesError)
-          // Surface the actual DB error in the response so it's visible in the UI
-          return jsonResponse(
-            { error: `sales_snapshot upsert failed: ${salesError.message}` },
-            500
-          )
+          if (salesError) {
+            console.error(`[upload-noon] sales_snapshot upsert error at chunk ${i}:`, salesError)
+            return jsonResponse({ error: `sales_snapshot upsert failed: ${salesError.message}` }, 500)
+          }
         }
       }
 
       // -----------------------------------------------------------------------
-      // Step 3b: Load Raw Detailed Data into noon_sales
+      // Step 3b: Load Raw Detailed Data into noon_sales (Chunked for Memory)
       // -----------------------------------------------------------------------
       if (raw_rows && raw_rows.length > 0) {
         const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
-        const filteredRaw = raw_rows.filter((r: any) => r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase()))
+        
+        // Filter and map in one pass to avoid creating multiple large arrays
+        const dbRows = []
+        for (const r of raw_rows) {
+          if (r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase())) {
+            dbRows.push({
+              id_partner: parseInt(r.id_partner) || null,
+              src_country: r.src_country,
+              country_code: r.country_code,
+              dest_country: r.dest_country,
+              bayan_nr: r.bayan_nr,
+              item_nr: r.item_nr,
+              partner_sku: r.partner_sku,
+              sku: r.sku,
+              status: r.status,
+              offer_price: r.offer_price,
+              gmv_lcy: parseFloat(r.gmv_lcy) || 0,
+              currency_code: r.currency_code,
+              brand_code: r.brand_code,
+              family: r.family,
+              fulfillment_model: r.fulfillment_model,
+              order_timestamp: r.order_timestamp,
+              shipment_timestamp: r.shipment_timestamp || null,
+              delivered_timestamp: r.delivered_timestamp || null
+            })
+          }
+        }
 
-        const dbRows = filteredRaw.map((r: any) => ({
-          id_partner: parseInt(r.id_partner) || null,
-          src_country: r.src_country,
-          country_code: r.country_code,
-          dest_country: r.dest_country,
-          bayan_nr: r.bayan_nr,
-          item_nr: r.item_nr,
-          partner_sku: r.partner_sku,
-          sku: r.sku,
-          status: r.status,
-          offer_price: r.offer_price,
-          gmv_lcy: parseFloat(r.gmv_lcy) || 0,
-          currency_code: r.currency_code,
-          brand_code: r.brand_code,
-          family: r.family,
-          fulfillment_model: r.fulfillment_model,
-          order_timestamp: r.order_timestamp,
-          shipment_timestamp: r.shipment_timestamp || null,
-          delivered_timestamp: r.delivered_timestamp || null
-        }))
-
-        const { error: noonSalesError } = await supabase.from('noon_sales').insert(dbRows)
-        if (noonSalesError) {
-          console.error('[upload-noon] noon_sales insert error:', noonSalesError)
-          return jsonResponse({ error: `noon_sales insert failed: ${noonSalesError.message}` }, 500)
+        // Insert in batches of 500 to stay within memory/payload limits
+        const CHUNK_SIZE = 500
+        for (let i = 0; i < dbRows.length; i += CHUNK_SIZE) {
+          const chunk = dbRows.slice(i, i + CHUNK_SIZE)
+          const { error: noonSalesError } = await supabase.from('noon_sales').insert(chunk)
+          if (noonSalesError) {
+            console.error(`[upload-noon] noon_sales insert error at chunk ${i}:`, noonSalesError)
+            return jsonResponse({ error: `noon_sales insert failed: ${noonSalesError.message}` }, 500)
+          }
         }
         rawInserted = dbRows.length
       }
@@ -276,8 +285,11 @@ serve(async (req: Request) => {
     }
 
     // -----------------------------------------------------------------------
-    // Step 5: Refresh decision engine metrics
+    // Step 5: Refresh decision engine metrics (SKIP AUTOMATIC REFRESH)
     // -----------------------------------------------------------------------
+    // We skip this during large uploads to avoid CPU timeouts. 
+    // User can trigger manually via the dashboard "Zap" button.
+    /*
     if (skusUpdated.size > 0) {
       try {
         await refreshAllMetrics(supabase)
@@ -285,6 +297,7 @@ serve(async (req: Request) => {
         console.error('[upload-noon] refreshAllMetrics error:', err)
       }
     }
+    */
 
     // -----------------------------------------------------------------------
     // Step 6: Return summary response

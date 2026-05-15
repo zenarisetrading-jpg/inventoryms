@@ -98,6 +98,21 @@ export default function PerformancePage() {
   const [hoverValuation, setHoverValuation] = useState<string | null>(null)
   const [hoverPo, setHoverPo] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<any>(null)
+  const [refreshingFact, setRefreshingFact] = useState(false)
+
+  const handleRefreshFact = async () => {
+    setRefreshingFact(true)
+    try {
+      const { error } = await supabase.rpc('refresh_fact_sales_data')
+      if (error) throw error
+      await fetchData()
+    } catch (err: any) {
+      console.error('Refresh fact error:', err)
+      setError(err.message || 'Failed to refresh fact data')
+    } finally {
+      setRefreshingFact(false)
+    }
+  }
 
   // Filters & Sorting
   const [search, setSearch] = useState('')
@@ -320,10 +335,6 @@ export default function PerformancePage() {
               orders={summaryData.today?.orders || 0}
               units={summaryData.today?.units || 0}
               refunds={0}
-              advCost={summaryData.today?.adv_cost || 0}
-              payout={summaryData.today?.est_payout || 0}
-              grossProfit={summaryData.today?.gross_profit || 0}
-              netProfit={summaryData.today?.net_profit || 0}
               headerColor="bg-zinc-900"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.today?.amazon_sales || 0, units: summaryData.today?.amazon_units || 0, color: 'bg-amber-500' },
@@ -338,10 +349,6 @@ export default function PerformancePage() {
               orders={summaryData.yesterday?.orders || 0}
               units={summaryData.yesterday?.units || 0}
               refunds={0}
-              advCost={summaryData.yesterday?.adv_cost || 0}
-              payout={summaryData.yesterday?.est_payout || 0}
-              grossProfit={summaryData.yesterday?.gross_profit || 0}
-              netProfit={summaryData.yesterday?.net_profit || 0}
               headerColor="bg-zinc-800"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.yesterday?.amazon_sales || 0, units: summaryData.yesterday?.amazon_units || 0, color: 'bg-amber-500' },
@@ -356,10 +363,6 @@ export default function PerformancePage() {
               orders={summaryData.mtd?.orders || 0}
               units={summaryData.mtd?.units || 0}
               refunds={0}
-              advCost={summaryData.mtd?.adv_cost || 0}
-              payout={summaryData.mtd?.est_payout || 0}
-              grossProfit={summaryData.mtd?.gross_profit || 0}
-              netProfit={summaryData.mtd?.net_profit || 0}
               headerColor="bg-blue-900/50"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.mtd?.amazon_sales || 0, units: summaryData.mtd?.amazon_units || 0, color: 'bg-amber-500' },
@@ -374,10 +377,6 @@ export default function PerformancePage() {
               orders={Math.round((summaryData.mtd?.orders || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
               units={Math.round((summaryData.mtd?.units || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
               refunds={0}
-              advCost={(summaryData.mtd?.adv_cost || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
-              payout={(summaryData.mtd?.est_payout || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
-              grossProfit={(summaryData.mtd?.gross_profit || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
-              netProfit={(summaryData.mtd?.net_profit || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1))}
               headerColor="bg-emerald-900/50"
             />
             <SalesPerformanceCard
@@ -387,10 +386,6 @@ export default function PerformancePage() {
               orders={summaryData.last_month?.orders || 0}
               units={summaryData.last_month?.units || 0}
               refunds={0}
-              advCost={summaryData.last_month?.adv_cost || 0}
-              payout={summaryData.last_month?.est_payout || 0}
-              grossProfit={summaryData.last_month?.gross_profit || 0}
-              netProfit={summaryData.last_month?.net_profit || 0}
               headerColor="bg-indigo-900/50"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.last_month?.amazon_sales || 0, units: summaryData.last_month?.amazon_units || 0, color: 'bg-amber-500' },
