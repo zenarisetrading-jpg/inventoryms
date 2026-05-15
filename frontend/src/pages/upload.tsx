@@ -226,7 +226,21 @@ export default function OperationsHub() {
             className="flex items-center gap-3 px-6 py-3.5 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue/90 shadow-xl shadow-brand-blue/20 transition-all active:scale-95"
           >
             <RefreshCw className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
-            Sync Amazon
+            Sync Saddl
+          </button>
+
+          <button
+            onClick={async () => {
+              setTriggerLoading(true)
+              await api.triggerAmazonFDW()
+              setTriggerLoading(false)
+              loadData()
+            }}
+            disabled={triggerLoading}
+            className="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all active:scale-95"
+          >
+            <Database className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
+            Refresh Remote Amazon
           </button>
         </div>
       </div>

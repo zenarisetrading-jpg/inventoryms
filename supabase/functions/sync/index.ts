@@ -51,6 +51,7 @@ serve(async (req: Request) => {
     const clear = url.searchParams.get('clear') === 'true'
     if (req.method === 'POST') {
       if (action === 'amazon') return await handleSync('amazon', clear)
+      if (action === 'amazon-fdw') return await handleAmazonFDW()
       if (action === 'locad') return await handleSync('locad', clear)
       if (action === 'all') return await handleSync('all', clear)
       if (action === 'refresh-fact') return await handleRefreshFact()
@@ -344,6 +345,30 @@ async function handleRefreshFact(): Promise<Response> {
   return jsonResponse({
     status: 'ok',
     message: 'Fact table refreshed successfully'
+  })
+}
+
+async function handleAmazonFDW(): Promise<Response> {
+  const supabase = getSupabaseAdmin()
+  
+  // Call the FDW refresh function we created in the SQL setup
+  const { error } = await supabase.rpc('refresh_amazon_sales_data')
+
+  if (error) {
+    console.error('[sync] refresh_amazon_sales_data error:', error)
+    // If the RPC fails, it might be because it's not a formal RPC but a raw function
+    // Try running it as raw SQL if RPC doesn't work
+    const { error: rawErr } = await supabase.from('amazon_sales').select('count(*)').limit(1)
+    if (rawErr) return jsonResponse({ error: error.message }, 500)
+    
+    // Attempting raw execution via a workaround if RPC isn't defined as a Supabase RPC
+    const { error: execErr } = await supabase.rpc('execute_sql', { sql: 'SELECT refresh_amazon_sales_data()' })
+    if (execErr) return jsonResponse({ error: `Refresh failed: ${error.message}` }, 500)
+  }
+
+  return jsonResponse({
+    status: 'ok',
+    message: 'Amazon Remote Data (FDW) refreshed successfully'
   })
 }
 

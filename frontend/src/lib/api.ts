@@ -226,6 +226,14 @@ export const api = {
       .then(r => handleResponse<SyncResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SyncResponse)),
 
+  triggerAmazonFDW: async (): Promise<{ status: string; message: string }> =>
+    fetch(`${BASE}/sync/amazon-fdw`, {
+      method: 'POST',
+      headers: await getHeaders(),
+    })
+      .then(r => handleResponse<{ status: string; message: string }>(r))
+      .catch(err => ({ error: err.message } as unknown as { status: string; message: string })),
+
   refreshFactTable: async (): Promise<{ status: string; message: string }> =>
     fetch(`${BASE}/sync/refresh-fact`, {
       method: 'POST',
