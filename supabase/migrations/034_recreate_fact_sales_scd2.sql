@@ -4,29 +4,34 @@
 -- =========================================================
 
 -- DROP FACT TABLE (OPTIONAL)
+SELECT refresh_amazon_sales_data ();
+
 DROP TABLE IF EXISTS fact_sales;
 
 -- CREATE FACT TABLE - SCD TYPE 2
 CREATE TABLE fact_sales (
-    fact_sales_key      BIGSERIAL PRIMARY KEY,
-    date                DATE,
-    sales_channel       VARCHAR(50),
-    fulfillment_model   VARCHAR(255),
-    asin                VARCHAR(255),
-    sku                 VARCHAR(255),
-    category            VARCHAR(255),
-    product_category    VARCHAR(255),
-    sub_category        VARCHAR(255),
-    total_sales         DECIMAL(18,2),
-    total_units         DECIMAL(18,2),
-    effective_from      TIMESTAMP DEFAULT NOW(),
-    effective_to        TIMESTAMP,
-    is_current          BOOLEAN DEFAULT TRUE,
-    last_updated        TIMESTAMP DEFAULT NOW()
+    fact_sales_key BIGSERIAL PRIMARY KEY,
+    date DATE,
+    sales_channel VARCHAR(50),
+    fulfillment_model VARCHAR(255),
+    asin VARCHAR(255),
+    sku VARCHAR(255),
+    category VARCHAR(255),
+    product_category VARCHAR(255),
+    sub_category VARCHAR(255),
+    total_sales DECIMAL(18, 2),
+    total_units DECIMAL(18, 2),
+    effective_from TIMESTAMP DEFAULT NOW(),
+    effective_to TIMESTAMP,
+    is_current BOOLEAN DEFAULT TRUE,
+    last_updated TIMESTAMP DEFAULT NOW()
 );
 
 -- Indexing for performance
-CREATE INDEX IF NOT EXISTS idx_fact_sales_lookup ON fact_sales (date, sales_channel, sku) WHERE is_current = TRUE;
+CREATE INDEX IF NOT EXISTS idx_fact_sales_lookup ON fact_sales (date, sales_channel, sku)
+WHERE
+    is_current = TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_fact_sales_current ON fact_sales (is_current);
 
 -- RECREATE RPC FUNCTION
@@ -35,7 +40,7 @@ RETURNS void SECURITY DEFINER AS $$
 BEGIN
     -- CREATE TEMP STAGING TABLE
     DROP TABLE IF EXISTS temp_dedup_sales;
-
+    PERFORM refresh_amazon_sales_data();
     CREATE TEMP TABLE temp_dedup_sales AS
     SELECT *
     FROM (
@@ -202,6 +207,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-GRANT EXECUTE ON FUNCTION public.refresh_fact_sales_data() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.refresh_fact_sales_data() TO anon;
-GRANT EXECUTE ON FUNCTION public.refresh_fact_sales_data() TO service_role;
+GRANT
+EXECUTE ON FUNCTION public.refresh_fact_sales_data () TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.refresh_fact_sales_data () TO anon;
+
+GRANT
+EXECUTE ON FUNCTION public.refresh_fact_sales_data () TO service_role;
