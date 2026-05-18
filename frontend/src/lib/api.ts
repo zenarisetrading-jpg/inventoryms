@@ -96,23 +96,14 @@ export const api = {
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
-  updatePO: async (id: string, data: Partial<PO>, poNumber?: string): Promise<PO> => {
-    const rpcBase = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1`
-    
-    // We send the stable poNumber if we have it, otherwise fallback to id
-    const identifier = poNumber || id
-
-    await fetch(`${rpcBase}/rpc/update_po_group`, {
-      method: 'POST',
-      headers: {
-        ...await getHeaders(),
-        'Prefer': 'params=single-object'
-      },
-      body: JSON.stringify({ p_id_or_number: identifier, p_payload: data }),
-    }).then(r => handleResponse(r))
-    
-    // Refresh using the stable po_number
-    return api.getPO(identifier)
+  updatePO: async (id: string, data: Partial<PO>, _poNumber?: string): Promise<PO> => {
+    return fetch(`${BASE}/po/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: await getHeaders(),
+      body: JSON.stringify(data),
+    })
+      .then(r => handleResponse<PO>(r))
+      .catch(err => ({ error: err.message } as unknown as PO))
   },
 
   getPO: async (idOrPo: string): Promise<PO> =>

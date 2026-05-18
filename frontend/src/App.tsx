@@ -107,12 +107,10 @@ export default function App() {
       `}>
         <div className={`p-6 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0">
-              <span className="text-black font-black text-lg italic">Z</span>
-            </div>
+            <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
             {!isSidebarCollapsed && (
               <span className="text-white font-black tracking-tight text-xl animate-in fade-in duration-300">
-                Zen<span className="text-blue-400">Ventory </span>
+                Saddl<span className="text-blue-400"> Inventory</span>
               </span>
             )}
           </div>

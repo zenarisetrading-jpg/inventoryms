@@ -69,7 +69,11 @@ interface SKUDetailResponse {
   lead_time_days: number
   cogs: number
   dimensions: string | null
+  weight_kg: number | null
+  cbm: number | null
   is_active: boolean
+  amazon_active: boolean
+  noon_active: boolean
   demand: {
     sv_7: number
     sv_90: number
@@ -433,7 +437,11 @@ async function handleDetail(skuId: string): Promise<Response> {
     lead_time_days: skuRow.lead_time_days as number,
     cogs: skuRow.cogs as number,
     dimensions: ((skuRow.dimensions || skuRow.dimension) as string | null) ?? null,
+    weight_kg: (skuRow.weight_kg as number | null) ?? null,
+    cbm: (skuRow.cbm as number | null) ?? null,
     is_active: skuRow.is_active as boolean,
+    amazon_active: (skuRow.amazon_active as boolean) ?? true,
+    noon_active: (skuRow.noon_active as boolean) ?? true,
 
     demand: demandRow
       ? {
@@ -501,7 +509,11 @@ async function handleCreate(req: Request): Promise<Response> {
     lead_time_days: body.lead_time_days || 0,
     cogs: body.cogs || 0,
     dimensions: body.dimensions || null,
-    is_active: body.is_active !== undefined ? body.is_active : true
+    weight_kg: body.weight_kg || null,
+    cbm: body.cbm || null,
+    is_active: body.is_active !== undefined ? body.is_active : true,
+    amazon_active: body.amazon_active !== undefined ? body.amazon_active : true,
+    noon_active: body.noon_active !== undefined ? body.noon_active : true
   })
 
   if (error) {
@@ -534,7 +546,7 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
   }
 
   // Only allow updating specific fields
-  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'is_active', 'amazon_active', 'noon_active']
+  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm', 'is_active', 'amazon_active', 'noon_active']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) {
@@ -584,8 +596,16 @@ async function handleAutoClassify(): Promise<Response> {
     })
   }
 
+  // Fetch demand metrics to get velocity
+  const { data: demandData } = await supabase
+    .from('demand_metrics')
+    .select('sku, blended_sv')
+
+  const demandMap = new Map<string, number>(demandData?.map((d: any) => [d.sku, d.blended_sv]) || [])
+
   const skus = ((data ?? []) as Record<string, unknown>[]).map(r => {
-    return { sku: r.sku as string, blended_sv: 0 }
+    const sku = r.sku as string
+    return { sku, blended_sv: demandMap.get(sku) || 0 }
   })
 
   // Sort by velocity descending (nulls/zeros fall to C naturally)

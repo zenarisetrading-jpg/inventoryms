@@ -321,8 +321,8 @@ export default function InventoryPage() {
                         else { setSortKey(col.key); setSortDir('desc') }
                       }}
                       className={`
-                        px-4 py-3 text-left cursor-pointer transition-all hover:bg-white/10 group border-b border-white/10
-                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] border-r border-white/10' : ''}
+                        px-4 py-3 text-left cursor-pointer transition-all border-b border-white/10 group
+                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] hover:bg-[#171B25] border-r border-white/10' : 'hover:bg-white/10'}
                       `}
                     >
                       <div className="flex items-center justify-between">
@@ -337,20 +337,20 @@ export default function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {processedData.map((row: any, idx) => (
-                  <tr key={idx} className={`group hover:bg-white/5 transition-colors ${row.is_active === false ? 'bg-white/5 opacity-40' : ''}`}>
+                  <tr key={idx} className="group hover:bg-white/5 transition-colors">
                     {columns.map((col, i) => (
                       <td
                         key={col.key}
                         style={{ width: col.width, minWidth: col.width }}
                         className={`
                           px-4 py-2 border-white/5 h-[48px]
-                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-white/5 border-r border-white/10' : ''}
+                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
                         `}
                       >
                         <span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
                             (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-primary' :
                               'font-semibold text-zinc-300'
-                          }`}>
+                          } ${row.is_active === false ? 'opacity-40' : ''}`}>
                           {renderCell(col.key, row[col.key])}
                         </span>
                       </td>

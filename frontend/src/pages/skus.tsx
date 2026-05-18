@@ -319,8 +319,8 @@ export default function SKUCatalog() {
                       key={col}
                       onClick={() => handleSort(col)}
                       className={`
-                        px-4 py-3 text-left border-b border-white/10 whitespace-nowrap cursor-pointer hover:bg-white/10 transition-colors group/header select-none
-                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] group-hover/header:bg-white/5 border-r border-white/10' : ''}
+                        px-4 py-3 text-left border-b border-white/10 whitespace-nowrap cursor-pointer transition-colors group/header select-none
+                        ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] hover:bg-[#171B25] border-r border-white/10' : 'hover:bg-white/10'}
                       `}
                     >
                       <div className="flex items-center gap-2">
@@ -352,7 +352,7 @@ export default function SKUCatalog() {
                         key={col}
                         className={`
                           px-4 py-2 border-white/5 h-[48px] whitespace-nowrap
-                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-white/5 border-r border-white/10' : ''}
+                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
                         `}
                       >
                         {col === 'is_active' || col === 'amazon_active' || col === 'noon_active' ? (

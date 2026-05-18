@@ -87,7 +87,7 @@ export async function fetchAmazonInventory(): Promise<
 // ---------------------------------------------------------------------------
 export async function fetchAmazonSales(
   days: number
-): Promise<{ asin: string; date: string; units_sold: number }[]> {
+): Promise<{ asin: string; date: string; units_sold: number; revenue: number }[]> {
   const pool = getPool()
   const conn = await pool.connect()
   const cutoff = new Date()
@@ -99,15 +99,17 @@ export async function fetchAmazonSales(
       asin: string
       report_date: string
       units_sold: number
+      revenue: number
     }>(`
       SELECT
-        child_asin            AS asin,
-        report_date::text     AS report_date,
-        SUM(units_ordered)    AS units_sold
+        child_asin                   AS asin,
+        report_date::text            AS report_date,
+        SUM(units_ordered)           AS units_sold,
+        SUM(COALESCE(ordered_revenue, 0)) AS revenue
       FROM sc_raw.sales_traffic
       WHERE account_id = $1
         AND report_date >= $2
-        AND units_ordered > 0
+        AND (units_ordered > 0 OR COALESCE(ordered_revenue, 0) > 0)
         AND child_asin IS NOT NULL
         AND child_asin <> ''
       GROUP BY child_asin, report_date
@@ -118,6 +120,7 @@ export async function fetchAmazonSales(
       asin:       String(r.asin),
       date:       String(r.report_date).slice(0, 10),
       units_sold: Number(r.units_sold) || 0,
+      revenue:    Number(r.revenue) || 0,
     }))
   } catch (err) {
     console.error('[saddl] fetchAmazonSales error:', err)

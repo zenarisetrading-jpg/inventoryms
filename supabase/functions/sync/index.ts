@@ -162,6 +162,21 @@ async function handleSync(
             errors.push(`sales_snapshot upsert: ${salesErr.message}`)
           }
         }
+
+        // --- NEW: Populate raw amazon_sales for fact table refresh ---
+        const rawSalesRows = sales.map(s => ({
+          report_date: s.date,
+          child_asin: s.asin,
+          units_ordered: s.units_sold,
+          ordered_revenue: s.revenue
+        }))
+
+        if (rawSalesRows.length > 0) {
+          const { error: rawErr } = await supabase
+            .from('amazon_sales')
+            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin' })
+          if (rawErr) console.error('[sync] amazon_sales upsert error:', rawErr)
+        }
       }
     } catch (err) {
       errors.push(`Amazon sync error: ${(err as Error).message}`)
@@ -335,38 +350,50 @@ async function handleSync(
 
 async function handleRefreshFact(): Promise<Response> {
   const supabase = getSupabaseAdmin()
-  const [res1, res2] = await Promise.all([
-    supabase.rpc('refresh_fact_inventory_planning'),
-    supabase.rpc('refresh_fact_sales_data')
-  ])
-
-  if (res1.error || res2.error) {
-    console.error('[sync] refresh_fact error:', res1.error || res2.error)
-    return jsonResponse({ error: res1.error?.message || res2.error?.message }, 500)
+  
+  console.log('[sync] Refreshing fact tables...')
+  
+  try {
+    // 1. Refresh Inventory Planning Fact
+    const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
+    if (err1) {
+      console.error('[sync] refresh_fact_inventory_planning error:', err1)
+      throw new Error(`Planning Refresh Error: ${err1.message}`)
+    }
+    
+    // 2. Refresh Sales Performance Fact (The new SCD Type 2 table)
+    const { error: err2 } = await supabase.rpc('refresh_fact_sales_data')
+    if (err2) {
+      console.error('[sync] refresh_fact_sales_data error:', err2)
+      // Fallback: Try raw SQL execution via utility function if RPC fails due to schema cache
+      const { error: errRaw } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_fact_sales_data()' })
+      if (errRaw) {
+        throw new Error(`Sales Refresh Error: ${err2.message} (Raw: ${errRaw.message})`)
+      }
+    }
+    
+    return jsonResponse({
+      status: 'ok',
+      message: 'All Fact tables refreshed successfully'
+    })
+  } catch (err: any) {
+    return jsonResponse({ error: err.message }, 500)
   }
-
-  return jsonResponse({
-    status: 'ok',
-    message: 'All Fact tables refreshed successfully'
-  })
 }
 
 async function handleAmazonFDW(): Promise<Response> {
   const supabase = getSupabaseAdmin()
   
-  // Call the FDW refresh function we created in the SQL setup
+  console.log('[sync] Refreshing Amazon FDW...')
+  
+  // Call the FDW refresh function
   const { error } = await supabase.rpc('refresh_amazon_sales_data')
 
   if (error) {
     console.error('[sync] refresh_amazon_sales_data error:', error)
-    // If the RPC fails, it might be because it's not a formal RPC but a raw function
-    // Try running it as raw SQL if RPC doesn't work
-    const { error: rawErr } = await supabase.from('amazon_sales').select('count(*)').limit(1)
-    if (rawErr) return jsonResponse({ error: error.message }, 500)
-    
     // Attempting raw execution via a workaround if RPC isn't defined as a Supabase RPC
-    const { error: execErr } = await supabase.rpc('execute_sql', { sql: 'SELECT refresh_amazon_sales_data()' })
-    if (execErr) return jsonResponse({ error: `Refresh failed: ${error.message}` }, 500)
+    const { error: execErr } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_amazon_sales_data()' })
+    if (execErr) return jsonResponse({ error: `Amazon Refresh failed: ${error.message}` }, 500)
   }
 
   return jsonResponse({
@@ -374,6 +401,7 @@ async function handleAmazonFDW(): Promise<Response> {
     message: 'Amazon Remote Data (FDW) refreshed successfully'
   })
 }
+
 
 // ---------------------------------------------------------------------------
 // handleStatus
@@ -420,6 +448,16 @@ async function handleStatus(): Promise<Response> {
 
   const latestNoonSynced = noonSalesLog?.[0]?.synced_at ?? null
 
+  // Noon Inventory — derive last upload date from the most recent noon_fbn or Minutes snapshot
+  const { data: noonInventoryLog } = await supabase
+    .from('inventory_snapshot')
+    .select('synced_at')
+    .in('node', ['noon_fbn', 'Minutes'])
+    .order('synced_at', { ascending: false })
+    .limit(1)
+
+  const latestNoonInventorySynced = noonInventoryLog?.[0]?.synced_at ?? null
+
   return jsonResponse({
     amazon: {
       status: amazonStatus.status,
@@ -437,6 +475,9 @@ async function handleStatus(): Promise<Response> {
     },
     noon_csv: {
       last_uploaded: latestNoonSynced,
+    },
+    noon_inventory: {
+      last_uploaded: latestNoonInventorySynced,
     },
   })
 }

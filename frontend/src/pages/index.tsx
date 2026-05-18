@@ -5,7 +5,7 @@ import { navigate } from '../lib/router'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { ActionFlagBadge } from '../components/shared/ActionFlagBadge'
 import { DrillDownModal } from '../components/DrillDownModal'
-import { Search, Download, RefreshCw, PlusCircle, ShieldAlert, AlertCircle, TrendingUp, Activity, Package, MoveRight, ChevronDown, ChevronUp, Clock, Calendar, DownloadCloud, CheckCircle, ArrowRight, LayoutDashboard, AlertTriangle, Receipt } from 'lucide-react'
+import { Search, Download, RefreshCw, PlusCircle, ShieldAlert, AlertCircle, TrendingUp, Activity, Package, MoveRight, ChevronDown, ChevronUp, Clock, Calendar, DownloadCloud, CheckCircle, ArrowRight, LayoutDashboard, AlertTriangle, Receipt, X } from 'lucide-react'
 import { ActionDropdown } from '../components/ActionDropdown'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 
@@ -506,14 +506,6 @@ export default function CommandCenter() {
             </div>
           </div>
           <button
-            onClick={handleRefreshFact}
-            disabled={refreshing || syncing}
-            className="flex-1 sm:flex-none px-6 py-3 text-[10px] lg:text-[11px] font-black border border-white/10 bg-white/5 text-white rounded-2xl hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh Hub'}
-          </button>
-          <button
             onClick={handleSyncAll}
             disabled={syncing || refreshing}
             className="flex-1 sm:flex-none px-6 py-3 text-[10px] lg:text-[11px] font-black border border-brand-blue/30 bg-brand-blue text-white rounded-2xl hover:shadow-xl hover:shadow-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
@@ -524,11 +516,31 @@ export default function CommandCenter() {
       </div>
 
       {syncError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-[11px] font-black px-5 py-3 rounded-2xl flex items-center gap-3 uppercase tracking-wider">
-          <AlertTriangle className="w-4 h-4" />
-          Protocol Error: {syncError}
+        <div className="relative group animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500/20 to-rose-600/20 rounded-2xl blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+          <div className="relative bg-[#0f172a]/80 backdrop-blur-xl border border-red-500/20 p-4 lg:p-5 rounded-2xl flex items-center justify-between gap-6 shadow-2xl overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-red-500 to-rose-600" />
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-1">Protocol Sync Error</h3>
+                <p className="text-[11px] lg:text-[12px] font-black text-white uppercase tracking-wider opacity-90 leading-tight">
+                  {syncError}
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSyncError(null)}
+              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-zinc-500 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
+
 
       {data && 'error' in data && (
         <div className="p-6 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-start gap-4 shadow-sm">

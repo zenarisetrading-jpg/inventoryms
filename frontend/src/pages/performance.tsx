@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { TrendingUp, BarChart3, Package, Calendar, ListFilter, Search, ChevronUp, ChevronDown, Filter, X, Check, Hash, LineChart as LineIcon, ShoppingCart, HeartPulse, PieChart as PieIcon, AlertTriangle, Layers } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { api } from '../lib/api'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { SalesPerformanceCard } from '../components/SalesPerformanceCard'
 import { MultiSelect } from '../components/shared/MultiSelect'
@@ -98,13 +99,18 @@ export default function PerformancePage() {
   const [hoverValuation, setHoverValuation] = useState<string | null>(null)
   const [hoverPo, setHoverPo] = useState<string | null>(null)
   const [summaryData, setSummaryData] = useState<any>(null)
+  const [mtdForecast, setMtdForecast] = useState<any>(null)
+  const [lastMonthSales, setLastMonthSales] = useState<any>(null)
   const [refreshingFact, setRefreshingFact] = useState(false)
 
   const handleRefreshFact = async () => {
     setRefreshingFact(true)
+    setError(null)
     try {
-      const { error } = await supabase.rpc('refresh_fact_sales_data')
-      if (error) throw error
+      // Use the central sync endpoint which has robustness and fallbacks
+      const res = await api.refreshFactTable()
+      if ((res as any).error) throw new Error((res as any).error)
+      
       await fetchData()
     } catch (err: any) {
       console.error('Refresh fact error:', err)
@@ -113,6 +119,7 @@ export default function PerformancePage() {
       setRefreshingFact(false)
     }
   }
+
 
   // Filters & Sorting
   const [search, setSearch] = useState('')
@@ -167,6 +174,12 @@ export default function PerformancePage() {
 
       const { data: summary } = await supabase.rpc('get_dashboard_sales_summary')
       if (summary) setSummaryData(summary)
+
+      const { data: forecastResult } = await supabase.rpc('get_mtd_forecast')
+      if (forecastResult) setMtdForecast(forecastResult)
+
+      const { data: lastMonthResult } = await supabase.rpc('get_last_month_sales')
+      if (lastMonthResult) setLastMonthSales(lastMonthResult)
 
     } catch (err: any) { 
       console.error('Fetch error:', err)
@@ -283,6 +296,17 @@ export default function PerformancePage() {
 
           <div className="h-8 w-px bg-white/10 hidden xl:block mx-1" />
 
+          {/* Refresh Data Button */}
+          <button
+            onClick={handleRefreshFact}
+            disabled={refreshingFact}
+            className="px-6 py-2.5 bg-brand-blue text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-colors shadow-lg shadow-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shrink-0"
+          >
+            {refreshingFact ? 'Refreshing...' : 'Refresh Data'}
+          </button>
+
+          <div className="h-8 w-px bg-white/10 hidden xl:block mx-1" />
+
           {/* Search Bar */}
           <div className="relative group w-full lg:max-w-xs xl:max-w-sm">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500 group-focus-within:text-brand-blue transition-colors" />
@@ -373,24 +397,29 @@ export default function PerformancePage() {
             <SalesPerformanceCard
               title="THIS MONTH FORECAST"
               dateRange="Projected"
-              sales={summaryData.mtd?.forecast_sales || 0}
-              orders={Math.round((summaryData.mtd?.orders || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
-              units={Math.round((summaryData.mtd?.units || 0) * (summaryData.mtd?.forecast_sales / (summaryData.mtd?.sales_aed || 1)))}
+              sales={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_sales || 0}
+              orders={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0}
+              units={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0}
               refunds={0}
               headerColor="bg-emerald-900/50"
+              breakdown={[
+                { label: 'AMAZON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_units || 0, color: 'bg-purple-500' }
+              ]}
             />
             <SalesPerformanceCard
               title="LAST MONTH"
               dateRange="Previous Full Month"
-              sales={summaryData.last_month?.sales_aed || 0}
-              orders={summaryData.last_month?.orders || 0}
-              units={summaryData.last_month?.units || 0}
+              sales={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_sales || 0}
+              orders={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0}
+              units={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0}
               refunds={0}
               headerColor="bg-indigo-900/50"
               breakdown={[
-                { label: 'AMAZON', sales: summaryData.last_month?.amazon_sales || 0, units: summaryData.last_month?.amazon_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: summaryData.last_month?.noon_sales || 0, units: summaryData.last_month?.noon_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: summaryData.last_month?.minutes_sales || 0, units: summaryData.last_month?.minutes_units || 0, color: 'bg-purple-500' }
+                { label: 'AMAZON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_units || 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_units || 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_units || 0, color: 'bg-purple-500' }
               ]}
             />
           </>
@@ -398,10 +427,10 @@ export default function PerformancePage() {
       </div>
 
       {/* ROW 1: Sales Velocity Trend (FULL WIDTH) */}
-      <div className="bg-card border-white/5 shadow-2xl relative overflow-hidden">
-        <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4 relative z-10">
-          <div className="p-2 sm:p-3 bg-indigo-50 rounded-2xl shrink-0"><LineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" /></div>
-          <div className="text-center md:text-left">
+      <div className="bg-card border-white/5 shadow-2xl relative overflow-hidden p-8 lg:p-10">
+        <div className="mb-6 sm:mb-10 flex flex-col items-center justify-center text-center relative z-10">
+          <div className="p-2 sm:p-3 bg-indigo-50 rounded-2xl shrink-0 mb-3 sm:mb-4"><LineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" /></div>
+          <div>
             <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Sales Velocity Trend</h3>
             <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Daily units per channel</p>
           </div>
@@ -436,9 +465,9 @@ export default function PerformancePage() {
 
       {/* ROW 2: Channel Mix Area Chart */}
       <div className="bg-card border-white/5 shadow-2xl p-8 lg:p-10">
-        <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
-          <div className="p-2 sm:p-3 bg-orange-50 rounded-2xl shrink-0"><PieIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" /></div>
-          <div className="text-center md:text-left">
+        <div className="mb-6 sm:mb-8 flex flex-col items-center justify-center text-center">
+          <div className="p-2 sm:p-3 bg-orange-50 rounded-2xl shrink-0 mb-3 sm:mb-4"><PieIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" /></div>
+          <div>
             <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Channel Mix</h3>
             <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Daily sales share %</p>
           </div>
@@ -459,10 +488,10 @@ export default function PerformancePage() {
       </div>
 
       {/* ROW 3: Top Sub-categories */}
-      <div className="bg-card border-white/5 shadow-2xl">
-        <div className="mb-6 sm:mb-10 flex items-center justify-center gap-3 sm:gap-4">
-          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0"><BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
-          <div className="text-center md:text-left">
+      <div className="bg-card border-white/5 shadow-2xl p-8 lg:p-10">
+        <div className="mb-6 sm:mb-10 flex flex-col items-center justify-center text-center">
+          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0 mb-3 sm:mb-4"><BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
+          <div>
             <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Sub-category Performance</h3>
             <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Volume breakdown by type</p>
           </div>
@@ -510,9 +539,9 @@ export default function PerformancePage() {
       {/* ROW 4: Detailed Performance Table */}
       <div className="relative z-10 bg-card border-white/5 shadow-2xl overflow-hidden">
         <div className="p-8 lg:p-10 border-b border-white/5">
-          <div className="flex items-center justify-center gap-4">
-            <div className="p-3 bg-brand-amber/10 rounded-2xl"><ListFilter className="w-6 h-6 text-brand-amber" /></div>
-            <div className="text-center">
+          <div className="flex flex-col items-center justify-center text-center">
+            <div className="p-3 bg-brand-amber/10 rounded-2xl mb-4"><ListFilter className="w-6 h-6 text-brand-amber" /></div>
+            <div>
               <h3 className="text-sm font-black text-primary uppercase tracking-wider">Detailed Performance Audit</h3>
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">SKU-level channel metrics • Data Explorer</p>
             </div>
@@ -521,7 +550,7 @@ export default function PerformancePage() {
 
         <div className="overflow-auto max-h-[420px] custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[1400px]">
-            <thead className="sticky top-0 z-20 bg-white/5 shadow-none border-white/10">
+            <thead className="sticky top-0 z-20 bg-[#111827] shadow-none border-white/10">
               <tr className="border-b border-zinc-200">
                 <th onClick={() => toggleSort('total_units')} className="px-6 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest w-16 cursor-pointer hover:text-brand-blue text-center">#</th>
                 <th onClick={() => toggleSort('category')} className="px-8 py-5 text-[11px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:text-brand-blue">Class</th>
@@ -563,10 +592,10 @@ export default function PerformancePage() {
       {/* ROW 5: Asset Valuation & PO Distribution */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* Valuation */}
-        <div className="bg-card border-white/5 shadow-2xl flex flex-col">
-          <div className="mb-10 flex items-center justify-center gap-4">
-            <div className="p-3 bg-brand-blue/10 rounded-2xl shrink-0"><TrendingUp className="w-6 h-6 text-brand-blue" /></div>
-            <div className="text-center md:text-left">
+        <div className="bg-card border-white/5 shadow-2xl flex flex-col p-8">
+          <div className="mb-10 flex flex-col items-center justify-center text-center">
+            <div className="p-3 bg-brand-blue/10 rounded-2xl shrink-0 mb-4"><TrendingUp className="w-6 h-6 text-brand-blue" /></div>
+            <div>
               <h3 className="text-sm font-black text-primary uppercase tracking-wider">Inventory Valuation</h3>
               <p className="text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">Asset value per node</p>
             </div>
@@ -608,9 +637,9 @@ export default function PerformancePage() {
 
         {/* PO Distribution */}
         <div className="bg-card border-white/5 shadow-2xl flex flex-col p-8">
-          <div className="mb-10 flex items-center justify-center gap-4">
-            <div className="p-3 bg-purple-50 rounded-2xl shrink-0"><ShoppingCart className="w-6 h-6 text-purple-600" /></div>
-            <div className="text-center md:text-left">
+          <div className="mb-10 flex flex-col items-center justify-center text-center">
+            <div className="p-3 bg-purple-50 rounded-2xl shrink-0 mb-4"><ShoppingCart className="w-6 h-6 text-purple-600" /></div>
+            <div>
               <h3 className="text-sm font-black text-white uppercase tracking-wider">Purchase Order Status</h3>
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Procurement lifecycle breakdown</p>
             </div>
@@ -662,9 +691,9 @@ export default function PerformancePage() {
 
       {/* ROW 6: Coverage Health (Logistical Audit) */}
       <div className="bg-card border-white/5 shadow-2xl p-8 lg:p-10">
-        <div className="mb-6 sm:mb-8 flex items-center justify-center gap-3 sm:gap-4">
-          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0"><HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
-          <div className="text-center md:text-left">
+        <div className="mb-6 sm:mb-8 flex flex-col items-center justify-center text-center">
+          <div className="p-2 sm:p-3 bg-emerald-50 rounded-2xl shrink-0 mb-3 sm:mb-4"><HeartPulse className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" /></div>
+          <div>
             <h3 className="text-xs sm:text-sm font-black text-primary uppercase tracking-wider">Coverage Health</h3>
             <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest opacity-60">Median days of stock • Global Audit</p>
           </div>

@@ -15,11 +15,8 @@ export function LoadingScreen({ message = 'Loading System Resources...', fullScr
         <div className="absolute inset-[-40px] border border-blue-500/5 rounded-full animate-[ping_3s_infinite_1s]" />
         
         {/* Logo Hexagon / Container */}
-        <div className="relative w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.15)] border border-blue-500/10 transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
-          <div className="transform -rotate-12 group-hover:rotate-0 transition-transform duration-500 flex flex-col items-center">
-            <span className="text-slate-950 font-black text-3xl italic tracking-tighter leading-none">Z</span>
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1 animate-bounce" />
-          </div>
+        <div className="relative w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.15)] border border-blue-500/10 transform rotate-12 group-hover:rotate-0 transition-transform duration-500 overflow-hidden">
+          <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-full h-full object-cover transform -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
           
           {/* Scanning Line */}
           <div className="absolute inset-0 overflow-hidden rounded-3xl">

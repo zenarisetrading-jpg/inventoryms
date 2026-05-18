@@ -64,11 +64,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-12">
-          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-white/10 group hover:rotate-3 transition-transform cursor-pointer" onClick={() => setMode('signin')}>
-            <span className="text-black font-black text-3xl italic">Z</span>
+          <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-white/10 group hover:rotate-3 transition-transform cursor-pointer overflow-hidden" onClick={() => setMode('signin')}>
+            <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter uppercase">
-            Zen<span className="text-blue-500">Ventory</span>
+            Saddl<span className="text-blue-500"> Inventory</span>
           </h1>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">
             Operations Management System

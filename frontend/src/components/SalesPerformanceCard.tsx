@@ -97,10 +97,6 @@ export function SalesPerformanceCard({
             ))}
           </div>
         )}
-
-        <button className="w-full mt-2 py-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest border-t border-white/5 hover:text-white transition-colors flex items-center justify-center gap-2">
-          Analytics Report <ArrowUpRight className="w-3 h-3" />
-        </button>
       </div>
     </div>
   );
