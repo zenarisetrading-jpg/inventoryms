@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import saddlLogo from '../assets/saddl_logo.jpg'
 import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, AlertCircle, Loader2, UserPlus, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
 type AuthMode = 'signin' | 'signup'
@@ -65,7 +66,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-12">
           <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-white/10 group hover:rotate-3 transition-transform cursor-pointer overflow-hidden" onClick={() => setMode('signin')}>
-            <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-full h-full object-cover" />
+            <img src={saddlLogo} alt="Saddl Logo" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tighter uppercase">
             Saddl<span className="text-blue-500"> Inventory</span>

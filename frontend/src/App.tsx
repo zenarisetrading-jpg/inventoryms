@@ -17,6 +17,7 @@ import { supabase } from './lib/supabase'
 import LoginPage from './pages/login'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/shared/LoadingScreen'
+import saddlLogo from './assets/saddl_logo.jpg'
 
 type Route =
   | { name: 'dashboard' }
@@ -107,7 +108,7 @@ export default function App() {
       `}>
         <div className={`h-14 px-6 flex items-center border-b border-white/5 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3">
-            <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
+            <img src={saddlLogo} alt="Saddl Logo" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
             {!isSidebarCollapsed && (
               <span className="text-white font-black tracking-tight text-xl animate-in fade-in duration-300">
                 Saddl<span className="text-blue-400"> Inventory</span>

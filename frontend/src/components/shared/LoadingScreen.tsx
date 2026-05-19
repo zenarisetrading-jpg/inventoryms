@@ -1,5 +1,6 @@
 import React from 'react'
 import { Loader2 } from 'lucide-react'
+import saddlLogo from '../../assets/saddl_logo.jpg'
 
 interface LoadingScreenProps {
   message?: string
@@ -16,7 +17,7 @@ export function LoadingScreen({ message = 'Loading System Resources...', fullScr
         
         {/* Logo Hexagon / Container */}
         <div className="relative w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-[0_0_50px_rgba(59,130,246,0.15)] border border-blue-500/10 transform rotate-12 group-hover:rotate-0 transition-transform duration-500 overflow-hidden">
-          <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-full h-full object-cover transform -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
+          <img src={saddlLogo} alt="Saddl Logo" className="w-full h-full object-cover transform -rotate-12 group-hover:rotate-0 transition-transform duration-500" />
           
           {/* Scanning Line */}
           <div className="absolute inset-0 overflow-hidden rounded-3xl">
