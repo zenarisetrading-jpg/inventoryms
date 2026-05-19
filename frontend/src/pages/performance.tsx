@@ -58,7 +58,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     // Attempt to parse date, fallback to raw label if not a date
     const dateParsed = Date.parse(label);
     const isDate = !isNaN(dateParsed) && label.toString().includes('-');
-    const displayLabel = isDate 
+    const displayLabel = isDate
       ? new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
       : label.toString().toUpperCase();
 
@@ -110,7 +110,7 @@ export default function PerformancePage() {
       // Use the central sync endpoint which has robustness and fallbacks
       const res = await api.refreshFactTable()
       if ((res as any).error) throw new Error((res as any).error)
-      
+
       await fetchData()
     } catch (err: any) {
       console.error('Refresh fact error:', err)
@@ -145,13 +145,13 @@ export default function PerformancePage() {
       }
 
       const [subResult, trendResult, detailedResult, poResult, covResult] = await Promise.all([
-        supabase.rpc('get_subcategory_performance', { 
+        supabase.rpc('get_subcategory_performance', {
           days_count: days,
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
           p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
         }),
-        supabase.rpc('get_sales_velocity_trend', { 
+        supabase.rpc('get_sales_velocity_trend', {
           days_count: days,
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
@@ -193,7 +193,7 @@ export default function PerformancePage() {
       })
       if (lastMonthResult) setLastMonthSales(lastMonthResult)
 
-    } catch (err: any) { 
+    } catch (err: any) {
       console.error('Fetch error:', err)
       setError(err.message || 'Failed to fetch performance data')
     }
@@ -233,10 +233,10 @@ export default function PerformancePage() {
     let result = [...detailedSales]
     if (search) {
       const s = search.toLowerCase()
-      result = result.filter(r => 
-        r.sku.toLowerCase().includes(s) || 
-        r.category.toLowerCase().includes(s) || 
-        r.product_category.toLowerCase().includes(s) || 
+      result = result.filter(r =>
+        r.sku.toLowerCase().includes(s) ||
+        r.category.toLowerCase().includes(s) ||
+        r.product_category.toLowerCase().includes(s) ||
         r.sub_category.toLowerCase().includes(s)
       )
     }
@@ -321,29 +321,29 @@ export default function PerformancePage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <MultiSelect 
-              label="Class" 
-              placeholder="ALL CLASSS"
+            <MultiSelect
+              label="Class"
+              placeholder="ALL CLASS"
               icon={Filter}
-              options={['A', 'B', 'C'].map(v => ({ label: `CATEGORY ${v}`, value: v }))} 
-              selected={selCategories} 
-              onChange={setSelCategories} 
+              options={['A', 'B', 'C'].map(v => ({ label: `CATEGORY ${v}`, value: v }))}
+              selected={selCategories}
+              onChange={setSelCategories}
             />
-            <MultiSelect 
-              label="Category" 
+            <MultiSelect
+              label="Category"
               placeholder="ALL CATEGORYS"
               icon={Filter}
-              options={Array.from(new Set(detailedSales.map(r => r.product_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))} 
-              selected={selProductCategories} 
-              onChange={setSelProductCategories} 
+              options={Array.from(new Set(detailedSales.map(r => r.product_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))}
+              selected={selProductCategories}
+              onChange={setSelProductCategories}
             />
-            <MultiSelect 
-              label="Sub Category" 
+            <MultiSelect
+              label="Sub Category"
               placeholder="ALL SUB-CATEGORYS"
               icon={Layers}
-              options={Array.from(new Set(detailedSales.map(r => r.sub_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))} 
-              selected={selSubCategories} 
-              onChange={setSelSubCategories} 
+              options={Array.from(new Set(detailedSales.map(r => r.sub_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))}
+              selected={selSubCategories}
+              onChange={setSelSubCategories}
             />
           </div>
         </div>
@@ -429,17 +429,17 @@ export default function PerformancePage() {
               <XAxis dataKey="date" hide />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 13, fontWeight: 900 }} />
               <ChartTooltip content={<CustomTooltip />} />
-              <Legend 
-                verticalAlign="top" 
-                height={window.innerWidth < 640 ? 100 : 60} 
-                iconType="circle" 
-                wrapperStyle={{ 
+              <Legend
+                verticalAlign="top"
+                height={window.innerWidth < 640 ? 100 : 60}
+                iconType="circle"
+                wrapperStyle={{
                   fontSize: window.innerWidth < 640 ? '8px' : '10px',
-                  fontWeight: 900, 
-                  textTransform: 'uppercase', 
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   paddingBottom: '20px'
-                }} 
+                }}
               />
               <Line type="monotone" dataKey="amazon" stroke={COLORS.amazon} strokeWidth={4} dot={false} name="AMAZON" />
               <Line type="monotone" dataKey="noon" stroke={COLORS.noon} strokeWidth={4} dot={false} name="NOON FBN" />
@@ -487,10 +487,10 @@ export default function PerformancePage() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={subcategoryData} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis 
-                dataKey="sub_category" 
-                axisLine={false} 
-                tickLine={false} 
+              <XAxis
+                dataKey="sub_category"
+                axisLine={false}
+                tickLine={false}
                 interval={0}
                 tick={(props: any) => {
                   const { x, y, payload } = props;
@@ -609,16 +609,16 @@ export default function PerformancePage() {
                 <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', paddingTop: '30px', color: '#94a3b8' }} />
               </PieChart>
             </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
-                <span className="text-[18px] font-black text-white font-data tracking-tight">
-                  {hoverValuation 
-                    ? aed(valuationData.find(d => d.node === hoverValuation)?.value_aed) 
-                    : aed(totalValuation)}
-                </span>
-                <span className="text-[8px] font-black text-white uppercase tracking-widest mt-1">
-                  {hoverValuation || 'Total Assets'}
-                </span>
-              </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
+              <span className="text-[18px] font-black text-white font-data tracking-tight">
+                {hoverValuation
+                  ? aed(valuationData.find(d => d.node === hoverValuation)?.value_aed)
+                  : aed(totalValuation)}
+              </span>
+              <span className="text-[8px] font-black text-white uppercase tracking-widest mt-1">
+                {hoverValuation || 'Total Assets'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -655,7 +655,7 @@ export default function PerformancePage() {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-12">
               <span className="text-[20px] font-black text-white font-data leading-none">
-                {hoverPo 
+                {hoverPo
                   ? (poStatusData.find(d => d.status === hoverPo)?.total_units || 0).toLocaleString()
                   : poStatusData.reduce((acc, curr) => acc + (curr.total_units || 0), 0).toLocaleString()}
               </span>
