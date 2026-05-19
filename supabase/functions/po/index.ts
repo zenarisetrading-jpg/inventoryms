@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { VALID_PO_TRANSITIONS } from '../_shared/types.ts'
 import type { POStatus } from '../_shared/types.ts'
+import { refreshAllMetrics } from '../_shared/velocity.ts'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -273,7 +274,7 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
   return handleDetail(po_number)
 }
 
-// DELETE /po/:id - close
+// DELETE /po/:id - delete completely
 async function handleDelete(id: string): Promise<Response> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase.from('fact_purchase').select('po_number').eq('id', id).maybeSingle()
@@ -281,11 +282,18 @@ async function handleDelete(id: string): Promise<Response> {
 
   const { error } = await supabase
     .from('fact_purchase')
-    .update({ status: 'closed', updated_at: new Date().toISOString() })
+    .delete()
     .eq('po_number', data.po_number)
 
-  if (error) return errorResponse('Close failed', 500, error.message)
-  return jsonResponse({ message: 'PO closed' })
+  if (error) return errorResponse('Delete failed', 500, error.message)
+
+  try {
+    await refreshAllMetrics(supabase)
+  } catch (err) {
+    console.error('[po delete] failed to refresh planning metrics:', err)
+  }
+
+  return jsonResponse({ message: 'PO deleted successfully' })
 }
 
 // GET /po/suppliers - unique supplier names

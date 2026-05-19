@@ -40,7 +40,6 @@ RETURNS void SECURITY DEFINER AS $$
 BEGIN
     -- CREATE TEMP STAGING TABLE
     DROP TABLE IF EXISTS temp_dedup_sales;
-    PERFORM refresh_amazon_sales_data();
     CREATE TEMP TABLE temp_dedup_sales AS
     SELECT *
     FROM (

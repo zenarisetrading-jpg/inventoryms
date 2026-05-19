@@ -111,6 +111,14 @@ export const api = {
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
+  deletePO: async (id: string): Promise<{ ok: boolean; error?: string }> =>
+    fetch(`${BASE}/po/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: await getHeaders(),
+    })
+      .then(r => handleResponse<{ ok: boolean }>(r))
+      .catch(err => ({ error: err.message } as unknown as { ok: boolean })),
+
   classifySkus: async (): Promise<{ ok: true; total_classified: number; A: number; B: number; C: number }> =>
     fetch(`${BASE}/skus/classify`, { method: 'POST', headers: await getHeaders() })
       .then(r => handleResponse<{ ok: true; total_classified: number; A: number; B: number; C: number }>(r))

@@ -610,23 +610,42 @@ export default function POPage() {
                       </td>
                       <td className="px-4 py-4"><StatusBadge status={po.status} /></td>
                       <td className="pl-4 pr-8 py-4 text-right" onClick={e => e.stopPropagation()}>
-                        <ActionDropdown 
-                          currentStatus={po.status}
-                          onStatusChange={async (newStatus) => {
-                            setAdvancingId(po.id);
-                            await api.updatePO(po.id, { status: newStatus as any });
-                            setAdvancingId(null);
-                            setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
-                          }}
-                          options={['draft', 'ordered', 'shipped', 'closed', 'cancelled']}
-                          colors={{
-                            draft: 'bg-slate-100 text-slate-500 border-slate-200',
-                            ordered: 'bg-blue-50 text-blue-600 border-blue-200',
-                            shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
-                            closed: 'bg-zinc-100 text-zinc-500 border-zinc-200',
-                            cancelled: 'bg-red-50 text-red-600 border-red-200'
-                          }}
-                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <ActionDropdown 
+                            currentStatus={po.status}
+                            onStatusChange={async (newStatus) => {
+                              setAdvancingId(po.id);
+                              await api.updatePO(po.id, { status: newStatus as any });
+                              setAdvancingId(null);
+                              setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
+                            }}
+                            options={['draft', 'ordered', 'shipped', 'closed', 'cancelled']}
+                            colors={{
+                              draft: 'bg-slate-100 text-slate-500 border-slate-200',
+                              ordered: 'bg-blue-50 text-blue-600 border-blue-200',
+                              shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
+                              closed: 'bg-zinc-100 text-zinc-500 border-zinc-200',
+                              cancelled: 'bg-red-50 text-red-600 border-red-200'
+                            }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Are you sure you want to permanently delete PO ${po.po_number}?`)) {
+                                const res = await api.deletePO(po.id);
+                                const resAny = res as any;
+                                if (resAny.error) {
+                                  alert('Failed to delete PO: ' + resAny.error);
+                                } else {
+                                  setPOs(prev => prev.filter(p => p.po_number !== po.po_number));
+                                }
+                              }
+                            }}
+                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10 transition-all shrink-0"
+                            title="Delete Purchase Order"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
 

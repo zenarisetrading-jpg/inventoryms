@@ -299,27 +299,39 @@ serve(async (req: Request) => {
 
     const groups = groupByPO(rows)
 
-    // Check which po_numbers already exist
+    // Check which po_numbers already exist in fact_purchase
     const allPONumbers = groups.map(g => g.po_number)
     const { data: existingPOs } = await supabase
-      .from('po_register')
-      .select('id, po_number')
+      .from('fact_purchase')
+      .select('po_number, sku')
       .in('po_number', allPONumbers)
 
-    const existingMap = new Map<string, string>(
-      ((existingPOs ?? []) as Record<string, string>[]).map((r) => [r.po_number, r.id])
-    )
+    const existingPOsSet = new Set<string>((existingPOs ?? []).map(r => r.po_number))
+    const existingSkuByPo = new Map<string, Set<string>>()
+    for (const row of (existingPOs ?? []) as { po_number: string; sku: string }[]) {
+      if (!existingSkuByPo.has(row.po_number)) {
+        existingSkuByPo.set(row.po_number, new Set())
+      }
+      existingSkuByPo.get(row.po_number)!.add(normalizeSkuKey(row.sku))
+    }
+
     const skippedPos: string[] = []
-    const toCreate = groups.filter(g => !existingMap.has(g.po_number))
-    const toMerge = groups.filter(g => existingMap.has(g.po_number))
+    const toCreate = groups.filter(g => !existingPOsSet.has(g.po_number))
+    const toMerge = groups.filter(g => existingPOsSet.has(g.po_number))
 
     // Validate SKUs across all uploaded POs
     const allSkusRaw = [...new Set(groups.flatMap(g => g.line_items.map(li => li.sku)))]
-    const { data: skuMasterRows } = await supabase.from('sku_master').select('sku')
+    const { data: skuMasterRows } = await supabase.from('sku_master').select('sku, units_per_box, dimensions, cogs')
     const canonicalByNorm = new Map<string, string>()
-    for (const row of (skuMasterRows ?? []) as Record<string, string>[]) {
+    const skuMetadata = new Map<string, { units_per_box?: number; dimensions?: string; cogs?: number }>()
+    for (const row of (skuMasterRows ?? []) as any[]) {
       const canonical = row.sku
       canonicalByNorm.set(normalizeSkuKey(canonical), canonical)
+      skuMetadata.set(normalizeSkuKey(canonical), {
+        units_per_box: row.units_per_box,
+        dimensions: row.dimensions,
+        cogs: row.cogs,
+      })
     }
 
     const unknownSkus = allSkusRaw.filter((s) => !canonicalByNorm.has(normalizeSkuKey(s)))
@@ -333,22 +345,6 @@ serve(async (req: Request) => {
     const createdPOs: string[] = []
     const mergedPOs: string[] = []
     const failedPOs: { po_number: string; reason: string }[] = []
-
-    // Preload existing line-item SKUs for merge targets.
-    const existingIds = toMerge
-      .map((g) => existingMap.get(g.po_number))
-      .filter((id): id is string => Boolean(id))
-    const existingLineSkuByPoId = new Map<string, Set<string>>()
-    if (existingIds.length > 0) {
-      const { data: existingLines } = await supabase
-        .from('po_line_items')
-        .select('po_id, sku')
-        .in('po_id', existingIds)
-      for (const row of (existingLines ?? []) as { po_id: string; sku: string }[]) {
-        if (!existingLineSkuByPoId.has(row.po_id)) existingLineSkuByPoId.set(row.po_id, new Set())
-        existingLineSkuByPoId.get(row.po_id)!.add(normalizeSkuKey(row.sku))
-      }
-    }
 
     for (const group of toCreate) {
       const validItems = group.line_items
@@ -371,39 +367,36 @@ serve(async (req: Request) => {
         continue
       }
 
-      // Insert PO header
-      const { data: newPO, error: poErr } = await supabase
-        .from('po_register')
-        .insert({
+      // Insert multiple rows into fact_purchase
+      const rowsToInsert = validItems.map(li => {
+        const meta = skuMetadata.get(normalizeSkuKey(li.sku))
+        const units_per_box = meta?.units_per_box ?? null
+        const box_count = units_per_box && units_per_box > 0 ? (li.units_ordered / units_per_box) : null
+        
+        return {
           po_number: group.po_number,
+          po_name: group.notes ? group.notes.substring(0, 100) : '',
           supplier: group.supplier,
           order_date: group.order_date,
           eta: group.eta,
-          status: group.status,
+          status: group.status || 'ordered',
           notes: group.notes || null,
-        })
-        .select('id')
-        .single()
-
-      if (poErr || !newPO) {
-        failedPOs.push({ po_number: group.po_number, reason: poErr?.message ?? 'Insert failed' })
-        continue
-      }
-
-      // Insert line items
-      const { error: liErr } = await supabase.from('po_line_items').insert(
-        validItems.map(li => ({
-          po_id: newPO.id,
           sku: li.sku,
           units_ordered: li.units_ordered,
           units_received: li.units_received,
-        }))
-      )
+          units_per_box,
+          box_count,
+          dimensions: meta?.dimensions ?? null,
+          cogs_per_unit: meta?.cogs ?? null,
+        }
+      })
 
-      if (liErr) {
-        // Roll back PO header
-        await supabase.from('po_register').delete().eq('id', newPO.id)
-        failedPOs.push({ po_number: group.po_number, reason: liErr.message })
+      const { error: insertErr } = await supabase
+        .from('fact_purchase')
+        .insert(rowsToInsert)
+
+      if (insertErr) {
+        failedPOs.push({ po_number: group.po_number, reason: insertErr.message })
         continue
       }
 
@@ -415,9 +408,7 @@ serve(async (req: Request) => {
     }
 
     for (const group of toMerge) {
-      const poId = existingMap.get(group.po_number)
-      if (!poId) continue
-      const existingSkuSet = existingLineSkuByPoId.get(poId) ?? new Set<string>()
+      const existingSkuSet = existingSkuByPo.get(group.po_number) ?? new Set<string>()
       const mappedItems = group.line_items
         .map((li) => {
           const canonical = canonicalByNorm.get(normalizeSkuKey(li.sku))
@@ -441,14 +432,52 @@ serve(async (req: Request) => {
         continue
       }
 
-      const { error: mergeErr } = await supabase.from('po_line_items').insert(
-        toInsert.map((li) => ({
-          po_id: poId,
+      // Fetch metadata from one of the existing rows for this po_number
+      const { data: firstRow } = await supabase
+        .from('fact_purchase')
+        .select('*')
+        .eq('po_number', group.po_number)
+        .limit(1)
+        .maybeSingle()
+
+      const header = firstRow || {
+        po_name: '',
+        supplier: group.supplier,
+        order_date: group.order_date,
+        eta: group.eta,
+        status: group.status || 'ordered',
+        notes: group.notes || null,
+        tracking_number: null,
+      }
+
+      const rowsToInsert = toInsert.map((li) => {
+        const meta = skuMetadata.get(normalizeSkuKey(li.sku))
+        const units_per_box = meta?.units_per_box ?? null
+        const box_count = units_per_box && units_per_box > 0 ? (li.units_ordered / units_per_box) : null
+
+        return {
+          po_number: group.po_number,
+          po_name: header.po_name,
+          supplier: header.supplier,
+          order_date: header.order_date,
+          eta: header.eta,
+          status: header.status,
+          tracking_number: header.tracking_number,
+          notes: header.notes,
           sku: li.sku,
           units_ordered: li.units_ordered,
           units_received: li.units_received,
-        }))
-      )
+          units_per_box,
+          box_count,
+          dimensions: meta?.dimensions ?? null,
+          cogs_per_unit: meta?.cogs ?? null,
+        }
+      })
+
+      const { error: mergeErr } = await supabase
+        .from('fact_purchase')
+        .insert(rowsToInsert)
+
       if (mergeErr) {
         failedPOs.push({ po_number: group.po_number, reason: `Merge failed: ${mergeErr.message}` })
         continue
