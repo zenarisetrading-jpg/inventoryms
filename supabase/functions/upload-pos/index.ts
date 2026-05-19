@@ -30,7 +30,7 @@ interface POGroup {
   eta: string
   status: string
   notes: string
-  line_items: { sku: string; units_ordered: number; units_received: number }[]
+  line_items: { sku: string; units_ordered: number; units_received: number; notes: string }[]
 }
 
 const VALID_STATUSES = new Set(['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed'])
@@ -234,22 +234,33 @@ function groupByPO(rows: ParsedRow[]): POGroup[] {
         notes: row.notes,
         line_items: [],
       })
+    } else {
+      const existing = map.get(row.po_number)!
+      if (!existing.notes && row.notes) {
+        existing.notes = row.notes
+      }
     }
     map.get(row.po_number)!.line_items.push({
       sku: row.sku,
       units_ordered: row.units_ordered,
       units_received: row.units_received,
+      notes: row.notes,
     })
   }
   // Collapse duplicate SKU rows within the same PO into one line item for idempotent imports.
   return Array.from(map.values()).map((g) => {
-    const bySku = new Map<string, { sku: string; units_ordered: number; units_received: number }>()
+    const bySku = new Map<string, { sku: string; units_ordered: number; units_received: number; notes: string }>()
     for (const li of g.line_items) {
       const key = normalizeSkuKey(li.sku)
       const existing = bySku.get(key)
       if (existing) {
         existing.units_ordered += li.units_ordered
         existing.units_received += li.units_received
+        if (li.notes && !existing.notes) {
+          existing.notes = li.notes
+        } else if (li.notes && existing.notes && !existing.notes.includes(li.notes)) {
+          existing.notes = `${existing.notes}; ${li.notes}`
+        }
       } else {
         bySku.set(key, { ...li })
       }
@@ -355,9 +366,10 @@ serve(async (req: Request) => {
             sku: canonical,
             units_ordered: li.units_ordered,
             units_received: li.units_received,
+            notes: li.notes,
           }
         })
-        .filter((li): li is { sku: string; units_ordered: number; units_received: number } => li !== null)
+        .filter((li): li is { sku: string; units_ordered: number; units_received: number; notes: string } => li !== null)
       const invalidSkus = group.line_items
         .filter((li) => !canonicalByNorm.has(normalizeSkuKey(li.sku)))
         .map((li) => li.sku)
@@ -380,7 +392,7 @@ serve(async (req: Request) => {
           order_date: group.order_date,
           eta: group.eta,
           status: group.status || 'ordered',
-          notes: group.notes || null,
+          notes: li.notes || null,
           sku: li.sku,
           units_ordered: li.units_ordered,
           units_received: li.units_received,
@@ -417,9 +429,10 @@ serve(async (req: Request) => {
             sku: canonical,
             units_ordered: li.units_ordered,
             units_received: li.units_received,
+            notes: li.notes,
           }
         })
-        .filter((li): li is { sku: string; units_ordered: number; units_received: number } => li !== null)
+        .filter((li): li is { sku: string; units_ordered: number; units_received: number; notes: string } => li !== null)
 
       if (mappedItems.length === 0) {
         failedPOs.push({ po_number: group.po_number, reason: 'No valid SKUs to merge' })
@@ -463,7 +476,7 @@ serve(async (req: Request) => {
           eta: header.eta,
           status: header.status,
           tracking_number: header.tracking_number,
-          notes: header.notes,
+          notes: li.notes || header.notes || null,
           sku: li.sku,
           units_ordered: li.units_ordered,
           units_received: li.units_received,

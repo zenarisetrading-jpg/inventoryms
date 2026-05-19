@@ -137,6 +137,8 @@ export default function OperationsHub() {
   const [loading, setLoading] = useState(true)
   const [showMappingModal, setShowMappingModal] = useState(false)
   const [triggerLoading, setTriggerLoading] = useState(false)
+  const [showGuide, setShowGuide] = useState(true)
+  const [masterStep, setMasterStep] = useState<'amazon-saddl' | 'amazon-fdw' | 'fact-tables' | null>(null)
 
   // Upload States
   const [locadState, setLocadState] = useState<{loading: boolean, error: string|null, result: UploadLocadResponse|null}>({loading: false, error: null, result: null})
@@ -186,6 +188,31 @@ export default function OperationsHub() {
     loadData()
   }
 
+  const handleMasterRefresh = async () => {
+    setTriggerLoading(true)
+    setMasterStep('amazon-saddl')
+    try {
+      // Step 1: Sync Amazon Sales & Inventory (Saddl) -> refreshes amazon_sales
+      await api.triggerSync('amazon')
+      
+      // Step 2: Refresh Remote Amazon (FDW)
+      setMasterStep('amazon-fdw')
+      await api.triggerAmazonFDW()
+      
+      // Step 3: Refresh Fact Tables (fact_sales, fact_inventory_planning, etc.)
+      setMasterStep('fact-tables')
+      await api.refreshFactTable()
+      
+      setMasterStep(null)
+      loadData()
+    } catch (err) {
+      console.error('Master refresh error:', err)
+      setMasterStep(null)
+    } finally {
+      setTriggerLoading(false)
+    }
+  }
+
   if (loading && !syncStatus) return <LoadingScreen message="Initializing Operations Hub..." />
 
   const healthRows = syncStatus ? buildHealthRows(syncStatus) : []
@@ -221,43 +248,72 @@ export default function OperationsHub() {
           </div>
           
           <button
-            onClick={handleForceSync}
+            onClick={handleMasterRefresh}
             disabled={triggerLoading}
-            className="flex items-center gap-3 px-6 py-3.5 bg-brand-blue text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-brand-blue/90 shadow-xl shadow-brand-blue/20 transition-all active:scale-95"
+            className="flex items-center gap-3 px-6 py-3.5 bg-gradient-to-r from-brand-blue to-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:from-brand-blue/90 hover:to-indigo-600/90 shadow-xl shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
-            Sync Saddl
+            {triggerLoading ? (
+              masterStep === 'amazon-saddl' ? 'Step 1/3: Syncing Saddl...' :
+              masterStep === 'amazon-fdw' ? 'Step 2/3: Refreshing FDW...' :
+              'Step 3/3: Recomputing Facts...'
+            ) : 'Master Ecosystem Refresh'}
           </button>
 
           <button
-            onClick={async () => {
-              setTriggerLoading(true)
-              await api.triggerAmazonFDW()
-              setTriggerLoading(false)
-              loadData()
-            }}
-            disabled={triggerLoading}
-            className="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 shadow-xl shadow-emerald-600/20 transition-all active:scale-95"
+            onClick={() => setShowGuide(!showGuide)}
+            className="flex items-center justify-center p-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 transition-all active:scale-95"
+            title="Toggle Guide"
           >
-            <Database className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
-            Refresh Remote Amazon
-          </button>
-
-          <button
-            onClick={async () => {
-              setTriggerLoading(true)
-              await api.refreshFactTable()
-              setTriggerLoading(false)
-              loadData()
-            }}
-            disabled={triggerLoading}
-            className="flex items-center gap-3 px-6 py-3.5 bg-zinc-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-700 shadow-xl shadow-black/20 transition-all active:scale-95 border border-white/5"
-          >
-            <Zap className={`h-4 w-4 ${triggerLoading ? 'animate-spin' : ''}`} />
-            Refresh Dashboard Metrics
+            <Activity className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {/* ECOSYSTEM SYNC OPERATIONS GUIDE */}
+      {showGuide && (
+        <div className="bg-slate-900/60 border border-white/10 rounded-2xl p-6 relative overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300">
+          <button 
+            onClick={() => setShowGuide(false)} 
+            className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-brand-blue" />
+            Ecosystem Sync Operations Guide
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-brand-blue" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Step 1: Amazon API Sync</span>
+              </div>
+              <p className="text-[10px] text-zinc-400 font-bold uppercase leading-relaxed tracking-wide">
+                Pulls live FBA inventory and the last 90 days of FBA sales from the **Saddl API**, writing directly to the `amazon_sales`, `inventory_snapshot`, and `sales_snapshot` tables.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Step 2: Remote Amazon Sync</span>
+              </div>
+              <p className="text-[10px] text-zinc-400 font-bold uppercase leading-relaxed tracking-wide">
+                Executes the `refresh_amazon_sales_data` procedure to pull/sync the latest Amazon sales data from remote external connections (such as Foreign Data Wrappers) if configured.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">Step 3: Fact Pipeline Run</span>
+              </div>
+              <p className="text-[10px] text-zinc-400 font-bold uppercase leading-relaxed tracking-wide">
+                Triggers `refresh_fact_sales_data()` (incremental SCD Type 2) and `refresh_fact_inventory_planning()`. Recomputes all dashboard performance cards, trends, and inventory plans.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 2x2 GRID SYSTEM */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">

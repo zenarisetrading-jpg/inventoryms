@@ -189,6 +189,12 @@ export default function POPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [activeTab, search])
+
   const [advancingId, setAdvancingId] = useState<string | null>(null)
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'po_number', direction: 'desc' })
   const slideOverRef = useRef<HTMLDivElement>(null)
@@ -494,6 +500,21 @@ export default function POPage() {
         <table className="w-full table-fixed text-sm min-w-[1000px] lg:min-w-0">
           <thead className="bg-white/5 border-white/10">
             <tr className="bg-white/5">
+              <th className="w-[4%] text-center px-4 py-3 border-b border-white/10">
+                <input
+                  type="checkbox"
+                  className="rounded border-white/20 bg-white/5 text-brand-amber focus:ring-brand-amber focus:ring-offset-0 focus:outline-none cursor-pointer w-3.5 h-3.5"
+                  checked={filteredPOs.length > 0 && filteredPOs.every(po => selectedIds.has(po.id))}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(new Set(filteredPOs.map(po => po.id)))
+                    } else {
+                      setSelectedIds(new Set())
+                    }
+                  }}
+                  onClick={e => e.stopPropagation()}
+                />
+              </th>
               <th className="w-[3%] text-center px-4 py-3" />
               <th 
                 className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
@@ -502,7 +523,7 @@ export default function POPage() {
                 PO ID {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[15%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="w-[16%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('supplier')}
               >
                 Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -532,20 +553,20 @@ export default function POPage() {
                 ETA {sortConfig?.key === 'eta' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[10%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="w-[11%] text-left px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('status')}
               >
                 Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="w-[10%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-white/10">Action</th>
+              <th className="w-[12%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-white/10">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-transparent">
             {loading ? (
-              <><SkeletonRow cols={9} /><SkeletonRow cols={9} /><SkeletonRow cols={9} /></>
+              <><SkeletonRow cols={10} /><SkeletonRow cols={10} /><SkeletonRow cols={10} /></>
             ) : filteredPOs.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-sm text-zinc-400 text-center">
+                <td colSpan={10} className="px-4 py-8 text-sm text-zinc-400 text-center">
                   {search ? 'No purchase orders match your search' : 'No purchase orders found'}
                 </td>
               </tr>
@@ -561,6 +582,24 @@ export default function POPage() {
                       className="hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5"
                       onClick={() => setExpandedId(isExpanded ? null : po.id)}
                     >
+                      <td className="px-4 py-4 text-center" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="rounded border-white/20 bg-white/5 text-brand-amber focus:ring-brand-amber focus:ring-offset-0 focus:outline-none cursor-pointer w-3.5 h-3.5"
+                          checked={selectedIds.has(po.id)}
+                          onChange={() => {
+                            setSelectedIds(prev => {
+                              const next = new Set(prev)
+                              if (next.has(po.id)) {
+                                next.delete(po.id)
+                              } else {
+                                next.add(po.id)
+                              }
+                              return next
+                            })
+                          }}
+                        />
+                      </td>
                       <td className="px-3 py-2.5 text-center text-zinc-500 text-xs">
                         {isExpanded ? '▼' : '▶'}
                       </td>
@@ -652,6 +691,7 @@ export default function POPage() {
                     {/* Expanded row */}
                     {isExpanded && (
                       <tr key={`${po.id}-expanded`} className="bg-white/5 border-b border-white/5">
+                        <td colSpan={2} />
                         <td colSpan={8} className="px-8 py-6">
                           <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-4">Line Items Breakdown</div>
                           <table className="w-full text-left border-collapse">
@@ -961,6 +1001,85 @@ export default function POPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-5 px-6 py-4 bg-[#111] border border-white/10 rounded-2xl shadow-2xl shadow-black/80 animate-in fade-in slide-in-from-bottom-4">
+          <span className="text-xs font-black text-white uppercase tracking-wider">
+            {selectedIds.size} Selected
+          </span>
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Bulk Update Status */}
+          <div onClick={e => e.stopPropagation()} className="relative">
+            <ActionDropdown
+              currentStatus=""
+              placeholder="UPDATE STATUS"
+              onStatusChange={async (newStatus) => {
+                if (confirm(`Are you sure you want to change the status of ${selectedIds.size} PO(s) to ${newStatus}?`)) {
+                  setLoading(true)
+                  try {
+                    const ids = Array.from(selectedIds)
+                    await Promise.all(ids.map(id => api.updatePO(id, { status: newStatus as any })))
+                    load(activeTab || undefined)
+                    setSelectedIds(new Set())
+                  } catch (err: any) {
+                    alert('Failed to update PO statuses: ' + err.message)
+                  } finally {
+                    setLoading(false)
+                  }
+                }
+              }}
+              options={['draft', 'ordered', 'shipped', 'closed', 'cancelled']}
+              colors={{
+                draft: 'bg-slate-100 text-slate-500 border-slate-200',
+                ordered: 'bg-blue-50 text-blue-600 border-blue-200',
+                shipped: 'bg-brand-blue/10 text-brand-blue border-brand-blue/20',
+                closed: 'bg-zinc-100 text-zinc-500 border-zinc-200',
+                cancelled: 'bg-red-50 text-red-600 border-red-200'
+              }}
+            />
+          </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Bulk Delete */}
+          <button
+            onClick={async () => {
+              if (confirm(`Are you sure you want to permanently delete the ${selectedIds.size} selected purchase order(s)?`)) {
+                setLoading(true)
+                try {
+                  const ids = Array.from(selectedIds)
+                  const results = await Promise.all(ids.map(id => api.deletePO(id)))
+                  const errors = results.filter((res: any) => res?.error)
+                  if (errors.length > 0) {
+                    alert(`Failed to delete some POs: ${errors.map((e: any) => e.error).join(', ')}`)
+                  }
+                  load(activeTab || undefined)
+                  setSelectedIds(new Set())
+                } catch (err: any) {
+                  alert('Failed to delete POs: ' + err.message)
+                } finally {
+                  setLoading(false)
+                }
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete Selected
+          </button>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Clear Selection */}
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="px-3 py-2 text-[10px] font-black text-zinc-400 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
         </div>
       )}
 

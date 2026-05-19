@@ -7,6 +7,7 @@ interface ActionDropdownProps {
   options?: string[];
   colors?: Record<string, string>;
   showArrow?: boolean;
+  placeholder?: string;
 }
 
 const DEFAULT_STATUSES = ['Shipment planning', 'Sent to FBA', 'Sent to FBN', 'Sent to Both'];
@@ -22,15 +23,16 @@ export function ActionDropdown({
   onStatusChange, 
   options = DEFAULT_STATUSES, 
   colors = DEFAULT_COLORS,
-  showArrow = true
+  showArrow = true,
+  placeholder = 'Select Status'
 }: ActionDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
-  const statusLower = currentStatus.toLowerCase();
+  const statusLower = currentStatus ? currentStatus.toLowerCase() : '';
   // Try to find a matching color key (case-insensitive)
-  const colorKey = Object.keys(colors).find(k => k.toLowerCase() === statusLower) || options[0];
-  const activeColor = colors[colorKey] || 'bg-slate-100 text-slate-500 border-slate-200';
+  const colorKey = statusLower ? (Object.keys(colors).find(k => k.toLowerCase() === statusLower) || options[0]) : '';
+  const activeColor = colorKey ? (colors[colorKey] || 'bg-slate-100 text-slate-500 border-slate-200') : 'bg-white/5 text-zinc-400 border-white/10 hover:bg-white/10 hover:text-white';
 
   return (
     <div className="relative inline-block">
@@ -41,7 +43,7 @@ export function ActionDropdown({
       >
         <div className="flex items-center gap-1.5 truncate mr-1">
           {showArrow && (statusLower.startsWith('sent to') || statusLower === 'shipment planning') && <span className="text-[14px] leading-none shrink-0">→</span>}
-          <span className="truncate">{currentStatus}</span>
+          <span className="truncate">{currentStatus || placeholder}</span>
         </div>
         <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>

@@ -37,14 +37,14 @@ export function SalesPerformanceCard({
     val.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <div className="flex flex-col bg-[#1A1A1A] rounded-2xl overflow-hidden shadow-2xl border border-white/5 min-w-[260px] flex-1 transition-all hover:border-white/10">
+    <div className="flex flex-col bg-[#1A1A1A] rounded-2xl overflow-hidden shadow-2xl border border-white/5 w-full min-w-0 transition-all hover:border-white/10">
       {/* Header */}
-      <div className={`${headerColor} px-4 py-3 text-white`}>
+      <div className={`${headerColor} px-4 py-3.5 text-white`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
-              <h3 className="text-[11px] font-black tracking-tight">{title}</h3>
-              <p className="text-[9px] font-bold opacity-70 uppercase tracking-wider">{dateRange}</p>
+              <h3 className="text-[13px] font-black uppercase tracking-tight text-white">{title}</h3>
+              <p className="text-[10px] font-bold opacity-90 uppercase tracking-wider">{dateRange}</p>
             </div>
           </div>
           {growth !== undefined && (
@@ -60,12 +60,12 @@ export function SalesPerformanceCard({
       <div className="p-4 space-y-4">
         {/* Main Sales Metric */}
         <div>
-          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Total Sales</span>
+          <span className="text-[10px] font-black text-white uppercase tracking-widest block mb-1">Total Sales</span>
           <div className="flex items-baseline gap-1">
-            <h2 className="text-2xl font-black text-white font-data tracking-tighter">
+            <h2 className="text-3xl font-black text-white font-data tracking-tighter">
               {formatCurrency(sales)}
             </h2>
-            <span className="text-sm font-black text-white/40">AED</span>
+            <span className="text-sm font-black text-white">AED</span>
           </div>
         </div>
         
@@ -77,24 +77,35 @@ export function SalesPerformanceCard({
 
         {/* Channel Breakdown */}
         {breakdown && breakdown.length > 0 && (
-          <div className="pt-4 border-t border-white/5 space-y-2">
-            <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Marketplace Split</span>
-            {breakdown.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between group/item">
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${item.color}`} />
-                  <span className="text-[9px] font-bold text-zinc-400 group-hover/item:text-white transition-colors uppercase">{item.label}</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-white font-data leading-none mb-0.5">
-                    {formatCurrency(item.sales)} <span className="text-[7px] text-zinc-600 ml-0.5">AED</span>
-                  </p>
-                  <p className="text-[8px] font-bold text-zinc-500 leading-none">
-                    {item.units} <span className="text-[7px] opacity-40 lowercase">units</span>
-                  </p>
-                </div>
-              </div>
-            ))}
+          <div className="pt-4 border-t border-white/5 space-y-3">
+            <span className="text-[9px] font-black text-white uppercase tracking-widest block mb-1">Marketplace Split</span>
+            
+            <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2 items-center">
+              {/* Table Headers */}
+              <div className="text-[9px] font-black text-white uppercase tracking-wider text-left">Marketplace</div>
+              <div className="text-[9px] font-black text-white uppercase tracking-wider text-right">Sales (AED)</div>
+              <div className="text-[9px] font-black text-white uppercase tracking-wider text-right">Units</div>
+
+              {breakdown.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  {/* Col 1: Channel */}
+                  <div className="flex items-center gap-2 text-left min-w-0">
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.color}`} />
+                    <span className="text-[10px] font-bold text-white uppercase truncate">{item.label}</span>
+                  </div>
+
+                  {/* Col 2: Sales */}
+                  <div className="text-[12px] font-black text-white font-data text-right">
+                    {formatCurrency(item.sales)}
+                  </div>
+
+                  {/* Col 3: Units */}
+                  <div className="text-[12px] font-black text-white font-data text-right">
+                    {item.units.toLocaleString()}
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -111,9 +122,9 @@ function MetricBox({ label, value, isCurrency, valueColor = "text-white" }: {
 }) {
   return (
     <div className="space-y-0.5">
-      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">{label}</p>
-      <p className={`text-xs font-black font-data ${valueColor}`}>
-        {value} {isCurrency && <span className="text-[9px] opacity-40 ml-0.5">AED</span>}
+      <p className="text-[10px] font-bold text-white uppercase tracking-widest">{label}</p>
+      <p className={`text-sm font-black font-data ${valueColor}`}>
+        {value} {isCurrency && <span className="text-[10px] opacity-70 ml-0.5">AED</span>}
       </p>
     </div>
   );

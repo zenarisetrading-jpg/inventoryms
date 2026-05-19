@@ -269,7 +269,7 @@ function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; mes
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className={`px-4 py-3 text-[10px] font-black text-zinc-400 uppercase tracking-[0.1em] ${right ? 'text-right' : 'text-left'}`}
+      className="px-4 py-3 text-[10px] font-black text-white uppercase tracking-[0.1em] text-center"
     >
       {children}
     </th>
@@ -280,7 +280,7 @@ function SKULink({ sku }: { sku: string }) {
   return (
     <button
       onClick={() => navigate('/sku/' + sku)}
-      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-0.5 rounded border"
+      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-0.5 rounded border group-hover:text-white group-hover:font-bold group-hover:bg-brand-blue/30"
     >
       {sku}
     </button>
@@ -489,9 +489,9 @@ export default function CommandCenter() {
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <LayoutDashboard className="w-3.5 h-3.5 text-brand-blue" />
-            <span className="text-[9px] lg:text-[10px] font-black text-muted uppercase tracking-[0.2em]">Regional Logistics Controller</span>
+            <span className="text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.2em]">Regional Logistics Controller</span>
             {data?.last_synced && (
-              <span className="text-[9px] lg:text-[10px] font-bold text-muted/60 flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
+              <span className="text-[9px] lg:text-[10px] font-bold text-white flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
                 Systems Sync: {formatRelativeTime(data.last_synced)}
               </span>
             )}
@@ -499,7 +499,7 @@ export default function CommandCenter() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col items-start lg:items-end mr-2">
-            <span className="text-[9px] font-black text-muted uppercase tracking-widest">Global Status</span>
+            <span className="text-[9px] font-black text-white uppercase tracking-widest">Global Status</span>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-200 animate-pulse" />
               <span className="text-[10px] font-black text-primary uppercase">Amazon API Live</span>
@@ -661,7 +661,7 @@ export default function CommandCenter() {
               })}
             />
           </div>
-          <div className="flex items-center gap-4 text-[9px] font-black text-muted/60 uppercase tracking-[0.2em] px-1">
+          <div className="flex items-center gap-4 text-[9px] font-black text-white uppercase tracking-[0.2em] px-1">
             <span>Snapshot Engine:</span>
             <div className="flex gap-4">
               <span className="flex items-center gap-1.5"><Package className="w-3 h-3" /> Amazon {data.latest_snapshot_amazon ?? '—'}</span>
@@ -725,26 +725,28 @@ export default function CommandCenter() {
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={5} /> : (data?.alerts.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
                   data?.alerts.map(a => (
-                    <tr key={a.sku} className="hover:bg-slate-50/50 transition-colors group">
+                    <tr key={a.sku} className="hover:bg-white/10 transition-colors group">
                       <td className="px-4 py-2.5">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col items-center justify-center">
                           <SKULink sku={a.sku} />
-                          <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[180px]">{a.name}</span>
+                          <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white group-hover:font-bold text-center">{a.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-[10px] font-black text-muted uppercase">
+                      <td className="px-4 py-2.5 text-center">
+                        <span className="text-[10px] font-black text-white uppercase group-hover:text-white group-hover:font-bold">
                           {getMarketplace(a.coverage_amazon ?? 99, a.coverage_noon ?? 99)}
                         </span>
                       </td>
-                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(a.coverage_amazon)}`}>
+                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(a.coverage_amazon)} group-hover:font-bold`}>
                         {formatCovDays(a.coverage_amazon)}
                       </td>
-                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(a.coverage_noon)}`}>
+                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(a.coverage_noon)} group-hover:font-bold`}>
                         {formatCovDays(a.coverage_noon)}
                       </td>
-                      <td className="px-4 py-2.5">
-                        <ActionFlagBadge flag={a.action_flag as ActionFlag} />
+                      <td className="px-4 py-2.5 text-center">
+                        <div className="flex justify-center">
+                          <ActionFlagBadge flag={a.action_flag as ActionFlag} />
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -777,14 +779,14 @@ export default function CommandCenter() {
           )}
         >
           <>
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
                 <tr>
                   <Th>SKU</Th>
                   <Th right>SV</Th>
                   <Th right>Staged</Th>
                   <Th right>Boxes</Th>
-                  <th className="px-4 pr-8 py-3 text-[10px] font-black text-muted uppercase tracking-[0.1em] text-left">Protocol</th>
+                  <Th>Protocol</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
@@ -794,27 +796,29 @@ export default function CommandCenter() {
                     const sugAmz = toSafeNumber(row.suggested_boxes_amazon, 0)
                     const sugNoon = toSafeNumber(row.suggested_boxes_noon, 0)
                     return (
-                      <tr key={`${sku}-${idx}`} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={`${sku}-${idx}`} className="hover:bg-white/10 transition-colors group">
                         <td className="px-4 py-2.5">
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-center justify-center">
                             <SKULink sku={sku} />
-                            <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[150px]">{String(row.name)}</span>
+                            <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[150px] group-hover:text-white group-hover:font-bold text-center">{String(row.name)}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
+                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
                           {toSafeNumber(row.blended_sv).toFixed(1)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
+                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
                           {toSafeNumber(row.total_units_to_ship)}
                         </td>
-                        <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
+                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
                           {sugAmz + sugNoon}
                         </td>
-                        <td className="px-4 pr-8 py-2.5">
-                          <ActionDropdown 
-                            currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
-                            onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
-                          />
+                        <td className="px-4 py-2.5">
+                          <div className="flex justify-center">
+                            <ActionDropdown 
+                              currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
+                              onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
+                            />
+                          </div>
                         </td>
                       </tr>
                     )
@@ -824,14 +828,14 @@ export default function CommandCenter() {
               {shipNowRows.length > 0 && (
                 <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
                   <tr className="font-bold text-white">
-                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary">Totals</td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary text-center">Totals</td>
+                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
                       {shipNowRows.reduce((sum, item) => sum + toSafeNumber(item.blended_sv), 0).toFixed(1)}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
                       {totalShipUnits.toLocaleString()}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
+                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
                       {(totalShipBoxesAmazon + totalShipBoxesNoon).toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5"></td>
@@ -878,15 +882,15 @@ export default function CommandCenter() {
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
                   data?.reorder_now.map(r => (
-                    <tr key={r.sku} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-2.5"><SKULink sku={r.sku} /></td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">{r.suggested_units}</td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">
+                    <tr key={r.sku} className="hover:bg-white/10 transition-colors group">
+                      <td className="px-4 py-2.5 text-center"><div className="flex justify-center"><SKULink sku={r.sku} /></div></td>
+                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">{r.suggested_units}</td>
+                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
                         {Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </td>
-                      <td className={`px-4 py-2.5 text-right font-data text-[11px] ${coverageColor(r.projected_coverage)}`}>{formatCovDays(r.projected_coverage)}</td>
-                      <td className="px-4 py-2.5">
-                        <button onClick={() => navigate('/po')} className="text-[9px] font-black uppercase text-brand-blue hover:underline">Draft PO</button>
+                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(r.projected_coverage)} group-hover:font-bold`}>{formatCovDays(r.projected_coverage)}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <button onClick={() => navigate('/po')} className="text-[9px] font-black uppercase text-brand-blue hover:underline group-hover:text-white group-hover:font-bold">Draft PO</button>
                       </td>
                     </tr>
                   ))
@@ -954,16 +958,16 @@ export default function CommandCenter() {
                     units: li.units_ordered,
                     eta: b.eta
                   }))).map((row: any) => (
-                    <tr key={`${row.po}-${row.sku}`} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-2.5 font-data text-[10px] font-bold text-white">{row.po}</td>
+                    <tr key={`${row.po}-${row.sku}`} className="hover:bg-white/10 transition-colors group">
+                      <td className="px-4 py-2.5 text-center font-data text-[10px] font-bold text-white group-hover:font-bold">{row.po}</td>
                       <td className="px-4 py-2.5">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col items-center justify-center">
                           <SKULink sku={row.sku} />
-                          <span className="text-[10px] font-medium text-muted mt-0.5 truncate max-w-[180px]">{row.name}</span>
+                          <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white group-hover:font-bold text-center">{row.name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-data text-[11px] font-bold text-white">{row.units}</td>
-                      <td className="px-4 py-2.5 text-[10px] font-bold text-white">{formatDate(row.eta)}</td>
+                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">{row.units}</td>
+                      <td className="px-4 py-2.5 text-center text-[10px] font-bold text-white group-hover:font-bold">{formatDate(row.eta)}</td>
                     </tr>
                   ))
                 )}

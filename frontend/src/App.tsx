@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, Search, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -105,7 +105,7 @@ export default function App() {
         ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full w-64'}
       `}>
-        <div className={`p-6 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`h-14 px-6 flex items-center border-b border-white/5 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3">
             <img src="/saddl_logo.jpg" alt="Saddl Logo" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
             {!isSidebarCollapsed && (
@@ -197,14 +197,6 @@ export default function App() {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="hidden sm:flex items-center gap-4 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 w-48 lg:w-80 overflow-hidden">
-              <Search className="w-4 h-4 text-muted shrink-0" />
-              <input
-                type="text"
-                placeholder="SEARCH..."
-                className="bg-transparent border-none text-[10px] font-black tracking-widest text-primary placeholder:text-muted/60 focus:ring-0 w-full uppercase"
-              />
-            </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-4">
 
@@ -212,11 +204,11 @@ export default function App() {
               onClick={() => setIsSettingsOpen(true)}
               className="flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-1.5 rounded-xl transition-colors"
             >
-              <div className="hidden sm:flex flex-col items-end mr-1">
-                <p className="text-[10px] font-black text-white uppercase tracking-tight leading-none mb-1">
+              <div className="hidden sm:flex flex-col items-end justify-center mr-1">
+                <p className="text-xs font-black text-white uppercase tracking-wider leading-none mb-0.5">
                   {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                 </p>
-                <p className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest leading-none">
+                <p className="text-xs font-black text-white/60 uppercase tracking-widest leading-none">
                   {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
                 </p>
               </div>

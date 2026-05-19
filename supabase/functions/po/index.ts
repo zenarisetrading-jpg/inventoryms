@@ -73,7 +73,7 @@ async function handleCreate(req: Request): Promise<Response> {
     eta,
     status: 'ordered', // default for new PO
     tracking_number: tracking_number ?? null,
-    notes: notes ?? null,
+    notes: li.notes || notes || null,
     sku: li.sku,
     units_ordered: li.units_ordered,
     units_received: li.units_received ?? 0,
@@ -81,7 +81,7 @@ async function handleCreate(req: Request): Promise<Response> {
     box_count: li.box_count ?? null,
     dimensions: li.dimensions ?? null,
     cogs_per_unit: li.cogs_per_unit ?? null,
-    shipping_cost_per_unit: li.cogs_per_unit ?? null, // for now
+    shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
   }))
 
   const { data: inserted, error: insertErr } = await supabase
@@ -146,7 +146,8 @@ async function handleList(url: URL): Promise<Response> {
       box_count: row.box_count,
       dimensions: row.dimensions,
       cogs_per_unit: row.cogs_per_unit,
-      shipping_cost_per_unit: row.shipping_cost_per_unit
+      shipping_cost_per_unit: row.shipping_cost_per_unit,
+      notes: row.notes
     })
   }
 
@@ -201,7 +202,8 @@ async function handleDetail(idOrPo: string): Promise<Response> {
       box_count: r.box_count,
       dimensions: r.dimensions,
       cogs_per_unit: r.cogs_per_unit,
-      shipping_cost_per_unit: r.shipping_cost_per_unit
+      shipping_cost_per_unit: r.shipping_cost_per_unit,
+      notes: r.notes
     }))
   }
 
@@ -244,7 +246,7 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
       eta: rest.eta !== undefined ? rest.eta : header.eta,
       status: rest.status !== undefined ? rest.status : header.status,
       tracking_number: rest.tracking_number !== undefined ? rest.tracking_number : header.tracking_number,
-      notes: rest.notes !== undefined ? rest.notes : header.notes,
+      notes: li.notes !== undefined ? li.notes : (rest.notes !== undefined ? rest.notes : header.notes),
       sku: li.sku,
       units_ordered: li.units_ordered,
       units_received: li.units_received ?? 0,
