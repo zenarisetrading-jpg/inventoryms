@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -11,6 +11,7 @@ import InventoryPage from './pages/inventory'
 import PerformancePage from './pages/performance'
 import PONewPage from './pages/po_new'
 import SKUNewPage from './pages/skus_new'
+import InvoicePage from './pages/invoice'
 import { navigate } from './lib/router'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
@@ -30,6 +31,7 @@ type Route =
   | { name: 'inventory' }
   | { name: 'performance' }
   | { name: 'skus_new' }
+  | { name: 'invoice' }
 
 function parseRoute(): Route {
   const path = window.location.pathname
@@ -43,6 +45,7 @@ function parseRoute(): Route {
   if (path === '/inventory') return { name: 'inventory' }
   if (path === '/performance') return { name: 'performance' }
   if (path === '/skus/new') return { name: 'skus_new' }
+  if (path === '/invoice') return { name: 'invoice' }
   return { name: 'dashboard' }
 }
 
@@ -107,18 +110,28 @@ export default function App() {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full w-64'}
       `}>
         <div className={`h-14 px-6 flex items-center border-b border-white/5 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-          <div className="flex items-center gap-3">
-            <img src={saddlLogo} alt="Saddl Logo" className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10" />
+          <div className="flex items-center gap-3 flex-nowrap">
+            <img src={saddlLogo} alt="Saddl Logo" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-white/10" />
             {!isSidebarCollapsed && (
-              <span className="text-white font-black tracking-tight text-xl animate-in fade-in duration-300">
-                Saddl<span className="text-blue-400"> Inventory</span>
-              </span>
+              <div className="flex items-center gap-3 flex-nowrap shrink-0">
+                <span className="text-white font-black tracking-tight text-xl whitespace-nowrap animate-in fade-in duration-300">
+                  Saddl<span className="text-blue-400"> Inventory</span>
+                </span>
+                {!isSidebarOpen && (
+                  <button 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                    className="hidden lg:flex text-white/30 hover:text-white transition-colors shrink-0 animate-in fade-in duration-300"
+                  >
+                    <Menu className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white">
             <X className="w-6 h-6" />
           </button>
-          {!isSidebarOpen && (
+          {isSidebarCollapsed && !isSidebarOpen && (
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
               className="hidden lg:flex text-white/30 hover:text-white transition-colors"
@@ -135,6 +148,9 @@ export default function App() {
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
+          {['irfaan.a@zenarise.org', 'thasbihak@zenarise.org', 'siraj.kamaluddin@zenarise.org'].includes(user?.email?.toLowerCase() || '') && (
+            <SidebarLink icon={Receipt} label="Invoice Billing" path="/invoice" current={route.name === 'invoice'} collapsed={isSidebarCollapsed} />
+          )}
         </nav>
 
         <div className={`p-4 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
@@ -234,6 +250,7 @@ export default function App() {
               {route.name === 'health' && <HealthPage />}
               {route.name === 'inventory' && <InventoryPage />}
               {route.name === 'performance' && <PerformancePage />}
+              {route.name === 'invoice' && <InvoicePage user={user} />}
             </ErrorBoundary>
           </div>
         </main>
