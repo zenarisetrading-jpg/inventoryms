@@ -13,10 +13,12 @@ function jsonResponse(data: unknown, status = 200): Response {
 
 interface ParsedRow {
   po_number: string
+  po_name: string
   supplier: string
   order_date: string
   eta: string
   status: string
+  po_notes: string
   notes: string
   sku: string
   units_ordered: number
@@ -25,11 +27,12 @@ interface ParsedRow {
 
 interface POGroup {
   po_number: string
+  po_name: string
   supplier: string
   order_date: string
   eta: string
   status: string
-  notes: string
+  po_notes: string
   line_items: { sku: string; units_ordered: number; units_received: number; notes: string }[]
 }
 
@@ -37,11 +40,13 @@ const VALID_STATUSES = new Set(['draft', 'ordered', 'shipped', 'in_transit', 'ar
 
 const HEADER_ALIASES: Record<string, string[]> = {
   po_number: ['po_number', 'po number', 'po#', 'po #', 'ponumber'],
+  po_name: ['po_name', 'po name', 'name', 'purchase order name'],
   supplier: ['supplier', 'vendor'],
   order_date: ['order_date', 'order date', 'po date'],
   eta: ['eta', 'eta date', 'expected date', 'expected arrival'],
   status: ['status', 'po_status', 'po status'],
-  notes: ['notes', 'remarks', 'comment', 'comments'],
+  po_notes: ['po_notes', 'po notes', 'purchase order notes'],
+  notes: ['notes', 'item notes', 'sku notes', 'item_notes', 'sku_notes', 'remarks', 'comment', 'comments'],
   sku: ['sku', 'internal sku', 'item sku', 'seller sku'],
   units_ordered: ['units_ordered', 'units ordered', 'qty ordered', 'quantity ordered', 'ordered qty'],
   units_received: ['units_received', 'units received', 'qty received', 'quantity received', 'received qty'],
@@ -138,13 +143,14 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     return { rows, errors }
   }
 
-  const headerKeys = Object.keys(rawRows[0])
   const idxMap = {
     po_number: findColumnIndex(headerKeys, 'po_number'),
+    po_name: findColumnIndex(headerKeys, 'po_name'),
     supplier: findColumnIndex(headerKeys, 'supplier'),
     order_date: findColumnIndex(headerKeys, 'order_date'),
     eta: findColumnIndex(headerKeys, 'eta'),
     status: findColumnIndex(headerKeys, 'status'),
+    po_notes: findColumnIndex(headerKeys, 'po_notes'),
     notes: findColumnIndex(headerKeys, 'notes'),
     sku: findColumnIndex(headerKeys, 'sku'),
     units_ordered: findColumnIndex(headerKeys, 'units_ordered'),
@@ -169,12 +175,14 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     }
 
     const po_number = get('po_number')
+    const po_name = get('po_name')
     const supplier = get('supplier')
     const order_date = normalizeDate(get('order_date'))
     const eta = normalizeDate(get('eta'))
     const sku = get('sku')
     const units_ordered_raw = get('units_ordered')
     const units_received_raw = get('units_received')
+    const po_notes = get('po_notes')
     const notes = get('notes')
     const status = normalizeStatus(get('status'))
 
@@ -191,7 +199,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     }
 
     const units_received = parseInt(units_received_raw, 10)
-    rows.push({ po_number, supplier, order_date, eta, status, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received })
+    rows.push({ po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received })
   }
 
   return { rows, errors }
@@ -227,17 +235,21 @@ function groupByPO(rows: ParsedRow[]): POGroup[] {
     if (!map.has(row.po_number)) {
       map.set(row.po_number, {
         po_number: row.po_number,
+        po_name: row.po_name,
         supplier: row.supplier,
         order_date: row.order_date,
         eta: row.eta,
         status: row.status,
-        notes: row.notes,
+        po_notes: row.po_notes || row.notes || '',
         line_items: [],
       })
     } else {
       const existing = map.get(row.po_number)!
-      if (!existing.notes && row.notes) {
-        existing.notes = row.notes
+      if (!existing.po_notes && row.po_notes) {
+        existing.po_notes = row.po_notes
+      }
+      if (!existing.po_name && row.po_name) {
+        existing.po_name = row.po_name
       }
     }
     map.get(row.po_number)!.line_items.push({
@@ -387,11 +399,12 @@ serve(async (req: Request) => {
         
         return {
           po_number: group.po_number,
-          po_name: group.notes ? group.notes.substring(0, 100) : '',
+          po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
           supplier: group.supplier,
           order_date: group.order_date,
           eta: group.eta,
           status: group.status || 'ordered',
+          po_notes: group.po_notes || null,
           notes: li.notes || null,
           sku: li.sku,
           units_ordered: li.units_ordered,
@@ -454,12 +467,12 @@ serve(async (req: Request) => {
         .maybeSingle()
 
       const header = firstRow || {
-        po_name: '',
+        po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
         supplier: group.supplier,
         order_date: group.order_date,
         eta: group.eta,
         status: group.status || 'ordered',
-        notes: group.notes || null,
+        po_notes: group.po_notes || null,
         tracking_number: null,
       }
 
@@ -470,13 +483,14 @@ serve(async (req: Request) => {
 
         return {
           po_number: group.po_number,
-          po_name: header.po_name,
+          po_name: header.po_name || group.po_name || '',
           supplier: header.supplier,
           order_date: header.order_date,
           eta: header.eta,
           status: header.status,
           tracking_number: header.tracking_number,
-          notes: li.notes || header.notes || null,
+          po_notes: header.po_notes || group.po_notes || null,
+          notes: li.notes || null,
           sku: li.sku,
           units_ordered: li.units_ordered,
           units_received: li.units_received,

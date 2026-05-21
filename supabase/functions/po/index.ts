@@ -45,7 +45,7 @@ async function handleCreate(req: Request): Promise<Response> {
     return errorResponse('Request body must be valid JSON', 400)
   }
 
-  const { po_number, po_name, supplier, order_date, eta, tracking_number, notes, line_items } = body
+  const { po_number, po_name, supplier, order_date, eta, tracking_number, po_notes, notes, line_items } = body
 
   if (!po_number || !supplier || !order_date || !eta || !Array.isArray(line_items) || line_items.length === 0) {
     return errorResponse('Missing required fields or line_items', 400)
@@ -64,25 +64,55 @@ async function handleCreate(req: Request): Promise<Response> {
     return errorResponse(`PO number "${po_number}" already exists`, 400)
   }
 
+  // Retrieve SKU master default details for fallback lookups
+  const skus = [...new Set(line_items.map((li: any) => li.sku).filter(Boolean))]
+  const skuMasterMap = new Map<string, any>()
+  if (skus.length > 0) {
+    const { data: skuMasterData } = await supabase
+      .from('sku_master')
+      .select('sku, units_per_box, cogs, dimensions')
+      .in('sku', skus)
+    if (skuMasterData) {
+      for (const item of skuMasterData) {
+        skuMasterMap.set(item.sku.toLowerCase(), item)
+      }
+    }
+  }
+
   // Insert multiple rows into fact_purchase
-  const rows = line_items.map((li: any) => ({
-    po_number: po_number.trim(),
-    po_name: po_name ?? null,
-    supplier: supplier.trim(),
-    order_date,
-    eta,
-    status: 'ordered', // default for new PO
-    tracking_number: tracking_number ?? null,
-    notes: li.notes || notes || null,
-    sku: li.sku,
-    units_ordered: li.units_ordered,
-    units_received: li.units_received ?? 0,
-    units_per_box: li.units_per_box ?? null,
-    box_count: li.box_count ?? null,
-    dimensions: li.dimensions ?? null,
-    cogs_per_unit: li.cogs_per_unit ?? null,
-    shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
-  }))
+  const rows = line_items.map((li: any) => {
+    const skuCode = li.sku || ''
+    const master = skuMasterMap.get(skuCode.toLowerCase())
+    
+    const units_per_box = li.units_per_box || master?.units_per_box || null
+    const cogs_per_unit = li.cogs_per_unit || master?.cogs || null
+    const dimensions = li.dimensions || master?.dimensions || null
+    
+    let box_count = li.box_count
+    if (!box_count && units_per_box && li.units_ordered) {
+      box_count = Math.ceil(li.units_ordered / units_per_box)
+    }
+
+    return {
+      po_number: po_number.trim(),
+      po_name: po_name ?? null,
+      supplier: supplier.trim(),
+      order_date,
+      eta,
+      status: 'ordered', // default for new PO
+      tracking_number: tracking_number ?? null,
+      po_notes: po_notes || notes || null,
+      notes: li.notes || null,
+      sku: master?.sku || li.sku,
+      units_ordered: li.units_ordered,
+      units_received: li.units_received ?? 0,
+      units_per_box: units_per_box,
+      box_count: box_count || null,
+      dimensions: dimensions,
+      cogs_per_unit: cogs_per_unit,
+      shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
+    }
+  })
 
   const { data: inserted, error: insertErr } = await supabase
     .from('fact_purchase')
@@ -132,7 +162,8 @@ async function handleList(url: URL): Promise<Response> {
         eta: row.eta,
         status: row.status,
         tracking_number: row.tracking_number,
-        notes: row.notes,
+        po_notes: row.po_notes,
+        notes: row.po_notes || row.notes,
         created_at: row.created_at,
         line_items: []
       })
@@ -191,7 +222,8 @@ async function handleDetail(idOrPo: string): Promise<Response> {
     eta: first.eta,
     status: first.status,
     tracking_number: first.tracking_number,
-    notes: first.notes,
+    po_notes: first.po_notes,
+    notes: first.po_notes || first.notes,
     created_at: first.created_at,
     line_items: rows.map(r => ({
       id: r.id,
@@ -237,26 +269,56 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
     const { error: delErr } = await supabase.from('fact_purchase').delete().eq('po_number', po_number)
     if (delErr) return errorResponse('Failed to clear old items', 500, delErr.message)
 
+    // Retrieve SKU master default details for fallback lookups
+    const skus = [...new Set(line_items.map((li: any) => li.sku).filter(Boolean))]
+    const skuMasterMap = new Map<string, any>()
+    if (skus.length > 0) {
+      const { data: skuMasterData } = await supabase
+        .from('sku_master')
+        .select('sku, units_per_box, cogs, dimensions')
+        .in('sku', skus)
+      if (skuMasterData) {
+        for (const item of skuMasterData) {
+          skuMasterMap.set(item.sku.toLowerCase(), item)
+        }
+      }
+    }
+
     // 2. Map new line items to rows, using header info
-    const newRows = line_items.map((li: any) => ({
-      po_number: po_number,
-      po_name: rest.po_name !== undefined ? rest.po_name : header.po_name,
-      supplier: rest.supplier !== undefined ? rest.supplier : header.supplier,
-      order_date: rest.order_date !== undefined ? rest.order_date : header.order_date,
-      eta: rest.eta !== undefined ? rest.eta : header.eta,
-      status: rest.status !== undefined ? rest.status : header.status,
-      tracking_number: rest.tracking_number !== undefined ? rest.tracking_number : header.tracking_number,
-      notes: li.notes !== undefined ? li.notes : (rest.notes !== undefined ? rest.notes : header.notes),
-      sku: li.sku,
-      units_ordered: li.units_ordered,
-      units_received: li.units_received ?? 0,
-      units_per_box: li.units_per_box ?? null,
-      box_count: li.box_count ?? null,
-      dimensions: li.dimensions ?? null,
-      cogs_per_unit: li.cogs_per_unit ?? null,
-      shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
-      updated_at: new Date().toISOString()
-    }))
+    const newRows = line_items.map((li: any) => {
+      const skuCode = li.sku || ''
+      const master = skuMasterMap.get(skuCode.toLowerCase())
+      
+      const units_per_box = li.units_per_box || master?.units_per_box || null
+      const cogs_per_unit = li.cogs_per_unit || master?.cogs || null
+      const dimensions = li.dimensions || master?.dimensions || null
+      
+      let box_count = li.box_count
+      if (!box_count && units_per_box && li.units_ordered) {
+        box_count = Math.ceil(li.units_ordered / units_per_box)
+      }
+
+      return {
+        po_number: po_number,
+        po_name: rest.po_name !== undefined ? rest.po_name : header.po_name,
+        supplier: rest.supplier !== undefined ? rest.supplier : header.supplier,
+        order_date: rest.order_date !== undefined ? rest.order_date : header.order_date,
+        eta: rest.eta !== undefined ? rest.eta : header.eta,
+        status: rest.status !== undefined ? rest.status : header.status,
+        tracking_number: rest.tracking_number !== undefined ? rest.tracking_number : header.tracking_number,
+        po_notes: rest.po_notes !== undefined ? rest.po_notes : (rest.notes !== undefined ? rest.notes : (header.po_notes || header.notes || null)),
+        notes: li.notes !== undefined ? li.notes : null,
+        sku: master?.sku || li.sku,
+        units_ordered: li.units_ordered,
+        units_received: li.units_received ?? 0,
+        units_per_box: units_per_box,
+        box_count: box_count || null,
+        dimensions: dimensions,
+        cogs_per_unit: cogs_per_unit,
+        shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
+        updated_at: new Date().toISOString()
+      }
+    })
 
     // 3. Insert new rows
     const { error: insErr } = await supabase.from('fact_purchase').insert(newRows)
@@ -266,9 +328,15 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
   }
 
   // Regular field update for all rows of this PO
+  const updatePayload = { ...body, updated_at: new Date().toISOString() }
+  if ('notes' in updatePayload) {
+    updatePayload.po_notes = updatePayload.notes
+    delete updatePayload.notes
+  }
+
   const { error } = await supabase
     .from('fact_purchase')
-    .update({ ...body, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('po_number', po_number)
 
   if (error) return errorResponse('Update failed', 500, error.message)

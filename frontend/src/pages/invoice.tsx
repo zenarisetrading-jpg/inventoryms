@@ -1283,7 +1283,7 @@ export default function InvoicePage({ user }: { user?: any }) {
                     <img 
                       src={saddlLogo} 
                       alt="Saddl Logo" 
-                      className="h-[200px] w-auto object-contain"
+                      className="h-[320px] w-auto object-contain"
                     />
                   </div>
                   {/* Header Title */}
@@ -1483,7 +1483,7 @@ export default function InvoicePage({ user }: { user?: any }) {
                       <img 
                         src={saddlLogo} 
                         alt="Saddl Logo" 
-                        className="h-[200px] w-auto object-contain"
+                        className="h-[320px] w-auto object-contain"
                       />
                     </div>
                     {/* Header Title */}

@@ -190,6 +190,7 @@ export interface PO {
   eta: string
   status: POStatus
   tracking_number?: string
+  po_notes?: string
   notes?: string
   line_items: POLineItem[]
   created_at?: string
@@ -203,6 +204,7 @@ export interface CreatePOInput {
   order_date: string
   eta: string
   tracking_number?: string
+  po_notes?: string
   notes?: string
   line_items: (POLineItem & { sku: string; units_ordered: number })[]
 }

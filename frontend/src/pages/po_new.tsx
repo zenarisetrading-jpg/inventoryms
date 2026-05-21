@@ -14,6 +14,7 @@ interface LineItemInput {
   dimensions: string
   cogs_per_unit: number
   shipping_cost_per_unit: number
+  notes?: string
 }
 
 interface NewPOForm {
@@ -44,7 +45,8 @@ function emptyForm(): NewPOForm {
       box_count: 0, 
       dimensions: '', 
       cogs_per_unit: 0, 
-      shipping_cost_per_unit: 0 
+      shipping_cost_per_unit: 0,
+      notes: ''
     }],
   }
 }
@@ -102,20 +104,23 @@ export default function PONewPage() {
       const items = [...prev.line_items]
       let val = value
       
-      // If it's a SKU selection from suggestions
-      if (field === 'sku' && typeof value === 'string' && value.includes(' - ')) {
-        const skuCode = value.split(' - ')[0].trim()
+      // If it's a SKU selection or raw text entry
+      if (field === 'sku' && typeof value === 'string') {
+        let skuCode = value.trim()
+        if (value.includes(' - ')) {
+          skuCode = value.split(' - ')[0].trim()
+        }
         val = skuCode
         
         // Find defaults from our cached allSkus
-        const skuData = allSkus.find(s => s.sku === skuCode)
+        const skuData = allSkus.find(s => s.sku.toLowerCase() === skuCode.toLowerCase())
         if (skuData) {
           items[i] = {
             ...items[i],
-            sku: skuCode,
-            units_per_box: skuData.units_per_box || 0,
-            cogs_per_unit: skuData.cogs || 0,
-            dimensions: skuData.dimensions || '',
+            sku: skuData.sku, // use canonical casing
+            units_per_box: items[i].units_per_box || skuData.units_per_box || 0,
+            cogs_per_unit: items[i].cogs_per_unit || skuData.cogs || 0,
+            dimensions: items[i].dimensions || skuData.dimensions || '',
           }
           
           const uo = items[i].units_ordered || 0
@@ -132,7 +137,30 @@ export default function PONewPage() {
       
       if (field === 'units_ordered' || field === 'units_per_box') {
         const uo = items[i].units_ordered || 0
-        const upb = items[i].units_per_box || 0
+        let upb = items[i].units_per_box || 0
+        
+        // Lookup fallback from sku_master cache if empty/zero
+        if (!upb && items[i].sku) {
+          const skuData = allSkus.find(s => s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          if (skuData && skuData.units_per_box) {
+            upb = skuData.units_per_box
+            items[i].units_per_box = upb
+          }
+        }
+        
+        // Also look up default COGS and Dimensions if they are empty/zero
+        if (items[i].sku) {
+          const skuData = allSkus.find(s => s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          if (skuData) {
+            if (!items[i].cogs_per_unit && skuData.cogs) {
+              items[i].cogs_per_unit = skuData.cogs
+            }
+            if (!items[i].dimensions && skuData.dimensions) {
+              items[i].dimensions = skuData.dimensions
+            }
+          }
+        }
+
         if (upb > 0 && uo > 0) {
           items[i].box_count = Math.ceil(uo / upb)
         } else if (upb <= 0 || uo <= 0) {
@@ -149,7 +177,7 @@ export default function PONewPage() {
       ...prev, 
       line_items: [
         ...prev.line_items, 
-        { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0 }
+        { sku: '', units_ordered: 0, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
       ] 
     }))
   }
@@ -166,6 +194,29 @@ export default function PONewPage() {
       setSubmitError('Add at least one valid line item.')
       return
     }
+
+    // Perform robust lookup against master cache for any fields the user failed to fill
+    const mappedItems = validItems.map(li => {
+      const skuCode = li.sku.trim()
+      const skuData = allSkus.find(s => s.sku.toLowerCase() === skuCode.toLowerCase())
+      
+      const upb = li.units_per_box || skuData?.units_per_box || 0
+      const cogs = li.cogs_per_unit || skuData?.cogs || 0
+      const dims = li.dimensions || skuData?.dimensions || ''
+      const uo = li.units_ordered || 0
+      const bc = li.box_count || (upb > 0 && uo > 0 ? Math.ceil(uo / upb) : 0)
+
+      return {
+        ...li,
+        units_per_box: upb,
+        cogs_per_unit: cogs,
+        dimensions: dims,
+        box_count: bc,
+        units_received: li.units_received || 0,
+        notes: li.notes || undefined
+      }
+    })
+
     const payload: CreatePOInput = {
       po_number: form.po_number,
       po_name: form.po_name,
@@ -174,10 +225,7 @@ export default function PONewPage() {
       eta: form.eta,
       tracking_number: form.tracking_number,
       notes: form.notes || undefined,
-      line_items: validItems.map(li => ({
-        ...li,
-        units_received: li.units_received || 0
-      })),
+      line_items: mappedItems,
     }
     setSubmitting(true)
     const result = await api.createPO(payload)
@@ -350,6 +398,15 @@ export default function PONewPage() {
                       value={li.shipping_cost_per_unit || ''}
                       onChange={e => handleLineItemChange(i, 'shipping_cost_per_unit', parseFloat(e.target.value) || 0)}
                       className={`${inputCls} font-data`}
+                    />
+                  </div>
+                  <div className="md:col-span-6 space-y-1.5">
+                    <label className="text-xs font-bold text-zinc-500 uppercase">Item/SKU Notes</label>
+                    <input
+                      value={li.notes || ''}
+                      onChange={e => handleLineItemChange(i, 'notes', e.target.value)}
+                      placeholder="Add item-specific instructions, remarks, or comments..."
+                      className={inputCls}
                     />
                   </div>
                 </div>
