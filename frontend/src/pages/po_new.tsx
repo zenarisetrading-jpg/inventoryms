@@ -113,7 +113,7 @@ export default function PONewPage() {
         val = skuCode
         
         // Find defaults from our cached allSkus
-        const skuData = allSkus.find(s => s.sku.toLowerCase() === skuCode.toLowerCase())
+        const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
         if (skuData) {
           items[i] = {
             ...items[i],
@@ -141,7 +141,7 @@ export default function PONewPage() {
         
         // Lookup fallback from sku_master cache if empty/zero
         if (!upb && items[i].sku) {
-          const skuData = allSkus.find(s => s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
           if (skuData && skuData.units_per_box) {
             upb = skuData.units_per_box
             items[i].units_per_box = upb
@@ -150,7 +150,7 @@ export default function PONewPage() {
         
         // Also look up default COGS and Dimensions if they are empty/zero
         if (items[i].sku) {
-          const skuData = allSkus.find(s => s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
           if (skuData) {
             if (!items[i].cogs_per_unit && skuData.cogs) {
               items[i].cogs_per_unit = skuData.cogs
@@ -198,7 +198,7 @@ export default function PONewPage() {
     // Perform robust lookup against master cache for any fields the user failed to fill
     const mappedItems = validItems.map(li => {
       const skuCode = li.sku.trim()
-      const skuData = allSkus.find(s => s.sku.toLowerCase() === skuCode.toLowerCase())
+      const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
       
       const upb = li.units_per_box || skuData?.units_per_box || 0
       const cogs = li.cogs_per_unit || skuData?.cogs || 0

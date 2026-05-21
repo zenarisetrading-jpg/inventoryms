@@ -238,11 +238,13 @@ export default function POPage() {
   }, [])
 
   const filteredPOs = pos.filter(po => {
-    const q = search.toLowerCase()
+    const q = (search || '').toLowerCase()
+    const poNum = po.po_number || ''
+    const supplier = po.supplier || ''
     return (
-      po.po_number.toLowerCase().includes(q) ||
-      po.supplier.toLowerCase().includes(q) ||
-      po.line_items.some(li => li.sku.toLowerCase().includes(q))
+      poNum.toLowerCase().includes(q) ||
+      supplier.toLowerCase().includes(q) ||
+      (po.line_items || []).some(li => li && li.sku && li.sku.toLowerCase().includes(q))
     )
   }).sort((a, b) => {
     if (!sortConfig) return 0
@@ -736,7 +738,7 @@ export default function POPage() {
                                 return (
                                   <>
                                     {po.line_items.map((li, i) => {
-                                      const skuData = allSkus.find(s => s.sku.toLowerCase() === li.sku.toLowerCase())
+                                      const skuData = (li.sku && allSkus) ? allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase()) : null
                                       const upb = li.units_per_box || skuData?.units_per_box || 0
                                       const cogs = li.cogs_per_unit || skuData?.cogs || 0
                                       const dims = li.dimensions || skuData?.dimensions || ''
@@ -753,7 +755,7 @@ export default function POPage() {
                                               onSave={async (val) => {
                                                 const newItems = [...po.line_items]
                                                 const skuCode = val.trim()
-                                                const skuData = allSkus.find(s => s.sku.toLowerCase() === skuCode.toLowerCase())
+                                                const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
                                                 if (skuData) {
                                                   const uo = li.units_ordered || 0
                                                   const upb = skuData.units_per_box || 0
@@ -786,7 +788,7 @@ export default function POPage() {
                                                 let dims = li.dimensions || ''
                                                 
                                                 if (li.sku) {
-                                                  const skuData = allSkus.find(s => s.sku.toLowerCase() === li.sku.toLowerCase())
+                                                  const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
                                                   if (skuData) {
                                                     if (!upb && skuData.units_per_box) upb = skuData.units_per_box
                                                     if (!cogs && skuData.cogs) cogs = skuData.cogs
@@ -831,7 +833,7 @@ export default function POPage() {
                                                 let dims = li.dimensions || ''
                                                 
                                                 if (li.sku) {
-                                                  const skuData = allSkus.find(s => s.sku.toLowerCase() === li.sku.toLowerCase())
+                                                  const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
                                                   if (skuData) {
                                                     if (!num && skuData.units_per_box) num = skuData.units_per_box
                                                     if (!cogs && skuData.cogs) cogs = skuData.cogs

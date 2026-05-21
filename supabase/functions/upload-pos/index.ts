@@ -143,6 +143,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     return { rows, errors }
   }
 
+  const headerKeys = Object.keys(rawRows[0])
   const idxMap = {
     po_number: findColumnIndex(headerKeys, 'po_number'),
     po_name: findColumnIndex(headerKeys, 'po_name'),
