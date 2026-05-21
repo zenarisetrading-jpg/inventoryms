@@ -8,6 +8,7 @@ interface ActionDropdownProps {
   colors?: Record<string, string>;
   showArrow?: boolean;
   placeholder?: string;
+  direction?: 'up' | 'down';
 }
 
 const DEFAULT_STATUSES = ['Shipment planning', 'Sent to FBA', 'Sent to FBN', 'Sent to Both'];
@@ -24,7 +25,8 @@ export function ActionDropdown({
   options = DEFAULT_STATUSES, 
   colors = DEFAULT_COLORS,
   showArrow = true,
-  placeholder = 'Select Status'
+  placeholder = 'Select Status',
+  direction = 'down'
 }: ActionDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -51,7 +53,11 @@ export function ActionDropdown({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-100">
+          <div className={`absolute right-0 w-36 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in duration-100 ${
+            direction === 'up' 
+              ? 'bottom-full mb-1 origin-bottom slide-in-from-bottom-2' 
+              : 'top-full mt-1 origin-top zoom-in'
+          }`}>
             {options.map(s => (
               <button
                 key={s}

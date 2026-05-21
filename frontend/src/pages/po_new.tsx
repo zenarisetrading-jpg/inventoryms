@@ -113,7 +113,7 @@ export default function PONewPage() {
         val = skuCode
         
         // Find defaults from our cached allSkus
-        const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
+        const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase())
         if (skuData) {
           items[i] = {
             ...items[i],
@@ -141,7 +141,7 @@ export default function PONewPage() {
         
         // Lookup fallback from sku_master cache if empty/zero
         if (!upb && items[i].sku) {
-          const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          const skuData = allSkus.find(s => s.sku && items[i].sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
           if (skuData && skuData.units_per_box) {
             upb = skuData.units_per_box
             items[i].units_per_box = upb
@@ -150,7 +150,7 @@ export default function PONewPage() {
         
         // Also look up default COGS and Dimensions if they are empty/zero
         if (items[i].sku) {
-          const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
+          const skuData = allSkus.find(s => s.sku && items[i].sku && s.sku.toLowerCase() === items[i].sku.toLowerCase())
           if (skuData) {
             if (!items[i].cogs_per_unit && skuData.cogs) {
               items[i].cogs_per_unit = skuData.cogs
@@ -198,7 +198,7 @@ export default function PONewPage() {
     // Perform robust lookup against master cache for any fields the user failed to fill
     const mappedItems = validItems.map(li => {
       const skuCode = li.sku.trim()
-      const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
+      const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase())
       
       const upb = li.units_per_box || skuData?.units_per_box || 0
       const cogs = li.cogs_per_unit || skuData?.cogs || 0
@@ -324,7 +324,7 @@ export default function PONewPage() {
                   type="button"
                   onClick={() => removeLineItem(i)}
                   disabled={form.line_items.length === 1}
-                  className="absolute top-4 right-4 text-zinc-300 hover:text-red-500 disabled:opacity-0 transition-all opacity-0 group-hover:opacity-100"
+                  className="absolute top-4 right-4 text-zinc-400 hover:text-red-500 disabled:opacity-0 transition-all"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

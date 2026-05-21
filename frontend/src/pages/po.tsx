@@ -111,7 +111,19 @@ function InlineEdit({
   displayValue
 }: InlineEditProps) {
   const [editing, setEditing] = useState(autoEdit)
-  const initialVal = type === 'date' && value ? new Date(value.toString()).toISOString().split('T')[0] : value?.toString() ?? ''
+  let initialVal = ''
+  if (type === 'date' && value) {
+    try {
+      const d = new Date(value.toString())
+      if (!isNaN(d.getTime())) {
+        initialVal = d.toISOString().split('T')[0]
+      }
+    } catch {
+      initialVal = ''
+    }
+  } else {
+    initialVal = value?.toString() ?? ''
+  }
   const [val, setVal] = useState(initialVal)
   const [saving, setSaving] = useState(false)
 
@@ -142,7 +154,7 @@ function InlineEdit({
               onChange={setVal}
               suggestions={suggestions}
               placeholder={placeholder}
-              className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
+              className={`px-1.5 py-0.5 border border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-zinc-800 text-white ${inputClassName}`}
             />
           </div>
         ) : (
@@ -150,16 +162,16 @@ function InlineEdit({
             autoFocus
             type={type}
             step={type === 'number' ? 'any' : undefined}
-            className={`px-1.5 py-0.5 border border-amber-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-amber-50 text-amber-900 ${inputClassName}`}
+            className={`px-1.5 py-0.5 border border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 bg-zinc-800 text-white ${inputClassName}`}
             value={val}
             onChange={e => setVal(e.target.value)}
             onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); setVal(value?.toString() ?? '') } }}
           />
         )}
-        <button type="submit" disabled={saving} className="p-0.5 text-emerald-600 hover:bg-emerald-50 rounded shrink-0">
-          {saving ? <span className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin block" /> : <Check className="h-3 w-3" />}
+        <button type="submit" disabled={saving} className="p-0.5 text-emerald-400 hover:bg-emerald-500/20 rounded shrink-0 transition-colors">
+          {saving ? <span className="w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin block" /> : <Check className="h-3 w-3" />}
         </button>
-        <button type="button" onClick={() => { setEditing(false); setVal(value?.toString() ?? '') }} className="p-0.5 text-zinc-400 hover:bg-zinc-100 rounded shrink-0">
+        <button type="button" onClick={() => { setEditing(false); setVal(value?.toString() ?? '') }} className="p-0.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-200 rounded shrink-0 transition-colors">
           <X className="h-3 w-3" />
         </button>
       </form>
@@ -169,7 +181,24 @@ function InlineEdit({
   return (
     <div 
       className={`group/edit cursor-pointer flex items-center gap-1 w-full ${className}`}
-      onClick={(e) => { e.stopPropagation(); setEditing(true); setVal(type === 'date' && value ? new Date(value.toString()).toISOString().split('T')[0] : value?.toString() ?? '') }}
+      onClick={(e) => {
+        e.stopPropagation()
+        setEditing(true)
+        let clickVal = ''
+        if (type === 'date' && value) {
+          try {
+            const d = new Date(value.toString())
+            if (!isNaN(d.getTime())) {
+              clickVal = d.toISOString().split('T')[0]
+            }
+          } catch {
+            clickVal = ''
+          }
+        } else {
+          clickVal = value?.toString() ?? ''
+        }
+        setVal(clickVal)
+      }}
     >
       <span className="text-white">{displayValue || (value !== null && value !== undefined && value !== '' ? value : <span className="text-white/80 italic font-semibold">{placeholder}</span>)}</span>
       <Edit2 className="h-2.5 w-2.5 text-zinc-300 opacity-0 group-hover/edit:opacity-100 transition-opacity hover:text-amber-500 shrink-0" />
@@ -238,13 +267,13 @@ export default function POPage() {
   }, [])
 
   const filteredPOs = pos.filter(po => {
-    const q = (search || '').toLowerCase()
+    const q = search.toLowerCase()
     const poNum = po.po_number || ''
     const supplier = po.supplier || ''
     return (
       poNum.toLowerCase().includes(q) ||
       supplier.toLowerCase().includes(q) ||
-      (po.line_items || []).some(li => li && li.sku && li.sku.toLowerCase().includes(q))
+      po.line_items.some(li => li.sku && li.sku.toLowerCase().includes(q))
     )
   }).sort((a, b) => {
     if (!sortConfig) return 0
@@ -320,19 +349,23 @@ export default function POPage() {
   }
 
   const downloadTemplate = () => {
-    const header = 'po_number,po_name,supplier,order_date,eta,status,notes,sku,units_ordered,units_received'
+    const header = 'po_number,po_name,supplier,order_date,eta,status,po_notes,notes,sku,units_ordered,units_received'
     const example = [
-      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,,32OZSTRAWLIDBLACK,500,0',
-      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,,WB750MLBLACK,300,0',
-      'PO-002,Summer Refresh,Another Supplier,2026-03-10,2026-04-15,draft,First shipment,32OZWBNAVYBLUE,250,',
+      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for straw lid,32OZSTRAWLIDBLACK,500,0',
+      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for water bottle,WB750MLBLACK,300,0',
+      'PO-002,Summer Refresh,Another Supplier,2026-03-10,2026-04-15,draft,Urgent shipment,Specific notes for navy blue,32OZWBNAVYBLUE,250,',
     ].join('\n')
     const blob = new Blob([header + '\n' + example], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = 'po_bulk_upload_template.csv'
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+    setTimeout(() => {
+      URL.revokeObjectURL(url)
+    }, 100)
   }
 
   const handleBulkUpload = async () => {
@@ -738,7 +771,7 @@ export default function POPage() {
                                 return (
                                   <>
                                     {po.line_items.map((li, i) => {
-                                      const skuData = (li.sku && allSkus) ? allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase()) : null
+                                      const skuData = allSkus.find(s => s.sku && li.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
                                       const upb = li.units_per_box || skuData?.units_per_box || 0
                                       const cogs = li.cogs_per_unit || skuData?.cogs || 0
                                       const dims = li.dimensions || skuData?.dimensions || ''
@@ -746,16 +779,16 @@ export default function POPage() {
 
                                       return (
                                         <tr key={i} className="group/item">
-                                          <td className="py-2 pr-4">
+                                          <td className="py-2 pr-4 text-sm text-white">
                                             <InlineEdit 
                                               value={li.sku} 
                                               suggestions={skuSuggestions}
-                                              inputClassName="w-full text-white"
+                                              inputClassName="w-full text-sm text-white"
                                               autoEdit={li.sku === '' && i === po.line_items.length - 1}
                                               onSave={async (val) => {
                                                 const newItems = [...po.line_items]
                                                 const skuCode = val.trim()
-                                                const skuData = skuCode ? allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase()) : null
+                                                const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase())
                                                 if (skuData) {
                                                   const uo = li.units_ordered || 0
                                                   const upb = skuData.units_per_box || 0
@@ -780,6 +813,7 @@ export default function POPage() {
                                               type="number"
                                               value={li.units_ordered} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 const num = val ? Number(val) : 0
                                                 const newItems = [...po.line_items]
@@ -788,7 +822,7 @@ export default function POPage() {
                                                 let dims = li.dimensions || ''
                                                 
                                                 if (li.sku) {
-                                                  const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
+                                                  const skuData = allSkus.find(s => s.sku && li.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
                                                   if (skuData) {
                                                     if (!upb && skuData.units_per_box) upb = skuData.units_per_box
                                                     if (!cogs && skuData.cogs) cogs = skuData.cogs
@@ -814,6 +848,7 @@ export default function POPage() {
                                               type="number"
                                               value={li.units_received} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 const num = val ? Number(val) : 0
                                                 const newItems = [...po.line_items]
@@ -822,18 +857,19 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 pr-4 text-right font-data text-xs text-white">
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
                                             <InlineEdit 
                                               type="number"
                                               value={upb || ''} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 let num = val ? Number(val) : 0
                                                 let cogs = li.cogs_per_unit || 0
                                                 let dims = li.dimensions || ''
                                                 
                                                 if (li.sku) {
-                                                  const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
+                                                  const skuData = allSkus.find(s => s.sku && li.sku && s.sku.toLowerCase() === li.sku.toLowerCase())
                                                   if (skuData) {
                                                     if (!num && skuData.units_per_box) num = skuData.units_per_box
                                                     if (!cogs && skuData.cogs) cogs = skuData.cogs
@@ -855,11 +891,12 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 pr-4 text-right font-data text-xs text-white">
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
                                             <InlineEdit 
                                               type="number"
                                               value={bc || ''} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 const num = val ? Number(val) : 0
                                                 const newItems = [...po.line_items]
@@ -868,10 +905,10 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 pr-4 text-left font-data text-[10px] text-white">
+                                          <td className="py-2 pr-4 text-left font-data text-sm text-white">
                                             <InlineEdit 
                                               value={dims || ''} 
-                                              inputClassName="w-32 text-[10px] text-white"
+                                              inputClassName="w-32 text-sm text-white"
                                               onSave={async (val) => {
                                                 const newItems = [...po.line_items]
                                                 newItems[i] = { ...li, dimensions: val }
@@ -879,11 +916,12 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 pr-4 text-right font-data text-xs text-white">
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
                                             <InlineEdit 
                                               type="number"
                                               value={cogs || ''} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 const num = val ? Number(val) : 0
                                                 const newItems = [...po.line_items]
@@ -892,11 +930,12 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 pr-4 text-right font-data text-xs text-white">
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
                                             <InlineEdit 
                                               type="number"
                                               value={li.shipping_cost_per_unit} 
                                               className="justify-end"
+                                              inputClassName="w-16 text-right text-sm text-white"
                                               onSave={async (val) => {
                                                 const num = val ? Number(val) : 0
                                                 const newItems = [...po.line_items]
@@ -905,10 +944,10 @@ export default function POPage() {
                                               }}
                                             />
                                           </td>
-                                          <td className="py-2 text-left font-data text-[10px] text-white relative">
+                                          <td className="py-2 text-left font-data text-sm text-white relative">
                                             <InlineEdit 
                                               value={li.notes} 
-                                              inputClassName="w-48 text-[10px] text-white"
+                                              inputClassName="w-48 text-sm text-white"
                                               onSave={async (val) => {
                                                 const newItems = [...po.line_items]
                                                 newItems[i] = { ...li, notes: val }
@@ -922,7 +961,7 @@ export default function POPage() {
                                                   await saveItems(newItems)
                                                 }
                                               }}
-                                              className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-600 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                                              className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-red-500 hover:bg-white/5 rounded transition-colors"
                                             >
                                               <Trash2 className="h-3 w-3" />
                                             </button>
@@ -1007,6 +1046,7 @@ export default function POPage() {
               </div>
 
               <button
+                type="button"
                 onClick={downloadTemplate}
                 className="text-sm text-blue-600 hover:text-blue-800 font-medium underline underline-offset-2"
               >
@@ -1085,6 +1125,7 @@ export default function POPage() {
           {/* Bulk Update Status */}
           <div onClick={e => e.stopPropagation()} className="relative">
             <ActionDropdown
+              direction="up"
               currentStatus=""
               placeholder="UPDATE STATUS"
               onStatusChange={async (newStatus) => {

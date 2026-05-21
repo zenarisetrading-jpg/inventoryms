@@ -102,27 +102,48 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-body overflow-hidden relative">
+      {/* Immersive Futuristic Background Elements */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+        {/* Soft Ambient Mesh Glows */}
+        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-blue-600/10 blur-[130px]" />
+        <div className="absolute top-[30%] left-[20%] w-[500px] h-[500px] rounded-full bg-indigo-500/5 blur-[120px]" />
+        <div className="absolute -bottom-20 -left-20 w-[600px] h-[600px] rounded-full bg-purple-600/8 blur-[130px]" />
+        <div className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] rounded-full bg-blue-500/5 blur-[100px]" />
+
+        {/* Subtle Flowing Abstract Shapes / Floating 3D Spheres */}
+        <div className="absolute top-[15%] left-[25%] w-40 h-40 rounded-full bg-gradient-to-br from-blue-500/10 via-indigo-500/2 to-transparent border border-white/[0.03] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.05),0_10px_40px_rgba(0,0,0,0.2)] backdrop-blur-[2px] animate-pulse" style={{ animationDuration: '15s' }} />
+        <div className="absolute bottom-[25%] right-[20%] w-60 h-60 rounded-full bg-gradient-to-tr from-purple-500/8 via-pink-500/1 to-transparent border border-white/[0.02] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.03),0_15px_50px_rgba(0,0,0,0.2)] backdrop-blur-[1px] animate-pulse" style={{ animationDuration: '20s' }} />
+        
+        {/* Tiny ambient floating particles */}
+        <div className="absolute top-[40%] right-[35%] w-2 h-2 rounded-full bg-blue-400/20 blur-[1px] animate-ping" style={{ animationDuration: '6s' }} />
+        <div className="absolute bottom-[45%] left-[40%] w-3 h-3 rounded-full bg-purple-400/20 blur-[1px] animate-ping" style={{ animationDuration: '8s' }} />
+      </div>
+
       {/* Sidebar - Desktop */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-white/5 flex flex-col shrink-0 
+        fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-[#080d1f] via-[#040712] to-[#020409] border-r border-white/[0.04] flex flex-col shrink-0 
         transition-all duration-300 lg:relative lg:translate-x-0
         ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full w-64'}
       `}>
-        <div className={`h-14 px-6 flex items-center border-b border-white/5 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`h-14 px-6 flex items-center border-b border-white/[0.04] ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           <div className="flex items-center gap-3 flex-nowrap">
-            <img src={saddlLogo} alt="Saddl Logo" className="w-12 h-12 rounded-lg object-cover shrink-0 border border-white/10" />
+            <img 
+              src={saddlLogo} 
+              alt="Saddl Logo" 
+              className="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/[0.08] shadow-md shadow-blue-500/5 hover:scale-105 transition-transform duration-300" 
+            />
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-3 flex-nowrap shrink-0">
-                <span className="text-white font-black tracking-tight text-xl whitespace-nowrap animate-in fade-in duration-300">
-                  Saddl<span className="text-blue-400"> Inventory</span>
+                <span className="bg-gradient-to-r from-white via-slate-100 to-blue-400 bg-clip-text text-transparent font-black tracking-tight text-[17px] whitespace-nowrap animate-in fade-in duration-300">
+                  Saddl<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent font-bold"> Inventory</span>
                 </span>
                 {!isSidebarOpen && (
                   <button 
                     onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-                    className="hidden lg:flex text-white/30 hover:text-white transition-colors shrink-0 animate-in fade-in duration-300"
+                    className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.02] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all shrink-0 hover:scale-105 duration-200 border border-white/[0.04] animate-in fade-in duration-300"
                   >
-                    <Menu className="w-5 h-5" />
+                    <Menu className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -134,16 +155,17 @@ export default function App() {
           {isSidebarCollapsed && !isSidebarOpen && (
             <button 
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-              className="hidden lg:flex text-white/30 hover:text-white transition-colors"
+              className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.02] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all hover:scale-105 duration-200 border border-white/[0.04]"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-3'} space-y-1 overflow-y-auto pb-6 custom-scrollbar`}>
-          <div className={`px-3 mb-2 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
-            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Strategy</span>
+        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-3.5'} space-y-1.5 overflow-y-auto pb-6 pt-4 custom-scrollbar`}>
+          <div className={`px-3 mb-3 flex items-center gap-3 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden mb-0 mt-0' : 'opacity-100'}`}>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.25em]">Strategy</span>
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-white/5 to-transparent" />
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
@@ -153,48 +175,52 @@ export default function App() {
           )}
         </nav>
 
-        <div className={`p-4 border-t border-white/5 ${isSidebarCollapsed ? 'items-center' : ''}`}>
-          <div className={`bg-white/5 rounded-xl border border-white/5 transition-all ${isSidebarCollapsed ? 'p-2' : 'p-4'}`}>
-            <div className={`flex items-center gap-4 ${isAdminExpanded && !isSidebarCollapsed ? 'mb-5' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+        <div className={`p-4 border-t border-white/[0.04] ${isSidebarCollapsed ? 'items-center' : ''}`}>
+          <div className={`bg-gradient-to-b from-white/[0.04] to-transparent border border-white/[0.06] backdrop-blur-md transition-all hover:border-white/[0.12] hover:shadow-[0_8px_30px_rgba(59,130,246,0.05)] shadow-2xl rounded-2xl ${isSidebarCollapsed ? 'p-1.5' : 'p-3.5'}`}>
+            <div className={`flex items-center gap-3.5 ${isAdminExpanded && !isSidebarCollapsed ? 'mb-4' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
               <div 
-                className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-black text-white shrink-0 cursor-pointer shadow-lg shadow-blue-900/20"
+                className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-blue via-indigo-500 to-purple-600 p-[1.5px] shrink-0 cursor-pointer shadow-md shadow-brand-blue/10 hover:scale-105 transition-transform duration-300 avatar-glow-effect"
                 onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsAdminExpanded(!isAdminExpanded)}
               >
-                {user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'US'}
+                <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-[10px] font-black text-white">
+                  {user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'US'}
+                </div>
               </div>
               {!isSidebarCollapsed && (
                 <div 
                   className="flex-1 min-w-0 cursor-pointer"
                   onClick={() => setIsAdminExpanded(!isAdminExpanded)}
                 >
-                  <p className="text-[13px] font-black text-white leading-tight uppercase tracking-tight truncate">
+                  <p className="text-[12px] font-black text-white leading-none uppercase tracking-wider truncate mb-1">
                     {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                   </p>
-                  <p className="text-[10px] font-bold text-white/40 mt-1.5 uppercase tracking-widest truncate">
+                  <span className="inline-block bg-blue-500/10 px-2 py-0.5 rounded text-[8px] tracking-[0.15em] font-semibold text-blue-400 border border-blue-500/15 w-fit uppercase">
                     {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
-                  </p>
+                  </span>
                 </div>
               )}
               {!isSidebarCollapsed && (
                 <ChevronDown 
-                  className={`w-4 h-4 text-white/40 transition-transform cursor-pointer ${isAdminExpanded ? 'rotate-180' : ''}`} 
+                  className={`w-4 h-4 text-white/30 hover:text-white transition-all cursor-pointer ${isAdminExpanded ? 'rotate-180 text-blue-400' : ''}`} 
                   onClick={() => setIsAdminExpanded(!isAdminExpanded)}
                 />
               )}
             </div>
 
             {isAdminExpanded && !isSidebarCollapsed && (
-              <div className="space-y-1 mb-3 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="relative pl-3 ml-[18px] mt-3 space-y-1.5 mb-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                {/* Decorative vertical tree connector line */}
+                <div className="absolute left-0 top-0 bottom-3 w-[1px] bg-gradient-to-b from-white/15 via-white/5 to-transparent" />
+                
                 <SidebarLink icon={Package} label="SKU Master" path="/skus" current={route.name === 'skus' || route.name === 'sku'} isSubItem />
                 <SidebarLink icon={ClipboardList} label="PO Register" path="/po" current={route.name === 'po'} isSubItem />
                 <SidebarLink icon={Layers} label="Operations Hub" path="/upload" current={route.name === 'upload' || route.name === 'health'} isSubItem />
               </div>
             )}
-
-            {/* Sign Out is now inside the Settings Modal (accessible via header profile) */}
           </div>
         </div>
       </aside>
+
 
       {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
@@ -206,11 +232,11 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        <header className="h-14 bg-sidebar border-b border-white/5 flex items-center justify-between px-4 lg:px-6 shrink-0">
+        <header className="h-14 bg-gradient-to-r from-[#080d1f]/95 to-[#040712]/95 backdrop-blur-md border-b border-white/[0.04] flex items-center justify-between px-4 lg:px-6 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 -ml-2 text-muted hover:bg-slate-100 rounded-lg lg:hidden transition-colors"
+              className="p-2 -ml-2 text-muted hover:bg-white/5 rounded-lg lg:hidden transition-colors"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -219,25 +245,28 @@ export default function App() {
 
             <div 
               onClick={() => setIsSettingsOpen(true)}
-              className="flex items-center gap-3 group cursor-pointer hover:bg-white/5 p-1.5 rounded-xl transition-colors"
+              className="flex items-center gap-3 group cursor-pointer hover:bg-white/[0.03] p-1 px-2.5 rounded-xl border border-transparent hover:border-white/[0.05] transition-all duration-300"
             >
               <div className="hidden sm:flex flex-col items-end justify-center mr-1">
-                <p className="text-xs font-black text-white uppercase tracking-wider leading-none mb-0.5">
+                <p className="text-xs font-black text-white uppercase tracking-wider leading-none mb-1">
                   {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                 </p>
-                <p className="text-xs font-black text-white/60 uppercase tracking-widest leading-none">
+                <span className="text-[8px] tracking-[0.15em] font-semibold text-blue-400 uppercase leading-none">
                   {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
-                </p>
+                </span>
               </div>
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shadow-sm group-hover:shadow-indigo-500/20 transition-all">
-                <User className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-blue to-purple-500 p-[1px] shadow-sm group-hover:scale-105 transition-all duration-300">
+                <div className="w-full h-full rounded-[7px] bg-slate-900 flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-white" />
+                </div>
               </div>
-              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-zinc-500 group-hover:text-white group-hover:translate-y-0.5 transition-all" />
+              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-transform duration-300 group-hover:translate-y-0.5" />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-body">
+
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-transparent relative z-10">
           <div className="w-full min-h-full flex flex-col">
             <ErrorBoundary>
               {route.name === 'dashboard' && <CommandCenter />}
@@ -412,18 +441,45 @@ function SidebarLink({ icon: Icon, label, path, current, isSubItem, collapsed }:
     <button
       onClick={() => navigate(path)}
       title={collapsed ? label : undefined}
-      className={`w-full flex items-center transition-all ${collapsed ? 'justify-center py-3 px-2' : 'gap-3 px-4 py-2.5'} rounded-lg text-sm ${isSubItem ? 'ml-1 w-[calc(100%-4px)] py-1.5 px-3' : ''} ${current
-        ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
-        : 'text-white/50 hover:text-white hover:bg-white/5'
+      className={`group w-full flex items-center transition-all duration-300 relative overflow-hidden
+        ${collapsed 
+          ? 'justify-center py-3 px-2 rounded-xl' 
+          : `gap-3 px-4 py-2.5 rounded-xl ${isSubItem ? 'py-2 px-3 text-[13px] ml-1' : 'text-sm'}`
+        } 
+        ${current
+          ? isSubItem
+            ? 'bg-blue-500/10 text-white font-bold border-l-2 border-brand-blue shadow-sm'
+            : 'bg-gradient-to-r from-blue-500/15 via-blue-500/5 to-transparent text-white border-l-[3px] border-brand-blue shadow-[inset_1px_0_0_rgba(255,255,255,0.03)]'
+          : 'text-white/45 hover:text-white hover:bg-white/[0.03] hover:translate-x-0.5'
         }`}
     >
-      <Icon className={`${isSubItem ? 'w-3.5 h-3.5' : 'w-4 h-4'} ${current ? 'text-white' : 'text-white/40'} shrink-0`} />
+      {/* Dynamic background hover glow element */}
+      {!current && (
+        <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500/0 via-blue-500/[0.02] to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      )}
+      
+      <Icon className={`
+        ${isSubItem ? 'w-3.5 h-3.5' : 'w-4 h-4'} 
+        ${current ? 'text-blue-400' : 'text-white/35 group-hover:text-white/70'} 
+        shrink-0 transition-colors duration-300
+      `} />
+      
       {!collapsed && (
         <>
-          <span className={`uppercase tracking-[0.15em] ${isSubItem ? 'text-[9px]' : 'text-[10px]'} font-black truncate`}>{label}</span>
-          {current && <div className={`ml-auto ${isSubItem ? 'w-1 h-1' : 'w-1.5 h-1.5'} rounded-full bg-white animate-pulse`} />}
+          <span className={`uppercase tracking-[0.15em] ${isSubItem ? 'text-[9px]' : 'text-[10px]'} font-black truncate transition-colors duration-300`}>
+            {label}
+          </span>
+          {current && (
+            <div className="ml-auto flex items-center justify-center shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+              </span>
+            </div>
+          )}
         </>
       )}
     </button>
   )
 }
+
