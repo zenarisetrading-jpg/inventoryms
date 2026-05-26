@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, Fragment } from 'react'
-import { X, Upload, Check, Edit2, Plus, Trash2, Download, Search, TrendingUp } from 'lucide-react'
+import { X, Upload, Check, Edit2, Plus, Trash2, Download, Search, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
@@ -219,9 +219,12 @@ export default function POPage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 20
 
   useEffect(() => {
     setSelectedIds(new Set())
+    setCurrentPage(1)
   }, [activeTab, search])
 
   const [advancingId, setAdvancingId] = useState<string | null>(null)
@@ -298,6 +301,9 @@ export default function POPage() {
     const res = aVal < bVal ? -1 : 1
     return direction === 'asc' ? res : -res
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredPOs.length / itemsPerPage))
+  const paginatedPOs = filteredPOs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   const requestSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc'
@@ -533,82 +539,85 @@ export default function POPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-card border-white/5 shadow-2xl">
-        <table className="w-full table-fixed text-sm min-w-[1000px] lg:min-w-0">
-          <thead className="bg-white/5 border-white/10">
-            <tr className="bg-white/5">
-              <th className="w-[4%] text-center px-4 py-3 border-b border-white/10">
-                <input
-                  type="checkbox"
-                  className="rounded border-white/20 bg-white/5 text-brand-amber focus:ring-brand-amber focus:ring-offset-0 focus:outline-none cursor-pointer w-3.5 h-3.5"
-                  checked={filteredPOs.length > 0 && filteredPOs.every(po => selectedIds.has(po.id))}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds(new Set(filteredPOs.map(po => po.id)))
-                    } else {
-                      setSelectedIds(new Set())
-                    }
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
-              </th>
-              <th className="w-[3%] text-center px-4 py-3" />
+      <div className="bg-card border border-white/5 shadow-2xl rounded-2xl overflow-hidden">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto w-full custom-scrollbar">
+          <table className="w-full table-fixed text-sm min-w-[1000px]">
+            <thead className="bg-[#111827] sticky top-0 z-10 border-b border-white/10">
+              <tr className="bg-[#111827]">
+                <th className="sticky top-0 bg-[#111827] z-10 w-[3%] text-center px-4 py-3 border-b border-white/10">
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/20 bg-white/5 text-brand-amber focus:ring-brand-amber focus:ring-offset-0 focus:outline-none cursor-pointer w-3.5 h-3.5"
+                    checked={paginatedPOs.length > 0 && paginatedPOs.every(po => selectedIds.has(po.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(new Set([...selectedIds, ...paginatedPOs.map(po => po.id)]))
+                      } else {
+                        const next = new Set(selectedIds)
+                        paginatedPOs.forEach(po => next.delete(po.id))
+                        setSelectedIds(next)
+                      }
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                </th>
+              <th className="sticky top-0 bg-[#111827] z-10 w-[3%] text-center px-4 py-3 border-b border-white/10" />
               <th 
-                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('po_number')}
               >
                 PO ID {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[16%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[16%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('supplier')}
               >
                 Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[8%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[6%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('skus')}
               >
                 SKUs {sortConfig?.key === 'skus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[10%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[8%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('units')}
               >
                 Units {sortConfig?.key === 'units' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[10%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('order_date')}
               >
                 Order Date {sortConfig?.key === 'order_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[10%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('eta')}
               >
                 ETA {sortConfig?.key === 'eta' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="w-[11%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('status')}
               >
                 Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="w-[12%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest border-b border-white/10">Action</th>
+              <th className="sticky top-0 bg-[#111827] z-10 w-[20%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest border-b border-white/10">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-transparent">
             {loading ? (
               <><SkeletonRow cols={10} /><SkeletonRow cols={10} /><SkeletonRow cols={10} /></>
-            ) : filteredPOs.length === 0 ? (
+            ) : paginatedPOs.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-8 text-sm text-white text-center">
                   {search ? 'No purchase orders match your search' : 'No purchase orders found'}
                 </td>
               </tr>
             ) : (
-              filteredPOs.map(po => {
+              paginatedPOs.map(po => {
                 const isExpanded = expandedId === po.id
                 const next = nextStatus(po.status)
                 const totalUnits = po.line_items.reduce((sum, li) => sum + (li.units_ordered || 0), 0)
@@ -1017,6 +1026,93 @@ export default function POPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Footer */}
+      {filteredPOs.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 bg-white/5 border-t border-white/5">
+          {/* Left: Shows range */}
+          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+            Showing <span className="text-white font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span> to{" "}
+            <span className="text-white font-semibold">
+              {Math.min(currentPage * itemsPerPage, filteredPOs.length)}
+            </span>{" "}
+            of <span className="text-white font-semibold">{filteredPOs.length}</span> Orders
+          </div>
+
+          {/* Right: Pagination buttons */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-500 transition-all cursor-pointer"
+              title="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Dynamic Page Buttons */}
+            {(() => {
+              const pages = []
+              const startPage = Math.max(1, currentPage - 2)
+              const endPage = Math.min(totalPages, currentPage + 2)
+
+              if (startPage > 1) {
+                pages.push(
+                  <button
+                    key={1}
+                    onClick={() => setCurrentPage(1)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${currentPage === 1 ? 'bg-brand-amber text-primary' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+                  >
+                    1
+                  </button>
+                )
+                if (startPage > 2) {
+                  pages.push(<span key="dots-start" className="px-1 text-zinc-600 text-xs">...</span>)
+                }
+              }
+
+              for (let p = startPage; p <= endPage; p++) {
+                pages.push(
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${currentPage === p ? 'bg-brand-amber text-[#030712]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+                  >
+                    {p}
+                  </button>
+                )
+              }
+
+              if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                  pages.push(<span key="dots-end" className="px-1 text-zinc-600 text-xs">...</span>)
+                }
+                pages.push(
+                  <button
+                    key={totalPages}
+                    onClick={() => setCurrentPage(totalPages)}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${currentPage === totalPages ? 'bg-brand-amber text-[#030712]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+                  >
+                    {totalPages}
+                  </button>
+                )
+              }
+
+              return pages
+            })()}
+
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-zinc-500 transition-all cursor-pointer"
+              title="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
 
       {/* Bulk Upload Modal */}
       {showBulkModal && (
