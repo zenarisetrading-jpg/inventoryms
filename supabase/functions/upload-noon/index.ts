@@ -222,17 +222,74 @@ serve(async (req: Request) => {
           }
         }
 
-        // Insert in batches of 500 to stay within memory/payload limits
+        const validDbRows = dbRows.filter(r => r.item_nr)
+        
+        // Deduplicate rows from CSV by item_nr (keep the last one)
+        const dedupedCsvRows = new Map<string, any>()
+        for (const r of validDbRows) {
+          dedupedCsvRows.set(r.item_nr, r)
+        }
+        const finalDbRows = Array.from(dedupedCsvRows.values())
+        
+        const itemNrs = Array.from(dedupedCsvRows.keys())
+        
+        // Fetch existing active rows by item_nr
+        const existingMap = new Map<string, any>()
         const CHUNK_SIZE = 500
-        for (let i = 0; i < dbRows.length; i += CHUNK_SIZE) {
-          const chunk = dbRows.slice(i, i + CHUNK_SIZE)
+        for (let i = 0; i < itemNrs.length; i += CHUNK_SIZE) {
+          const chunk = itemNrs.slice(i, i + CHUNK_SIZE)
+          const { data: existingRows } = await supabase
+            .from('noon_sales')
+            .select('id, item_nr, status, gmv_lcy, offer_price, delivered_timestamp, shipment_timestamp')
+            .in('item_nr', chunk)
+            .eq('is_current', true)
+          for (const row of (existingRows || [])) {
+            existingMap.set(row.item_nr, row)
+          }
+        }
+
+        const idsToRetire: number[] = []
+        const rowsToInsert: any[] = []
+
+        for (const newRow of finalDbRows) {
+          const existing = existingMap.get(newRow.item_nr)
+          if (existing) {
+            let changed = false
+            if (existing.status !== newRow.status) changed = true
+            else if (Number(existing.gmv_lcy) !== Number(newRow.gmv_lcy)) changed = true
+            else if (Number(existing.offer_price) !== Number(newRow.offer_price)) changed = true
+            else if (newRow.shipment_timestamp && !existing.shipment_timestamp) changed = true
+            else if (newRow.delivered_timestamp && !existing.delivered_timestamp) changed = true
+            
+            if (changed) {
+              idsToRetire.push(existing.id)
+              rowsToInsert.push(newRow)
+              existingMap.delete(newRow.item_nr)
+            }
+          } else {
+            rowsToInsert.push(newRow)
+          }
+        }
+
+        // Retire old rows
+        for (let i = 0; i < idsToRetire.length; i += CHUNK_SIZE) {
+          const chunk = idsToRetire.slice(i, i + CHUNK_SIZE)
+          await supabase.from('noon_sales')
+            .update({ is_current: false, valid_to: new Date().toISOString() })
+            .in('id', chunk)
+        }
+
+        // Insert new rows
+        for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
+          const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE)
           const { error: noonSalesError } = await supabase.from('noon_sales').insert(chunk)
           if (noonSalesError) {
             console.error(`[upload-noon] noon_sales insert error at chunk ${i}:`, noonSalesError)
             return jsonResponse({ error: `noon_sales insert failed: ${noonSalesError.message}` }, 500)
           }
         }
-        rawInserted = dbRows.length
+        
+        rawInserted = rowsToInsert.length
       }
 
       // Track unique SKUs that had data written
@@ -307,6 +364,7 @@ serve(async (req: Request) => {
       raw_rows_inserted: rawInserted,
       skus_updated: Array.from(skusUpdated).sort(),
       errors: parseErrors,
+      message: rawInserted === 0 ? "No new changes detected" : undefined,
     })
   } catch (err) {
     console.error('[upload-noon] Unhandled error:', err)

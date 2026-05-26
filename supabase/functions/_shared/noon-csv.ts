@@ -162,8 +162,8 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
       const status = rawRow.status.trim().toLowerCase()
       if (!CONFIRMED_STATUSES.has(status)) continue
 
-      // partner_sku — trim aggressively
-      const partner_sku = rawRow.partner_sku.trim()
+      // partner_sku — trim aggressively and remove all internal spaces
+      const partner_sku = rawRow.partner_sku.replace(/\s+/g, '')
       if (!partner_sku) {
         errors.push({ row: rowNum, message: 'Empty partner_sku — row skipped' })
         continue
@@ -304,7 +304,7 @@ export function parseMinutesOrderCSV(csvText: string): ParsedMinutesData {
       const status = rawRow.item_status.toLowerCase()
       if (!CONFIRMED_STATUSES.has(status)) continue
 
-      const partner_sku = rawRow.partner_sku.trim()
+      const partner_sku = rawRow.partner_sku.replace(/\s+/g, '')
       if (!partner_sku) continue
 
       // Date format check (YYYY-MM-DD)

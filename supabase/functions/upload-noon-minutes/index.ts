@@ -109,17 +109,83 @@ serve(async (req: Request) => {
         }
       }
 
-      // Insert in batches of 500
-      const CHUNK_SIZE = 500
-      for (let i = 0; i < dbRows.length; i += CHUNK_SIZE) {
-        const chunk = dbRows.slice(i, i + CHUNK_SIZE)
+      const validDbRows = dbRows.filter(r => r.order_nr && r.sku)
+      
+      // Deduplicate rows from CSV by order_nr + sku (keep the last one)
+      const dedupedCsvRows = new Map<string, any>()
+      for (const r of validDbRows) {
+        dedupedCsvRows.set(`${r.order_nr}|${r.sku}`, r)
+      }
+      const finalDbRows = Array.from(dedupedCsvRows.values())
+      
+      const orderNrs = Array.from(new Set(finalDbRows.map(r => r.order_nr)))
+      
+      const existingMap = new Map<string, any>()
+      const QUERY_CHUNK_SIZE = 100 // Lower to avoid PostgREST 1000-row limit
+      const INSERT_CHUNK_SIZE = 500
+      
+      for (let i = 0; i < orderNrs.length; i += QUERY_CHUNK_SIZE) {
+        const chunk = orderNrs.slice(i, i + QUERY_CHUNK_SIZE)
+        const { data: existingRows, error: fetchErr } = await supabase
+          .from('minutes_sales')
+          .select('id, order_nr, sku, item_status, price')
+          .in('order_nr', chunk)
+          .eq('is_current', true)
+        
+        if (fetchErr) {
+          console.error(`[upload-noon-minutes] fetch existing error:`, fetchErr)
+          return jsonResponse({ error: `Fetch existing failed: ${fetchErr.message}` }, 500)
+        }
+        for (const row of (existingRows || [])) {
+          existingMap.set(`${row.order_nr}|${row.sku}`, row)
+        }
+      }
+
+      const idsToRetire: number[] = []
+      const rowsToInsert: any[] = []
+
+      for (const newRow of finalDbRows) {
+        const key = `${newRow.order_nr}|${newRow.sku}`
+        const existing = existingMap.get(key)
+        
+        if (existing) {
+          let changed = false
+          if (existing.item_status !== newRow.item_status) changed = true
+          else if (Number(existing.price) !== Number(newRow.price)) changed = true
+          
+          if (changed) {
+            idsToRetire.push(existing.id)
+            rowsToInsert.push(newRow)
+            existingMap.delete(key)
+          }
+        } else {
+          rowsToInsert.push(newRow)
+        }
+      }
+
+      // Retire old rows
+      for (let i = 0; i < idsToRetire.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = idsToRetire.slice(i, i + INSERT_CHUNK_SIZE)
+        const { error: updateErr } = await supabase.from('minutes_sales')
+          .update({ is_current: false, valid_to: new Date().toISOString() })
+          .in('id', chunk)
+        if (updateErr) {
+          console.error(`[upload-noon-minutes] update error:`, updateErr)
+          return jsonResponse({ error: `Update failed: ${updateErr.message}` }, 500)
+        }
+      }
+
+      // Insert new rows
+      for (let i = 0; i < rowsToInsert.length; i += INSERT_CHUNK_SIZE) {
+        const chunk = rowsToInsert.slice(i, i + INSERT_CHUNK_SIZE)
         const { error: minutesError } = await supabase.from('minutes_sales').insert(chunk)
         if (minutesError) {
           console.error(`[upload-noon-minutes] minutes_sales insert error at chunk ${i}:`, minutesError)
           return jsonResponse({ error: `minutes_sales insert failed: ${minutesError.message}` }, 500)
         }
       }
-      rawInserted = dbRows.length
+      
+      rawInserted = rowsToInsert.length
     }
 
     // await refreshAllMetrics(supabase)
@@ -129,6 +195,7 @@ serve(async (req: Request) => {
       raw_rows_inserted: rawInserted,
       skus_updated: Array.from(new Set(upsertRows.map(r => r.sku))).sort(),
       errors: parseErrors,
+      message: rawInserted === 0 ? "No new changes detected" : undefined,
     })
   } catch (err) {
     return jsonResponse({ error: String(err) }, 500)

@@ -436,7 +436,11 @@ export default function OperationsHub() {
                   <div className="text-green-400 text-[9px] font-black uppercase flex items-center gap-1.5">
                     <CheckCircle2 className="h-2.5 w-2.5" /> {noonSalesState.result.rows_processed} Orders
                   </div>
-                  {(noonSalesState.result as any).raw_rows_inserted !== undefined && (
+                  {(noonSalesState.result as any).message ? (
+                    <div className="text-yellow-400/80 text-[8px] font-bold uppercase flex items-center gap-1.5">
+                      <Database className="h-2.5 w-2.5" /> {(noonSalesState.result as any).message}
+                    </div>
+                  ) : (noonSalesState.result as any).raw_rows_inserted !== undefined && (
                     <div className="text-green-400/60 text-[8px] font-bold uppercase flex items-center gap-1.5">
                       <Database className="h-2.5 w-2.5" /> {(noonSalesState.result as any).raw_rows_inserted} Raw Saved
                     </div>
@@ -461,6 +465,16 @@ export default function OperationsHub() {
               {noonInvState.result && <div className="mt-2 text-green-400 text-[9px] font-black uppercase">{noonInvState.result.rows_matched} SKUs</div>}
             </div>
           </div>
+          {noonSalesState.result?.errors && noonSalesState.result.errors.length > 0 && (
+            <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+              <div className="text-red-400 text-[10px] font-black uppercase mb-2">Upload Errors ({noonSalesState.result.errors.length})</div>
+              <ul className="text-red-300 text-[9px] font-bold list-disc pl-4 space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                {noonSalesState.result.errors.map((e, i) => (
+                  <li key={i}>Row {e.row}: {e.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {noonSalesState.error && <div className="mt-4 text-red-400 text-[10px] font-black uppercase">{noonSalesState.error}</div>}
           {noonInvState.error && <div className="mt-4 text-red-400 text-[10px] font-black uppercase">{noonInvState.error}</div>}
         </SectionTile>
@@ -499,11 +513,25 @@ export default function OperationsHub() {
                 <div className="flex items-center gap-2 text-green-400 text-[10px] font-black uppercase tracking-widest">
                   <CheckCircle2 className="h-3 w-3" /> {minutesState.result.rows_processed} Orders Injected
                 </div>
-                {(minutesState.result as any).raw_rows_inserted !== undefined && (
+                {(minutesState.result as any).message ? (
+                  <div className="flex items-center gap-2 text-yellow-400/80 text-[9px] font-bold uppercase tracking-widest">
+                    <Database className="h-3 w-3" /> {(minutesState.result as any).message}
+                  </div>
+                ) : (minutesState.result as any).raw_rows_inserted !== undefined && (
                   <div className="flex items-center gap-2 text-green-400/70 text-[9px] font-bold uppercase tracking-widest">
                     <Database className="h-3 w-3" /> {(minutesState.result as any).raw_rows_inserted} Raw Rows Saved
                   </div>
                 )}
+              </div>
+            )}
+            {minutesState.result?.errors && minutesState.result.errors.length > 0 && (
+              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                <div className="text-red-400 text-[10px] font-black uppercase mb-2">Upload Errors ({minutesState.result.errors.length})</div>
+                <ul className="text-red-300 text-[9px] font-bold list-disc pl-4 space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                  {minutesState.result.errors.map((e, i) => (
+                    <li key={i}>Row {e.row}: {e.message}</li>
+                  ))}
+                </ul>
               </div>
             )}
             {minutesState.error && <div className="text-red-400 text-[10px] font-black uppercase tracking-widest">{minutesState.error}</div>}
