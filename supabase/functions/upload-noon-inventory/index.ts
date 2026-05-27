@@ -104,11 +104,18 @@ serve(async (req: Request) => {
 
     // Build reverse map: NOON_SKU_UPPERCASE → internal_sku
     const noonToInternal = new Map<string, string>()
+    // Set exact matches first to ensure they take priority
+    for (const internalSku of validSkus) {
+      noonToInternal.set(internalSku.toUpperCase(), internalSku)
+    }
+    // Set trailing 's' fallbacks only if they do not overwrite an exact match
     for (const internalSku of validSkus) {
       if (/s$/i.test(internalSku)) {
-        noonToInternal.set(internalSku.slice(0, -1).toUpperCase(), internalSku)
+        const withoutS = internalSku.slice(0, -1).toUpperCase()
+        if (!noonToInternal.has(withoutS)) {
+          noonToInternal.set(withoutS, internalSku)
+        }
       }
-      noonToInternal.set(internalSku.toUpperCase(), internalSku)
     }
 
     // Aggregated map: sku|node|warehouse_name -> available

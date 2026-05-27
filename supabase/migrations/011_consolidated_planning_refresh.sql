@@ -93,20 +93,22 @@ BEGIN
         is_active
     )
 
-    WITH latest_snapshot AS (
+    WITH latest_date_per_node AS (
+        SELECT node, MAX(snapshot_date) as max_date
+        FROM public.inventory_snapshot
+        GROUP BY node
+    ),
 
+    latest_snapshot AS (
         SELECT
-            sku,
-            node,
-            available,
-            warehouse_name,
-
-            ROW_NUMBER() OVER (
-                PARTITION BY sku, node, warehouse_name
-                ORDER BY snapshot_date DESC
-            ) AS rn
-
-        FROM inventory_snapshot
+            i.sku,
+            i.node,
+            i.available,
+            i.warehouse_name
+        FROM public.inventory_snapshot i
+        JOIN latest_date_per_node l 
+          ON i.node = l.node 
+         AND i.snapshot_date = l.max_date
     ),
 
     inventory_data AS (
@@ -147,7 +149,6 @@ BEGIN
             ) AS locad_boxes
 
         FROM latest_snapshot ls
-        WHERE rn = 1
         GROUP BY ls.sku
     ),
 

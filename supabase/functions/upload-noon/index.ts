@@ -132,13 +132,18 @@ serve(async (req: Request) => {
       
       const validSkus = (skuMasterRows ?? []).map((r: { sku: string }) => r.sku)
       const noonToInternal = new Map<string, string>()
-      
+      // Set exact matches first to ensure they take priority
       for (const internalSku of validSkus) {
-        // Noon often omits trailing 's' (e.g. "32OZNAVYBLUE" -> "32OZNAVYBLUES")
-        if (/s$/i.test(internalSku)) {
-          noonToInternal.set(internalSku.slice(0, -1).toUpperCase(), internalSku)
-        }
         noonToInternal.set(internalSku.toUpperCase(), internalSku)
+      }
+      // Set trailing 's' fallbacks only if they do not overwrite an exact match
+      for (const internalSku of validSkus) {
+        if (/s$/i.test(internalSku)) {
+          const withoutS = internalSku.slice(0, -1).toUpperCase()
+          if (!noonToInternal.has(withoutS)) {
+            noonToInternal.set(withoutS, internalSku)
+          }
+        }
       }
 
       // Map parsed Noon SKUs to internal SKUs using the dictionary
