@@ -96,15 +96,33 @@ BEGIN
     WITH latest_date_per_node AS (
         SELECT node, MAX(snapshot_date) as max_date
         FROM public.inventory_snapshot
+        WHERE node IN ('noon_fbn', 'Minutes')
         GROUP BY node
     ),
 
     latest_snapshot AS (
         SELECT
+            sku,
+            node,
+            available,
+            warehouse_name,
+            snapshot_date,
+            ROW_NUMBER() OVER (
+                PARTITION BY sku, node, warehouse_name
+                ORDER BY snapshot_date DESC
+            ) AS rn
+        FROM public.inventory_snapshot
+        WHERE node IN ('amazon_fba', 'locad_warehouse')
+
+        UNION ALL
+
+        SELECT
             i.sku,
             i.node,
             i.available,
-            i.warehouse_name
+            i.warehouse_name,
+            i.snapshot_date,
+            1 AS rn
         FROM public.inventory_snapshot i
         JOIN latest_date_per_node l 
           ON i.node = l.node 
@@ -149,6 +167,7 @@ BEGIN
             ) AS locad_boxes
 
         FROM latest_snapshot ls
+        WHERE rn = 1
         GROUP BY ls.sku
     ),
 
