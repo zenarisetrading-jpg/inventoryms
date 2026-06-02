@@ -101,22 +101,30 @@ export default function PerformancePage() {
   const [summaryData, setSummaryData] = useState<any>(null)
   const [mtdForecast, setMtdForecast] = useState<any>(null)
   const [lastMonthSales, setLastMonthSales] = useState<any>(null)
-  const [refreshingFact, setRefreshingFact] = useState(false)
+  const [refreshingConsolidated, setRefreshingConsolidated] = useState(false)
+  const [consolidatedStep, setConsolidatedStep] = useState<'idle' | 'amazon' | 'facts'>('idle')
 
-  const handleRefreshFact = async () => {
-    setRefreshingFact(true)
+  const handleConsolidatedRefresh = async () => {
+    setRefreshingConsolidated(true)
     setError(null)
     try {
-      // Use the central sync endpoint which has robustness and fallbacks
-      const res = await api.refreshFactTable()
-      if ((res as any).error) throw new Error((res as any).error)
+      // Step 1: Sync Amazon Remote FDW
+      setConsolidatedStep('amazon')
+      const resAmz = await api.triggerAmazonFDW()
+      if ((resAmz as any).error) throw new Error((resAmz as any).error)
+
+      // Step 2: Recompute Facts Pipeline
+      setConsolidatedStep('facts')
+      const resFact = await api.refreshFactTable()
+      if ((resFact as any).error) throw new Error((resFact as any).error)
 
       await fetchData()
     } catch (err: any) {
-      console.error('Refresh fact error:', err)
-      setError(err.message || 'Failed to refresh fact data')
+      console.error('Consolidated refresh error:', err)
+      setError(err.message || 'Failed to complete consolidated sync')
     } finally {
-      setRefreshingFact(false)
+      setRefreshingConsolidated(false)
+      setConsolidatedStep('idle')
     }
   }
 
@@ -277,17 +285,34 @@ export default function PerformancePage() {
 
       {/* HEADER & CONSOLIDATED CONTROL CENTER */}
       <div className="relative z-50 bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
-        {/* Top: Centered Header */}
-        <div className="flex flex-col items-center gap-5">
-          <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-blue shadow-2xl border border-white/5">
-            <LineIcon className="w-7 h-7 lg:w-8 lg:h-8" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">Performance Analytics</h1>
-            <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-              Commercial Intelligence Engine • Live Stream
-            </p>
+        {/* Top: Centered Header / Left-aligned with buttons on large screens */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 w-full">
+          <div className="flex flex-col items-center lg:items-start gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-blue shadow-2xl border border-white/5 shrink-0">
+                <LineIcon className="w-7 h-7 lg:w-8 lg:h-8" />
+              </div>
+              <div className="text-center lg:text-left">
+                <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">Performance Analytics</h1>
+                <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center lg:justify-start gap-3">
+                  <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
+                  Commercial Intelligence Engine • Live Stream
+                </p>
+              </div>
+            </div>
+          </div>          {/* CONSOLIDATED REFRESH BUTTON */}
+          <div className="flex flex-wrap items-center justify-center lg:justify-end gap-3.5 shrink-0">
+            <button
+              onClick={handleConsolidatedRefresh}
+              disabled={refreshingConsolidated}
+              className="flex items-center gap-2.5 px-6 py-4 bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-600/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-brand-blue/20 cursor-pointer"
+              title="Sync Amazon Remote Data & Recompute Facts Pipeline sequentially"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshingConsolidated ? 'animate-spin' : ''}`} />
+              {refreshingConsolidated ? (
+                consolidatedStep === 'amazon' ? 'Step 1/2: Syncing Remote FDW...' : 'Step 2/2: Recalculating Facts...'
+              ) : 'Sync Amazon & Sales Facts'}
+            </button>
           </div>
         </div>
 
