@@ -16,9 +16,12 @@ serve(async (req: Request) => {
   try {
     const supabase = getSupabaseAdmin()
 
+    const url = new URL(req.url)
+    const country = url.searchParams.get('country') || 'UAE'
+
     // 1. Fetch data from fact_inventory_planning and sku_master separately
     const [factRes, masterRes] = await Promise.all([
-      supabase.from('fact_inventory_planning').select('*'),
+      supabase.from('fact_inventory_planning').select('*').eq('country', country),
       supabase.from('sku_master').select('sku, name, is_active')
     ])
 

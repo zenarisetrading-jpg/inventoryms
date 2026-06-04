@@ -146,7 +146,7 @@ function InlineEdit({
 
   if (editing) {
     return (
-      <form onClick={e => e.stopPropagation()} onSubmit={handleSave} className="flex items-center gap-1">
+      <form onClick={e => e.stopPropagation()} onSubmit={handleSave} className="flex items-center gap-1 relative z-10 bg-card rounded-md shadow-lg ring-1 ring-black/5 -ml-1 p-1">
         {suggestions.length > 0 ? (
           <div className={inputClassName}>
             <Autocomplete
@@ -563,13 +563,13 @@ export default function POPage() {
                 </th>
               <th className="sticky top-0 bg-[#111827] z-10 w-[3%] text-center px-4 py-3 border-b border-white/10" />
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[11%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('po_number')}
               >
                 PO ID {sortConfig?.key === 'po_number' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[16%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[15%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('supplier')}
               >
                 Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -581,30 +581,30 @@ export default function POPage() {
                 SKUs {sortConfig?.key === 'skus' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[8%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[7%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('units')}
               >
                 Units {sortConfig?.key === 'units' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[10%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[13%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('order_date')}
               >
                 Order Date {sortConfig?.key === 'order_date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[10%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[13%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('eta')}
               >
                 ETA {sortConfig?.key === 'eta' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
-                className="sticky top-0 bg-[#111827] z-10 w-[12%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                className="sticky top-0 bg-[#111827] z-10 w-[11%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('status')}
               >
                 Status {sortConfig?.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th className="sticky top-0 bg-[#111827] z-10 w-[20%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest border-b border-white/10">Action</th>
+              <th className="sticky top-0 bg-[#111827] z-10 w-[18%] pl-4 pr-8 py-3 text-right text-[10px] font-black text-white uppercase tracking-widest border-b border-white/10">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 bg-transparent">
@@ -673,7 +673,7 @@ export default function POPage() {
                           value={po.order_date} 
                           displayValue={formatDate(po.order_date)}
                           placeholder="+ Add Date"
-                          inputClassName="w-32 text-xs"
+                          inputClassName="w-[115px] text-xs"
                           onSave={async (val) => {
                             await api.updatePO(po.id, { order_date: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, order_date: val } : p))
@@ -686,7 +686,7 @@ export default function POPage() {
                           value={po.eta} 
                           displayValue={formatDate(po.eta)}
                           placeholder="+ Add ETA"
-                          inputClassName="w-32 text-xs"
+                          inputClassName="w-[115px] text-xs"
                           onSave={async (val) => {
                             await api.updatePO(po.id, { eta: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, eta: val } : p))

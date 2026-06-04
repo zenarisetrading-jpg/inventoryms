@@ -55,15 +55,20 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
 }
 
+function getCountry(): string {
+  return localStorage.getItem('selected_region') || 'UAE'
+}
+
 function buildQuery(params: Record<string, string | undefined>): string {
-  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== '')
+  const allParams = { ...params, country: getCountry() }
+  const entries = Object.entries(allParams).filter(([, v]) => v !== undefined && v !== '')
   if (entries.length === 0) return ''
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`).join('&')
 }
 
 export const api = {
   getCommandCenter: async (): Promise<CommandCenterResponse> =>
-    fetch(`${BASE}/dashboard`, { headers: await getHeaders() })
+    fetch(`${BASE}/dashboard?country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<CommandCenterResponse>(r))
       .catch(err => ({ error: err.message } as unknown as CommandCenterResponse)),
 
@@ -144,6 +149,7 @@ export const api = {
 
   uploadNoonCSV: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
+    form.append('country', getCountry())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type'] // Let browser set boundary for FormData
@@ -158,6 +164,7 @@ export const api = {
 
   uploadNoonInventory: async (file: File): Promise<UploadNoonInventoryResponse> => {
     const form = new FormData()
+    form.append('country', getCountry())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']
@@ -172,6 +179,7 @@ export const api = {
 
   uploadNoonMinutesSales: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
+    form.append('country', getCountry())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']
@@ -256,12 +264,12 @@ export const api = {
   },
 
   getPlanning: async (): Promise<PlanningResponse> =>
-    fetch(`${BASE}/planning`, { headers: await getHeaders() })
+    fetch(`${BASE}/planning?country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<PlanningResponse>(r))
       .catch(err => ({ error: err.message } as unknown as PlanningResponse)),
 
   getAnalytics: async (days: 7 | 30 | 90 = 30): Promise<AnalyticsResponse> =>
-    fetch(`${BASE}/analytics?days=${days}`, { headers: await getHeaders() })
+    fetch(`${BASE}/analytics?days=${days}&country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<AnalyticsResponse>(r))
       .catch(err => ({ error: err.message } as unknown as AnalyticsResponse)),
 

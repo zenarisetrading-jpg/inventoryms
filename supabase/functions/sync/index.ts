@@ -124,6 +124,7 @@ async function handleSync(
             inbound: item.inbound,
             reserved: item.reserved,
             snapshot_date: snapshotDate,
+            country: 'UAE'
           }))
 
         console.log(`[sync] inventory: ${inventory.length} ASINs from Saddl, ${snapRows.length} matched to sku_master`)
@@ -132,7 +133,7 @@ async function handleSync(
           const { error: invErr } = await supabase
             .from('inventory_snapshot')
             .upsert(snapRows, {
-              onConflict: 'sku,node,warehouse_name,snapshot_date',
+              onConflict: 'sku,node,warehouse_name,snapshot_date,country',
             })
           if (invErr) {
             errors.push(`inventory_snapshot upsert: ${invErr.message}`)
@@ -150,6 +151,7 @@ async function handleSync(
             date: s.date,
             channel: 'amazon' as const,
             units_sold: s.units_sold,
+            country: 'UAE'
           }))
 
         console.log(`[sync] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
@@ -157,7 +159,7 @@ async function handleSync(
         if (salesRows.length > 0) {
           const { error: salesErr } = await supabase
             .from('sales_snapshot')
-            .upsert(salesRows, { onConflict: 'sku,date,channel' })
+            .upsert(salesRows, { onConflict: 'sku,date,channel,country' })
           if (salesErr) {
             errors.push(`sales_snapshot upsert: ${salesErr.message}`)
           }
@@ -298,13 +300,14 @@ async function handleSync(
             inbound: 0,
             reserved: 0,
             snapshot_date: snapshotDate,
+            country: 'UAE'
           }))
 
           if (snapRows.length > 0) {
             const { error: locadErr } = await supabase
               .from('inventory_snapshot')
               .upsert(snapRows, {
-                onConflict: 'sku,node,warehouse_name,snapshot_date',
+                onConflict: 'sku,node,warehouse_name,snapshot_date,country',
               })
             if (locadErr) {
               errors.push(`Locad inventory_snapshot upsert: ${locadErr.message}`)
@@ -330,6 +333,22 @@ async function handleSync(
       await refreshAllMetrics(supabase)
     } catch (err) {
       errors.push(`refreshAllMetrics error: ${(err as Error).message}`)
+    }
+  }
+
+  // ---- Refresh Fact Tables ----
+  if (source === 'all') {
+    try {
+      console.log('[sync] Refreshing fact tables as part of full sync...')
+      const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
+      if (err1) errors.push(`Planning Refresh Error: ${err1.message}`)
+      const { error: err2 } = await supabase.rpc('refresh_fact_sales_data')
+      if (err2) {
+        const { error: errRaw } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_fact_sales_data()' })
+        if (errRaw) errors.push(`Sales Refresh Error: ${errRaw.message}`)
+      }
+    } catch (err) {
+      errors.push(`refresh_fact error: ${(err as Error).message}`)
     }
   }
 

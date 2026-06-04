@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseAdmin, getUserEmail } from '../_shared/supabase.ts'
 import { VALID_PO_TRANSITIONS } from '../_shared/types.ts'
 import type { POStatus } from '../_shared/types.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
@@ -79,6 +79,8 @@ async function handleCreate(req: Request): Promise<Response> {
     }
   }
 
+  const userEmail = await getUserEmail(req)
+
   // Insert multiple rows into fact_purchase
   const rows = line_items.map((li: any) => {
     const skuCode = li.sku || ''
@@ -111,6 +113,7 @@ async function handleCreate(req: Request): Promise<Response> {
       dimensions: dimensions,
       cogs_per_unit: cogs_per_unit,
       shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
+      updated_by: userEmail
     }
   })
 
@@ -284,6 +287,8 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
       }
     }
 
+    const userEmail = await getUserEmail(req)
+
     // 2. Map new line items to rows, using header info
     const newRows = line_items.map((li: any) => {
       const skuCode = li.sku || ''
@@ -316,7 +321,8 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
         dimensions: dimensions,
         cogs_per_unit: cogs_per_unit,
         shipping_cost_per_unit: li.shipping_cost_per_unit ?? null,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        updated_by: userEmail
       }
     })
 
@@ -328,7 +334,8 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
   }
 
   // Regular field update for all rows of this PO
-  const updatePayload = { ...body, updated_at: new Date().toISOString() }
+  const userEmail = await getUserEmail(req)
+  const updatePayload = { ...body, updated_at: new Date().toISOString(), updated_by: userEmail }
   if ('notes' in updatePayload) {
     updatePayload.po_notes = updatePayload.notes
     delete updatePayload.notes
@@ -345,10 +352,16 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
 }
 
 // DELETE /po/:id - delete completely
-async function handleDelete(id: string): Promise<Response> {
+async function handleDelete(id: string, req: Request): Promise<Response> {
   const supabase = getSupabaseAdmin()
   const { data } = await supabase.from('fact_purchase').select('po_number').eq('id', id).maybeSingle()
   if (!data) return errorResponse('Record not found', 404)
+
+  const userEmail = await getUserEmail(req)
+  if (userEmail) {
+    // Set updated_by before deleting, so the trigger knows who deleted it
+    await supabase.from('fact_purchase').update({ updated_by: userEmail }).eq('po_number', data.po_number)
+  }
 
   const { error } = await supabase
     .from('fact_purchase')
@@ -401,7 +414,7 @@ serve(async (req: Request) => {
     if (id) {
       if (method === 'GET') return await handleDetail(id)
       if (method === 'PATCH') return await handleUpdate(id, req)
-      if (method === 'DELETE') return await handleDelete(id)
+      if (method === 'DELETE') return await handleDelete(id, req)
     } else {
       if (method === 'GET') return await handleList(url)
       if (method === 'POST') return await handleCreate(req)

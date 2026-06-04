@@ -76,6 +76,7 @@ serve(async (req: Request) => {
     // Parse multipart form
     const formData = await req.formData()
     const file = formData.get('file') as File | null
+    const country = (formData.get('country') as string) || 'UAE'
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const text = await file.text()
@@ -134,7 +135,7 @@ serve(async (req: Request) => {
         const node = isMinutes ? 'Minutes' : 'noon_fbn'
         const warehouse_name = whCode
 
-        const key = `${internal}|${node}|${warehouse_name}`
+        const key = `${internal}|${node}|${warehouse_name}|${country}`
         aggregated.set(key, (aggregated.get(key) || 0) + row.available_qty)
         matched.push({ ...row, sku: internal })
       } else {
@@ -144,7 +145,7 @@ serve(async (req: Request) => {
 
     // Prepare upsert rows
     const upsertRows = Array.from(aggregated.entries()).map(([key, available]) => {
-      const [sku, node, warehouse_name] = key.split('|')
+      const [sku, node, warehouse_name, mappedCountry] = key.split('|')
       return {
         sku,
         node,
@@ -152,6 +153,7 @@ serve(async (req: Request) => {
         available,
         inbound: 0,
         reserved: 0,
+        country: mappedCountry,
         snapshot_date: today,
         synced_at: new Date().toISOString(),
       }
@@ -177,7 +179,7 @@ serve(async (req: Request) => {
       const chunk = upsertRows.slice(i, i + CHUNK_SIZE)
       const { error: upsertError } = await supabase
         .from('inventory_snapshot')
-        .upsert(chunk, { onConflict: 'sku,node,warehouse_name,snapshot_date' })
+        .upsert(chunk, { onConflict: 'sku,node,warehouse_name,snapshot_date,country' })
 
       if (upsertError) {
         console.error('upload-noon-inventory: upsert error', upsertError)

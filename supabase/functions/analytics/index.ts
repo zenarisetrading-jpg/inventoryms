@@ -34,6 +34,7 @@ serve(async (req: Request) => {
     const url = new URL(req.url)
     const rangeDays = parseInt(url.searchParams.get('days') ?? '30', 10)
     const validRange = [7, 30, 90].includes(rangeDays) ? rangeDays : 30
+    const country = url.searchParams.get('country') || 'UAE'
 
     const cutoffDate = new Date()
     cutoffDate.setDate(cutoffDate.getDate() - validRange)
@@ -61,19 +62,22 @@ serve(async (req: Request) => {
         .from('sales_snapshot')
         .select('date, channel, units_sold')
         .gte('date', cutoff)
+        .eq('country', country)
         .order('date', { ascending: true }),
 
       // 2. Coverage health: all demand_metrics for coverage distribution
       supabase
         .from('demand_metrics')
         .select('sku, coverage_amazon, coverage_noon, coverage_warehouse, action_flag, sku_master!inner(is_active)')
-        .eq('sku_master.is_active', true),
+        .eq('sku_master.is_active', true)
+        .eq('country', country),
 
       // 3. SKU coverage heatmap: top 80 by action severity
       supabase
         .from('demand_metrics')
         .select('sku, coverage_amazon, coverage_noon, coverage_warehouse, action_flag, blended_sv, sku_master!inner(is_active)')
         .eq('sku_master.is_active', true)
+        .eq('country', country)
         .order('blended_sv', { ascending: false })
         .limit(80),
 
@@ -82,6 +86,7 @@ serve(async (req: Request) => {
         .from('po_register')
         .select('id, po_number, supplier, order_date, eta, status')
         .in('status', INCOMING_PO_STATUSES)
+        .eq('country', country)
         .order('eta', { ascending: true }),
 
       // 5. PO line items (for units per PO)
@@ -93,28 +98,32 @@ serve(async (req: Request) => {
       supabase
         .from('sales_snapshot')
         .select('sku, units_sold')
-        .gte('date', cutoff),
+        .gte('date', cutoff)
+        .eq('country', country),
 
       // 7. Category performance: sales joined with sku_master sub_category
       supabase
         .from('sales_snapshot')
         .select('sku, channel, units_sold')
-        .gte('date', cutoff),
+        .gte('date', cutoff)
+        .eq('country', country),
 
       // 8. Inventory distribution from fact table (with high limit for breakdowns)
       supabase
         .from('fact_inventory_planning')
         .select('sku, fba_units, fbn_units, minutes_units, locad_units, cogs, action_flag, category, sub_category, is_active')
+        .eq('country', country)
         .limit(5000),
 
       // 8b. Dedicated RPC for the "Correct Numbers" (Main Totals)
-      supabase.rpc('get_inventory_valuation_totals'),
+      supabase.rpc('get_inventory_valuation_totals', { p_country: country }),
 
       // 9. Reorder cash requirement
       supabase
         .from('demand_metrics')
         .select('sku, action_flag, suggested_reorder_units, sku_master!inner(is_active)')
         .eq('sku_master.is_active', true)
+        .eq('country', country)
         .eq('should_reorder', true)
         .order('action_flag', { ascending: true }),
 
@@ -122,13 +131,15 @@ serve(async (req: Request) => {
       supabase
         .from('demand_metrics')
         .select('action_flag, sku_master!inner(is_active)')
-        .eq('sku_master.is_active', true),
+        .eq('sku_master.is_active', true)
+        .eq('country', country),
 
       // 11. SKUs with no coverage data at all (null on all three nodes)
       supabase
         .from('demand_metrics')
         .select('sku, sku_master!inner(is_active)')
         .eq('sku_master.is_active', true)
+        .eq('country', country)
         .is('coverage_amazon', null)
         .is('coverage_noon', null)
         .is('coverage_warehouse', null),
@@ -471,12 +482,14 @@ serve(async (req: Request) => {
           .select('sku')
           .in('sku', noCoverageSkus)
           .gte('date', cutoff90)
+          .eq('country', country)
           .gt('units_sold', 0),
         supabase
           .from('inventory_snapshot')
           .select('sku')
           .in('sku', noCoverageSkus)
           .gte('snapshot_date', cutoff90)
+          .eq('country', country)
           .gt('available', 0),
       ])
 

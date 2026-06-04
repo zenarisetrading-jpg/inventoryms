@@ -64,6 +64,7 @@ serve(async (req: Request) => {
     try {
       const form = await req.formData()
       const file = form.get('file') as File | null
+      const country = (form.get('country') as string) || 'UAE'
 
       if (!file) {
         return jsonResponse({ error: 'No file field found in form data. Provide a file under the key "file".' }, 400)
@@ -156,7 +157,7 @@ serve(async (req: Request) => {
         const internalSku = noonToInternal.get(trimmedNoonSku)
         
         if (internalSku) {
-          const key = `${internalSku}|${r.date}|${r.channel}`
+          const key = `${internalSku}|${r.date}|${r.channel}|${country}`
           const ex = deduped.get(key)
           if (ex) {
             ex.units_sold += r.units_sold
@@ -173,6 +174,7 @@ serve(async (req: Request) => {
         date: r.date,
         channel: r.channel,
         units_sold: r.units_sold,
+        country,
         synced_at: new Date().toISOString(),
       }))
 
@@ -185,7 +187,7 @@ serve(async (req: Request) => {
           const chunk = salesUpsertRows.slice(i, i + SALES_CHUNK_SIZE)
           const { error: salesError } = await supabase
             .from('sales_snapshot')
-            .upsert(chunk, { onConflict: 'sku,date,channel' })
+            .upsert(chunk, { onConflict: 'sku,date,channel,country' })
 
           if (salesError) {
             console.error(`[upload-noon] sales_snapshot upsert error at chunk ${i}:`, salesError)
@@ -205,6 +207,7 @@ serve(async (req: Request) => {
         for (const r of raw_rows) {
           if (r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase())) {
             dbRows.push({
+              country: country,
               id_partner: parseInt(r.id_partner) || null,
               src_country: r.src_country,
               country_code: r.country_code,

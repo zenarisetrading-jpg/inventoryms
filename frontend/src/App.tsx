@@ -19,6 +19,7 @@ import LoginPage from './pages/login'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/shared/LoadingScreen'
 import saddlLogo from './assets/saddl_logo.jpg'
+import { useRegion } from './lib/RegionContext'
 
 type Route =
   | { name: 'dashboard' }
@@ -58,6 +59,8 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState(true)
   const isAdminRoute = ['skus', 'sku', 'po', 'po_new', 'upload', 'health', 'skus_new'].includes(route.name)
   const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminRoute)
+  const { region, setRegion } = useRegion()
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
 
   useEffect(() => {
     // Check active sessions and subscribe to auth changes
@@ -242,6 +245,40 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center gap-2 lg:gap-4">
+
+            {/* Region Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsRegionDropdownOpen(!isRegionDropdownOpen)}
+                onBlur={() => setTimeout(() => setIsRegionDropdownOpen(false), 200)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/[0.05] hover:bg-white/[0.03] transition-all bg-slate-900/50"
+              >
+                <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <span className="text-[9px] font-black text-blue-400">{region.substring(0,2)}</span>
+                </div>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">{region}</span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isRegionDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {isRegionDropdownOpen && (
+                <div className="absolute top-full right-0 mt-2 w-36 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-1">
+                    <button 
+                      onClick={() => { setRegion('UAE'); setIsRegionDropdownOpen(false) }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === 'UAE' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      🇦🇪 UAE
+                    </button>
+                    <button 
+                      onClick={() => { setRegion('KSA'); setIsRegionDropdownOpen(false) }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === 'KSA' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                    >
+                      🇸🇦 KSA
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div 
               onClick={() => setIsSettingsOpen(true)}

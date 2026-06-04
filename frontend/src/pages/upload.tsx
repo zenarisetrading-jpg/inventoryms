@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Upload, CheckCircle2, AlertCircle, Package, Download, Activity, RefreshCw, AlertTriangle, XCircle, Layers, ShieldCheck, Database, History, Zap } from 'lucide-react'
 import { api } from '../lib/api'
+import { useRegion } from '../lib/RegionContext'
 import type { SyncStatus, UploadLocadResponse, UploadNoonResponse, UploadNoonInventoryResponse } from '../types'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { navigate } from '../lib/router'
@@ -141,6 +142,7 @@ export default function OperationsHub() {
   const [masterStep, setMasterStep] = useState<'amazon-saddl' | 'amazon-fdw' | 'fact-tables' | null>(null)
 
   // Upload States
+  const { region: country } = useRegion()
   const [locadState, setLocadState] = useState<{loading: boolean, error: string|null, result: UploadLocadResponse|null}>({loading: false, error: null, result: null})
   const [noonSalesState, setNoonSalesState] = useState<{loading: boolean, error: string|null, result: UploadNoonResponse|null}>({loading: false, error: null, result: null})
   const [noonInvState, setNoonInvState] = useState<{loading: boolean, error: string|null, result: UploadNoonInventoryResponse|null}>({loading: false, error: null, result: null})
@@ -165,17 +167,17 @@ export default function OperationsHub() {
       if (!res.error) loadData()
     } else if (type === 'noon-sales') {
       setNoonSalesState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonCSV(file) as any
+      const res = await api.uploadNoonCSV(file, country) as any
       setNoonSalesState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     } else if (type === 'noon-inv') {
       setNoonInvState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonInventory(file) as any
+      const res = await api.uploadNoonInventory(file, country) as any
       setNoonInvState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     } else if (type === 'minutes') {
       setMinutesState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonMinutesSales(file) as any
+      const res = await api.uploadNoonMinutesSales(file, country) as any
       setMinutesState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     }

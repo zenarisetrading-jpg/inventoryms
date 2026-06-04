@@ -139,10 +139,12 @@ serve(async (req: Request) => {
 
   try {
     const supabase = getSupabaseAdmin()
+    const url = new URL(req.url)
+    const country = url.searchParams.get('country') || 'UAE'
 
     // 1. Fetch data from fact_inventory_planning and sku_master separately to avoid relationship issues
     const [factRes, masterRes] = await Promise.all([
-      supabase.from('fact_inventory_planning').select('*'),
+      supabase.from('fact_inventory_planning').select('*').eq('country', country),
       supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active')
     ])
 
@@ -168,6 +170,7 @@ serve(async (req: Request) => {
     const { data: allPurchases } = await supabase
       .from('fact_purchase')
       .select('po_number, supplier, eta, status, sku, units_ordered, units_received')
+      .eq('country', country)
       .order('eta', { ascending: true })
 
     const inboundRows = (allPurchases || []).filter(r => 
@@ -176,8 +179,8 @@ serve(async (req: Request) => {
 
     // 3. Last synced & snapshot dates (still from snapshots)
     const [latestSnapshot, snapDates] = await Promise.all([
-      supabase.from('inventory_snapshot').select('synced_at').order('synced_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('inventory_snapshot').select('node, snapshot_date').order('snapshot_date', { ascending: false })
+      supabase.from('inventory_snapshot').select('synced_at').eq('country', country).order('synced_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('inventory_snapshot').select('node, snapshot_date').eq('country', country).order('snapshot_date', { ascending: false })
     ])
 
     const latestDateByNode: Record<string, string> = {}

@@ -25,6 +25,7 @@ serve(async (req: Request) => {
   try {
     const form = await req.formData()
     const file = form.get('file') as File | null
+    const country = (form.get('country') as string) || 'UAE'
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const csvText = await file.text()
@@ -57,23 +58,24 @@ serve(async (req: Request) => {
     for (const r of sales) {
       const internalSku = noonToInternal.get(r.sku.trim().toUpperCase())
       if (internalSku) {
-        const key = `${internalSku}|${r.date}`
+        const key = `${internalSku}|${r.date}|${country}`
         const ex = deduped.get(key)
         if (ex) {
           ex.units_sold += r.units_sold
         } else {
-          deduped.set(key, { sku: internalSku, date: r.date, channel: 'noon_minutes', units_sold: r.units_sold })
+          deduped.set(key, { sku: internalSku, date: r.date, channel: 'noon_minutes', units_sold: r.units_sold, country })
         }
       }
     }
 
     const upsertRows = Array.from(deduped.values()).map(r => ({
       ...r,
+      country,
       synced_at: new Date().toISOString()
     }))
 
     if (upsertRows.length > 0) {
-      const { error } = await supabase.from('sales_snapshot').upsert(upsertRows, { onConflict: 'sku,date,channel' })
+      const { error } = await supabase.from('sales_snapshot').upsert(upsertRows, { onConflict: 'sku,date,channel,country' })
       if (error) return jsonResponse({ error: error.message }, 500)
     }
 
@@ -91,6 +93,7 @@ serve(async (req: Request) => {
       for (const r of raw_rows) {
         if (r.item_status && CONFIRMED_STATUSES.has(r.item_status.toLowerCase())) {
           dbRows.push({
+            country: country,
             country_code: r.country_code,
             order_nr: r.order_nr,
             item_nr: r.item_nr,

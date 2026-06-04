@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseAdmin, getUserEmail } from '../_shared/supabase.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5'
 
@@ -295,6 +295,7 @@ serve(async (req: Request) => {
 
   try {
     const supabase = getSupabaseAdmin()
+    const userEmail = await getUserEmail(req)
 
     const formData = await req.formData()
     const file = formData.get('file') as File | null
@@ -414,6 +415,7 @@ serve(async (req: Request) => {
           box_count,
           dimensions: meta?.dimensions ?? null,
           cogs_per_unit: meta?.cogs ?? null,
+          updated_by: userEmail,
         }
       })
 
@@ -499,6 +501,7 @@ serve(async (req: Request) => {
           box_count,
           dimensions: meta?.dimensions ?? null,
           cogs_per_unit: meta?.cogs ?? null,
+          updated_by: userEmail,
         }
       })
 
