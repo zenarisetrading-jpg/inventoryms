@@ -285,34 +285,21 @@ export default function PerformancePage() {
 
       {/* HEADER & CONSOLIDATED CONTROL CENTER */}
       <div className="relative z-50 bg-card border-white/5 shadow-2xl p-6 lg:p-10 rounded-2xl flex flex-col gap-10">
-        {/* Top: Centered Header / Left-aligned with buttons on large screens */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 w-full">
-          <div className="flex flex-col items-center lg:items-start gap-4">
-            <div className="flex items-center gap-4">
+        {/* Top: Centered Header */}
+        <div className="flex w-full items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-3xl bg-sidebar flex items-center justify-center text-brand-blue shadow-2xl border border-white/5 shrink-0">
                 <LineIcon className="w-7 h-7 lg:w-8 lg:h-8" />
               </div>
-              <div className="text-center lg:text-left">
+              <div className="text-center">
                 <h1 className="text-2xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">Performance Analytics</h1>
-                <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center lg:justify-start gap-3">
+                <p className="text-[10px] lg:text-[12px] font-black text-zinc-500 uppercase tracking-[0.4em] mt-3 opacity-80 flex items-center justify-center gap-3">
                   <span className="w-2 h-2 rounded-full bg-brand-blue animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                   Commercial Intelligence Engine • Live Stream
                 </p>
               </div>
             </div>
-          </div>          {/* CONSOLIDATED REFRESH BUTTON */}
-          <div className="flex flex-wrap items-center justify-center lg:justify-end gap-3.5 shrink-0">
-            <button
-              onClick={handleConsolidatedRefresh}
-              disabled={refreshingConsolidated}
-              className="flex items-center gap-2.5 px-6 py-4 bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-600/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-brand-blue/20 cursor-pointer"
-              title="Sync Amazon Remote Data & Recompute Facts Pipeline sequentially"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshingConsolidated ? 'animate-spin' : ''}`} />
-              {refreshingConsolidated ? (
-                consolidatedStep === 'amazon' ? 'Step 1/2: Syncing Remote FDW...' : 'Step 2/2: Recalculating Facts...'
-              ) : 'Sync Amazon & Sales Facts'}
-            </button>
           </div>
         </div>
 
@@ -362,15 +349,26 @@ export default function PerformancePage() {
               selected={selProductCategories}
               onChange={setSelProductCategories}
             />
-            <MultiSelect
-              label="Sub Category"
-              placeholder="ALL SUB-CATEGORYS"
-              icon={Layers}
-              options={Array.from(new Set(detailedSales.map(r => r.sub_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))}
-              selected={selSubCategories}
-              onChange={setSelSubCategories}
-            />
-          </div>
+              <MultiSelect
+                label="Sub Category"
+                placeholder="ALL SUB-CATEGORYS"
+                icon={Layers}
+                options={Array.from(new Set(detailedSales.map(r => r.sub_category))).filter(Boolean).sort().map(v => ({ label: String(v).toUpperCase(), value: String(v) }))}
+                selected={selSubCategories}
+                onChange={setSelSubCategories}
+              />
+              <button
+                onClick={handleConsolidatedRefresh}
+                disabled={refreshingConsolidated}
+                className="flex items-center gap-2.5 px-5 py-3.5 bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-blue/90 hover:to-indigo-600/90 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 shadow-xl shadow-brand-blue/20 cursor-pointer whitespace-nowrap"
+                title="Sync Amazon Remote Data & Recompute Facts Pipeline sequentially"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshingConsolidated ? 'animate-spin' : ''}`} />
+                {refreshingConsolidated ? (
+                  consolidatedStep === 'amazon' ? 'Step 1/2: Syncing...' : 'Step 2/2: Recalculating...'
+                ) : 'Sync Amazon & Sales Facts'}
+              </button>
+            </div>
         </div>
       </div>
 

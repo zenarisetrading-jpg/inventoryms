@@ -28,8 +28,9 @@ if (-not (Test-Path "node_modules")) {
 # 3. Application Launch
 Write-Host "[3/3] Launching Secure Environment..." -ForegroundColor White
 Write-Host "------------------------------------------" -ForegroundColor Cyan
-Write-Host "Access the portal at: http://localhost:5173" -ForegroundColor Green
+Write-Host "Access the portal at: http://localhost:8080" -ForegroundColor Green
 Write-Host "Status: Authenticated Mode Enabled" -ForegroundColor Yellow
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 
 npm run dev
+

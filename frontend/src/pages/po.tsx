@@ -424,42 +424,73 @@ export default function POPage() {
     }
   }
 
-  const handleExport = () => {
-    if (!filteredPOs.length) return
-    const headers = [
-      'PO Number', 'PO Name', 'Supplier', 'Order Date', 'ETA', 'Tracking', 'Status', 'PO Notes',
-      'SKU', 'Units Ordered', 'Units Received', 'Units Per Box', 'Box Count', 'Dimensions', 'COGS', 'Shipping Cost', 'Item Notes'
-    ].join(',')
+  const handleExport = async () => {
+    setLoading(true)
+    try {
+      const res = await api.getPOs({})
+      const resAny = res as unknown as { error?: string; pos?: PO[] }
+      if (resAny.error) throw new Error(resAny.error)
+      
+      const allPOs = ((resAny.pos ?? []) as Array<PO & { po_line_items?: PO['line_items'] }>).map((po) => ({
+        ...po,
+        line_items: po.line_items ?? po.po_line_items ?? [],
+      }))
+      
+      if (!allPOs.length) return
 
-    const rows = filteredPOs.flatMap(po => 
-      po.line_items.map(li => [
-        `"${po.po_number}"`,
-        `"${po.po_name || ''}"`,
-        `"${po.supplier}"`,
-        `"${po.order_date}"`,
-        `"${po.eta || ''}"`,
-        `"${po.tracking_number || ''}"`,
-        `"${po.status}"`,
-        `"${(po.notes || '').replace(/"/g, '""')}"`,
-        `"${li.sku}"`,
-        li.units_ordered || 0,
-        li.units_received || 0,
-        li.units_per_box || 0,
-        li.box_count || 0,
-        `"${li.dimensions || ''}"`,
-        li.cogs_per_unit || 0,
-        li.shipping_cost_per_unit || 0,
-        `"${(li.notes || '').replace(/"/g, '""')}"`
-      ].join(','))
-    ).join('\n')
+      const headers = [
+        'PO Number', 'PO Name', 'Supplier', 'Order Date', 'ETA', 'Tracking', 'Status', 'PO Notes',
+        'SKU', 'Units Ordered', 'Units Received', 'Units Per Box', 'Box Count', 'Dimensions', 'COGS', 'Shipping Cost', 'Item Notes'
+      ].join(',')
 
-    const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `po_register_${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+      const rows = allPOs.flatMap(po => {
+        if (!po.line_items || po.line_items.length === 0) {
+          return [[
+            `"${po.po_number}"`,
+            `"${po.po_name || ''}"`,
+            `"${po.supplier}"`,
+            `"${po.order_date}"`,
+            `"${po.eta || ''}"`,
+            `"${po.tracking_number || ''}"`,
+            `"${po.status}"`,
+            `"${(po.notes || '').replace(/"/g, '""')}"`,
+            '""', 0, 0, 0, 0, '""', 0, 0, '""'
+          ].join(',')]
+        }
+        return po.line_items.map(li => [
+          `"${po.po_number}"`,
+          `"${po.po_name || ''}"`,
+          `"${po.supplier}"`,
+          `"${po.order_date}"`,
+          `"${po.eta || ''}"`,
+          `"${po.tracking_number || ''}"`,
+          `"${po.status}"`,
+          `"${(po.notes || '').replace(/"/g, '""')}"`,
+          `"${li.sku}"`,
+          li.units_ordered || 0,
+          li.units_received || 0,
+          li.units_per_box || 0,
+          li.box_count || 0,
+          `"${li.dimensions || ''}"`,
+          li.cogs_per_unit || 0,
+          li.shipping_cost_per_unit || 0,
+          `"${(li.notes || '').replace(/"/g, '""')}"`
+        ].join(','))
+      }).join('\n')
+
+      const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `po_register_${new Date().toISOString().split('T')[0]}.csv`
+      a.click()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to export POs:', err)
+      alert('Failed to export POs')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -522,9 +553,9 @@ export default function POPage() {
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+              className="flex items-center gap-2 px-5 py-3.5 bg-transparent hover:bg-white/5 text-zinc-300 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-4 h-4" />
               DOWNLOAD ALL
             </button>
             <button

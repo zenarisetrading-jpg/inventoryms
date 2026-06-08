@@ -1,5 +1,6 @@
 import { X, Download, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ActionDropdown } from './ActionDropdown'
 import type { ActionFlag, InventoryNode } from '../types'
 import { navigate } from '../lib/router'
@@ -75,8 +76,8 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-[#111827] rounded-2xl shadow-2xl w-full max-w-[98vw] 2xl:max-w-[90vw] max-h-[90vh] flex flex-col overflow-hidden border border-white/10 scale-in-center transition-transform">
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/5">
@@ -397,7 +398,8 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
           <span>Security Protocol Active</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

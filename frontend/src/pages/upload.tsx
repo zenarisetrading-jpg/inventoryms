@@ -167,17 +167,17 @@ export default function OperationsHub() {
       if (!res.error) loadData()
     } else if (type === 'noon-sales') {
       setNoonSalesState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonCSV(file, country) as any
+      const res = await api.uploadNoonCSV(file) as any
       setNoonSalesState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     } else if (type === 'noon-inv') {
       setNoonInvState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonInventory(file, country) as any
+      const res = await api.uploadNoonInventory(file) as any
       setNoonInvState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     } else if (type === 'minutes') {
       setMinutesState({loading: true, error: null, result: null})
-      const res = await api.uploadNoonMinutesSales(file, country) as any
+      const res = await api.uploadNoonMinutesSales(file) as any
       setMinutesState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
     }

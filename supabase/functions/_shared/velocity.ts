@@ -15,7 +15,8 @@ import { refreshABCCategories } from './abc.ts'
 // ---------------------------------------------------------------------------
 export async function computeVelocity(
   sku: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  country: string = 'UAE'
 ): Promise<{ sv_7: number; sv_90: number; blended_sv: number; amazon_sv: number; noon_sv: number; minutes_sv: number }> {
   const today = new Date()
   const date7dAgo = new Date(today)
@@ -27,11 +28,12 @@ export async function computeVelocity(
 
   const fmt = (d: Date) => d.toISOString().split('T')[0]
 
-  // Fetch last 90 days of sales data for this SKU (all channels)
+  // Fetch last 90 days of sales data for this SKU (all channels, filtered by country)
   const { data, error } = await supabase
     .from('sales_snapshot')
     .select('date, channel, units_sold')
     .eq('sku', sku)
+    .eq('country', country)
     .gte('date', fmt(date90dAgo))
     .lte('date', fmt(today))
 
@@ -100,20 +102,34 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
   date60dAgo.setDate(today.getDate() - 60)
   const fmt = (d: Date) => d.toISOString().split('T')[0]
 
-  // 1. Identify and update active/inactive status
-  // --- REMOVED: Automatic deactivation/reactivation based on sales ---
-  // We now rely on manual status control from the SKU Catalog UI as requested.
-  
-  // 2. Fetch resulting active SKUs for metric computation
-  const { data: skus, error: skuError } = await supabase
-    .from('sku_master')
-    .select('*')
-    .eq('is_active', true)
-
-  if (skuError || !skus || skus.length === 0) {
-    console.error('refreshAllMetrics: failed to fetch active SKUs', skuError)
-    return
+  // Load active locations — process each country separately
+  let countries: string[] = ['UAE']
+  try {
+    const { data: locData } = await supabase
+      .from('amazon_locations')
+      .select('country')
+      .eq('is_active', true)
+    if (locData && locData.length > 0) {
+      countries = locData.map((l: { country: string }) => l.country)
+    }
+  } catch {
+    // fallback to UAE only
   }
+
+  for (const country of countries) {
+    console.log(`[velocity] refreshAllMetrics for country=${country}`)
+
+    // Fetch active SKUs for this country
+    const { data: skus, error: skuError } = await supabase
+      .from('sku_master')
+      .select('*')
+      .eq('is_active', true)
+      .eq('country', country)
+
+    if (skuError || !skus || skus.length === 0) {
+      console.error(`refreshAllMetrics: no active SKUs for country=${country}`, skuError)
+      continue
+    }
 
   const todayStr = new Date().toISOString().split('T')[0]
 
@@ -124,18 +140,18 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
     .eq('status', 'pending')
     .eq('plan_date', todayStr)
 
-  // Process SKUs in parallel batches of 10 to stay well within the 60s timeout
-  const BATCH_SIZE = 10
-  for (let i = 0; i < (skus as SKU[]).length; i += BATCH_SIZE) {
-    const batch = (skus as SKU[]).slice(i, i + BATCH_SIZE)
+    // Process SKUs in parallel batches of 10 to stay well within the 60s timeout
+    const BATCH_SIZE = 10
+    for (let i = 0; i < (skus as SKU[]).length; i += BATCH_SIZE) {
+      const batch = (skus as SKU[]).slice(i, i + BATCH_SIZE)
 
-    await Promise.all(batch.map(async (sku: SKU) => {
-      try {
-        // Velocity
-        const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase)
+      await Promise.all(batch.map(async (sku: SKU) => {
+        try {
+          // Velocity (country-aware)
+          const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase, country)
 
-        // Coverage
-        const coverage = await computeCoverage(sku, blended_sv, supabase)
+          // Coverage
+          const coverage = await computeCoverage(sku, blended_sv, supabase, country)
 
         // Action flag
         const action_flag = computeActionFlag(sku, blended_sv, coverage)
@@ -149,41 +165,43 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
           coverage.total_available
         )
 
-        // Upsert demand_metrics immediately (don't accumulate — avoids timeout data loss)
-        const { error: metricsErr } = await supabase
-          .from('demand_metrics')
-          .upsert({
-            sku: sku.sku,
-            sv_7,
-            sv_90,
-            blended_sv,
-            amazon_sv,
-            noon_sv,
-            minutes_sv,
-            coverage_amazon: coverage.by_node.amazon_fba.coverage_days,
-            coverage_noon: coverage.by_node.noon_fbn.coverage_days,
-            coverage_warehouse: coverage.by_node.locad_warehouse.coverage_days,
-            total_coverage: coverage.total_coverage,
-            projected_coverage: coverage.projected_coverage,
-            total_available: coverage.total_available,
-            incoming_po_units: coverage.incoming_po_units,
-            in_transit_allocation_units: coverage.in_transit_allocation_units,
-            action_flag,
-            should_reorder: reorder?.should_reorder ?? false,
-            suggested_reorder_units: reorder?.suggested_units ?? 0,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'sku' })
-        if (metricsErr) {
-          console.error(`refreshAllMetrics: demand_metrics upsert error for ${sku.sku}`, metricsErr)
-        }
+          // Upsert demand_metrics immediately (don't accumulate — avoids timeout data loss)
+          const { error: metricsErr } = await supabase
+            .from('demand_metrics')
+            .upsert({
+              sku: sku.sku,
+              country,
+              sv_7,
+              sv_90,
+              blended_sv,
+              amazon_sv,
+              noon_sv,
+              minutes_sv,
+              coverage_amazon: coverage.by_node.amazon_fba.coverage_days,
+              coverage_noon: coverage.by_node.noon_fbn.coverage_days,
+              coverage_warehouse: coverage.by_node.locad_warehouse.coverage_days,
+              total_coverage: coverage.total_coverage,
+              projected_coverage: coverage.projected_coverage,
+              total_available: coverage.total_available,
+              incoming_po_units: coverage.incoming_po_units,
+              in_transit_allocation_units: coverage.in_transit_allocation_units,
+              action_flag,
+              should_reorder: reorder?.should_reorder ?? false,
+              suggested_reorder_units: reorder?.suggested_units ?? 0,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'sku,country' })
+          if (metricsErr) {
+            console.error(`refreshAllMetrics: demand_metrics upsert error for ${sku.sku} (${country})`, metricsErr)
+          }
 
-        // Allocation plans (insert fresh ones per-SKU)
-        await computeAllocation(sku, coverage, amazon_sv, noon_sv, supabase)
-      } catch (err) {
-        console.error(`refreshAllMetrics: error processing SKU ${sku.sku}`, err)
-      }
-    }))
-  }
+          // Allocation plans (insert fresh ones per-SKU)
+          await computeAllocation(sku, coverage, amazon_sv, noon_sv, supabase)
+        } catch (err) {
+          console.error(`refreshAllMetrics: error processing SKU ${sku.sku} (${country})`, err)
+        }
+      }))
+    }
+  } // end for-each country
 
   // Reclassify all SKUs on every refresh (60-day rolling window)
   try {

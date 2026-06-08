@@ -145,7 +145,7 @@ serve(async (req: Request) => {
     // 1. Fetch data from fact_inventory_planning and sku_master separately to avoid relationship issues
     const [factRes, masterRes] = await Promise.all([
       supabase.from('fact_inventory_planning').select('*').eq('country', country),
-      supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active')
+      supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active').eq('country', country)
     ])
 
     if (factRes.error) throw factRes.error

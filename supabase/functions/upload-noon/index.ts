@@ -60,11 +60,12 @@ serve(async (req: Request) => {
     // Step 1: Extract CSV text from multipart/form-data
     // -----------------------------------------------------------------------
     let csvText: string
+    let country = 'UAE'
 
     try {
       const form = await req.formData()
       const file = form.get('file') as File | null
-      const country = (form.get('country') as string) || 'UAE'
+      country = (form.get('country') as string) || 'UAE'
 
       if (!file) {
         return jsonResponse({ error: 'No file field found in form data. Provide a file under the key "file".' }, 400)
@@ -207,7 +208,6 @@ serve(async (req: Request) => {
         for (const r of raw_rows) {
           if (r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase())) {
             dbRows.push({
-              country: country,
               id_partner: parseInt(r.id_partner) || null,
               src_country: r.src_country,
               country_code: r.country_code,
@@ -376,6 +376,6 @@ serve(async (req: Request) => {
     })
   } catch (err) {
     console.error('[upload-noon] Unhandled error:', err)
-    return jsonResponse({ error: 'Internal server error' }, 500)
+    return jsonResponse({ error: `Internal server error: ${String(err)}` }, 500)
   }
 })

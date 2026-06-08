@@ -153,6 +153,7 @@ serve(async (req: Request) => {
       .from('sku_master')
       .select('sku, name, category, sub_category, cogs, moq, units_per_box, asin')
       .eq('is_active', true)
+      .eq('country', country)
 
     const skuMap = new Map<string, { name: string; category: string | null; sub_category: string | null; cogs: number | null; moq: number | null; units_per_box: number; asin: string | null }>(
       (skuMasterRows ?? []).map((r: { sku: string; name: string; category: string | null; sub_category: string | null; cogs: number | null; moq: number | null; units_per_box: number | null; asin: string | null }) => [

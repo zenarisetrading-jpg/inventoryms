@@ -1,0 +1,36 @@
+name: Daily PO Export
+
+on:
+  schedule:
+    - cron: '30 5 * * *' # 05:30 UTC is 11:00 AM IST
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  export_and_email:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install supabase
+          
+      - name: Run PO Export Script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_HOST: 'smtp.ionos.com'
+          SMTP_PORT: '587'
+          EMAIL_TO: 'sayed.aslam@zenarise.org'
+        run: |
+          python scripts/export_po.py

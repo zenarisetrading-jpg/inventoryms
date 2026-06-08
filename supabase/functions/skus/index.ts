@@ -157,6 +157,7 @@ async function handleList(url: URL): Promise<Response> {
   const search = url.searchParams.get('search')?.trim() ?? null
   const category = url.searchParams.get('category')?.toUpperCase() ?? null
   const flag = url.searchParams.get('flag')?.toUpperCase() ?? null
+  const country = url.searchParams.get('country') || 'UAE'
 
   const cutoff60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
@@ -164,6 +165,7 @@ async function handleList(url: URL): Promise<Response> {
   let query = supabase
     .from('sku_master')
     .select('*')
+    .eq('country', country)
     .order('sku', { ascending: true })
 
   // Apply category filter
@@ -176,11 +178,13 @@ async function handleList(url: URL): Promise<Response> {
     supabase
       .from('sales_snapshot')
       .select('sku')
+      .eq('country', country)
       .gte('date', cutoff60)
       .gt('units_sold', 0),
     supabase
       .from('demand_metrics')
       .select('sku, blended_sv, total_coverage, projected_coverage, action_flag, should_reorder, suggested_reorder_units')
+      .eq('country', country)
   ])
 
   if (error) {
@@ -513,7 +517,8 @@ async function handleCreate(req: Request): Promise<Response> {
     cbm: body.cbm || null,
     is_active: body.is_active !== undefined ? body.is_active : true,
     amazon_active: body.amazon_active !== undefined ? body.amazon_active : true,
-    noon_active: body.noon_active !== undefined ? body.noon_active : true
+    noon_active: body.noon_active !== undefined ? body.noon_active : true,
+    country: body.country || 'UAE'
   })
 
   if (error) {

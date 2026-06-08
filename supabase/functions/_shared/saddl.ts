@@ -23,7 +23,9 @@
 
 import { Pool } from 'https://deno.land/x/postgres@v0.17.0/mod.ts'
 
-const ACCOUNT_ID = 's2c_uae_test'
+// Default account/client IDs (UAE). Other locations are passed in dynamically.
+const DEFAULT_ACCOUNT_ID = 's2c_uae_test'
+const DEFAULT_CLIENT_ID = 's2c_uae_test'
 
 function getPool(): Pool {
   const dbUrl = Deno.env.get('SADDL_DB_URL')
@@ -36,7 +38,9 @@ function getPool(): Pool {
 // Returns the most recent snapshot per ASIN (sku column is always NULL).
 // Caller must resolve asin → internal SKU via sku_master.
 // ---------------------------------------------------------------------------
-export async function fetchAmazonInventory(): Promise<
+export async function fetchAmazonInventory(
+  clientId: string = DEFAULT_CLIENT_ID
+): Promise<
   { asin: string; available: number; inbound: number; reserved: number }[]
 > {
   const pool = getPool()
@@ -56,15 +60,15 @@ export async function fetchAmazonInventory(): Promise<
           + COALESCE(afn_inbound_receiving_quantity, 0)                  AS inbound,
         COALESCE(afn_reserved_quantity, 0)                               AS reserved
       FROM sc_raw.fba_inventory fi
-      WHERE client_id = 's2c_uae_test'
+      WHERE client_id = $1
         AND snapshot_date = (
           SELECT MAX(snapshot_date) FROM sc_raw.fba_inventory fi2
           WHERE fi2.asin = fi.asin AND fi2.client_id = fi.client_id
         )
         AND asin IS NOT NULL
         AND asin <> ''
-    `)
-    console.log(`[saddl] fetchAmazonInventory: ${rows.length} ASINs`)
+    `, [clientId])
+    console.log(`[saddl] fetchAmazonInventory (client=${clientId}): ${rows.length} ASINs`)
     return rows.map(r => ({
       asin:      String(r.asin),
       available: Number(r.available) || 0,
@@ -86,7 +90,8 @@ export async function fetchAmazonInventory(): Promise<
 // Returns asin (not sku) — caller must resolve via sku_master.
 // ---------------------------------------------------------------------------
 export async function fetchAmazonSales(
-  days: number
+  days: number,
+  accountId: string = DEFAULT_ACCOUNT_ID
 ): Promise<{ asin: string; date: string; units_sold: number; revenue: number }[]> {
   const pool = getPool()
   const conn = await pool.connect()
@@ -113,9 +118,9 @@ export async function fetchAmazonSales(
         AND child_asin IS NOT NULL
         AND child_asin <> ''
       GROUP BY child_asin, report_date
-    `, [ACCOUNT_ID, cutoffStr])
+    `, [accountId, cutoffStr])
 
-    console.log(`[saddl] fetchAmazonSales: ${rows.length} rows since ${cutoffStr}`)
+    console.log(`[saddl] fetchAmazonSales (account=${accountId}): ${rows.length} rows since ${cutoffStr}`)
     return rows.map(r => ({
       asin:       String(r.asin),
       date:       String(r.report_date).slice(0, 10),
@@ -136,7 +141,8 @@ export async function fetchAmazonSales(
 // Reads sc_raw.sales_traffic and returns direct ordered revenue per ASIN/date.
 // ---------------------------------------------------------------------------
 export async function fetchAmazonSalesRevenue(
-  days: number
+  days: number,
+  accountId: string = DEFAULT_ACCOUNT_ID
 ): Promise<{ asin: string; date: string; revenue: number }[]> {
   const pool = getPool()
   const conn = await pool.connect()
@@ -161,9 +167,9 @@ export async function fetchAmazonSalesRevenue(
         AND child_asin IS NOT NULL
         AND child_asin <> ''
       GROUP BY child_asin, report_date
-    `, [ACCOUNT_ID, cutoffStr])
+    `, [accountId, cutoffStr])
 
-    console.log(`[saddl] fetchAmazonSalesRevenue: ${rows.length} rows since ${cutoffStr}`)
+    console.log(`[saddl] fetchAmazonSalesRevenue (account=${accountId}): ${rows.length} rows since ${cutoffStr}`)
     return rows.map(r => ({
       asin: String(r.asin),
       date: String(r.report_date).slice(0, 10),

@@ -9,6 +9,7 @@ interface NoonSaleRow {
   date: string
   channel: 'noon' | 'noon_minutes'
   units_sold: number
+  country?: string
 }
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -93,7 +94,6 @@ serve(async (req: Request) => {
       for (const r of raw_rows) {
         if (r.item_status && CONFIRMED_STATUSES.has(r.item_status.toLowerCase())) {
           dbRows.push({
-            country: country,
             country_code: r.country_code,
             order_nr: r.order_nr,
             item_nr: r.item_nr,

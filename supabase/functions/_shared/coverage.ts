@@ -27,7 +27,8 @@ export interface CoverageResult {
 export async function computeCoverage(
   sku: SKU,
   blended_sv: number,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  country: string = 'UAE'
 ): Promise<CoverageResult> {
   // Default per-node structure
   const emptyNode = { available: 0, inbound: 0, coverage_days: 0 }
@@ -51,6 +52,7 @@ export async function computeCoverage(
     .from('inventory_snapshot')
     .select('node, warehouse_name, available, inbound, snapshot_date')
     .eq('sku', sku.sku)
+    .eq('country', country)
     .order('snapshot_date', { ascending: false })
 
   if (snapError || !snapshots || snapshots.length === 0) {

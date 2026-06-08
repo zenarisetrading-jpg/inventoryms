@@ -78,7 +78,7 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as SKUListResponse)),
 
   getSKU: async (sku: string): Promise<SKUDetailResponse> =>
-    fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, { headers: await getHeaders() })
+    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<SKUDetailResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUDetailResponse)),
 
@@ -133,7 +133,7 @@ export const api = {
     fetch(`${BASE}/skus`, {
       method: 'POST',
       headers: await getHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, country: getCountry() }),
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),

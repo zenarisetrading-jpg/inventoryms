@@ -53,7 +53,13 @@ function parseRoute(): Route {
 export default function App() {
   const [route, setRoute] = useState<Route>(parseRoute)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarPinned, setIsSidebarPinned] = useState(true) // Changed to true so it defaults to collapsed but hoverable
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false)
+  
+  const isSidebarCollapsed = isSidebarPinned && !isSidebarHovered
+  
+  const toggleSidebarPin = () => setIsSidebarPinned(!isSidebarPinned)
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
@@ -123,7 +129,10 @@ export default function App() {
       </div>
 
       {/* Sidebar - Desktop */}
-      <aside className={`
+      <aside 
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+        className={`
         fixed inset-y-0 left-0 z-50 bg-gradient-to-b from-[#080d1f] via-[#040712] to-[#020409] border-r border-white/[0.04] flex flex-col shrink-0 
         transition-all duration-300 lg:relative lg:translate-x-0
         ${isSidebarCollapsed ? 'lg:w-20' : 'lg:w-64'}
@@ -136,28 +145,26 @@ export default function App() {
               alt="Saddl Logo" 
               className="w-10 h-10 rounded-xl object-cover shrink-0 border border-white/[0.08] shadow-md shadow-blue-500/5 hover:scale-105 transition-transform duration-300" 
             />
-            {!isSidebarCollapsed && (
-              <div className="flex items-center gap-3 flex-nowrap shrink-0">
-                <span className="bg-gradient-to-r from-white via-slate-100 to-blue-400 bg-clip-text text-transparent font-black tracking-tight text-[17px] whitespace-nowrap animate-in fade-in duration-300">
-                  Saddl<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent font-bold"> Inventory</span>
-                </span>
-                {!isSidebarOpen && (
-                  <button 
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-                    className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.02] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all shrink-0 hover:scale-105 duration-200 border border-white/[0.04] animate-in fade-in duration-300"
-                  >
-                    <Menu className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
+            <div className={`flex items-center gap-3 flex-nowrap shrink-0 transition-all duration-300 overflow-hidden ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-[160px] opacity-100'}`}>
+              <span className="bg-gradient-to-r from-white via-slate-100 to-blue-400 bg-clip-text text-transparent font-black tracking-tight text-[17px] whitespace-nowrap">
+                Saddl<span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent font-bold"> Inventory</span>
+              </span>
+              {!isSidebarOpen && (
+                <button 
+                  onClick={toggleSidebarPin} 
+                  className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.02] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all shrink-0 hover:scale-105 duration-200 border border-white/[0.04]"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-white/50 hover:text-white">
             <X className="w-6 h-6" />
           </button>
           {isSidebarCollapsed && !isSidebarOpen && (
             <button 
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              onClick={toggleSidebarPin} 
               className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.02] hover:bg-white/[0.08] text-white/40 hover:text-white transition-all hover:scale-105 duration-200 border border-white/[0.04]"
             >
               <Menu className="w-4 h-4" />
@@ -166,9 +173,9 @@ export default function App() {
         </div>
 
         <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-3.5'} space-y-1.5 overflow-y-auto pb-6 pt-4 custom-scrollbar`}>
-          <div className={`px-3 mb-3 flex items-center gap-3 ${isSidebarCollapsed ? 'opacity-0 h-0 overflow-hidden mb-0 mt-0' : 'opacity-100'}`}>
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.25em]">Strategy</span>
-            <div className="h-[1px] flex-1 bg-gradient-to-r from-white/5 to-transparent" />
+          <div className={`px-3 mb-3 flex items-center gap-3 transition-all duration-300 overflow-hidden ${isSidebarCollapsed ? 'opacity-0 h-0 mb-0 mt-0' : 'opacity-100 h-4'}`}>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.25em] whitespace-nowrap">Strategy</span>
+            <div className="h-[1px] flex-1 min-w-[20px] bg-gradient-to-r from-white/5 to-transparent" />
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
@@ -183,31 +190,29 @@ export default function App() {
             <div className={`flex items-center gap-3.5 ${isAdminExpanded && !isSidebarCollapsed ? 'mb-4' : ''} ${isSidebarCollapsed ? 'justify-center' : ''}`}>
               <div 
                 className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-blue via-indigo-500 to-purple-600 p-[1.5px] shrink-0 cursor-pointer shadow-md shadow-brand-blue/10 hover:scale-105 transition-transform duration-300 avatar-glow-effect"
-                onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsAdminExpanded(!isAdminExpanded)}
+                onClick={() => isSidebarCollapsed ? toggleSidebarPin() : setIsAdminExpanded(!isAdminExpanded)}
               >
                 <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center text-[10px] font-black text-white">
                   {user.user_metadata?.full_name?.substring(0, 2).toUpperCase() || user.email?.substring(0, 2).toUpperCase() || 'US'}
                 </div>
               </div>
-              {!isSidebarCollapsed && (
+              <div className={`flex flex-1 min-w-0 items-center justify-between transition-all duration-300 overflow-hidden ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100 ml-3.5'}`}>
                 <div 
                   className="flex-1 min-w-0 cursor-pointer"
                   onClick={() => setIsAdminExpanded(!isAdminExpanded)}
                 >
                   <p className="text-[12px] font-black text-white leading-none uppercase tracking-wider truncate mb-1">
-                    {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
                   </p>
-                  <span className="inline-block bg-blue-500/10 px-2 py-0.5 rounded text-[8px] tracking-[0.15em] font-semibold text-blue-400 border border-blue-500/15 w-fit uppercase">
-                    {user.user_metadata?.role || user.app_metadata?.role || 'Member'}
+                  <span className="inline-block bg-blue-500/10 px-2 py-0.5 rounded text-[8px] tracking-[0.15em] font-semibold text-blue-400 border border-blue-500/15 w-fit uppercase whitespace-nowrap">
+                    {user?.user_metadata?.role || user?.app_metadata?.role || 'Member'}
                   </span>
                 </div>
-              )}
-              {!isSidebarCollapsed && (
                 <ChevronDown 
-                  className={`w-4 h-4 text-white/30 hover:text-white transition-all cursor-pointer ${isAdminExpanded ? 'rotate-180 text-blue-400' : ''}`} 
+                  className={`w-4 h-4 text-white/30 hover:text-white transition-all cursor-pointer shrink-0 ${isAdminExpanded ? 'rotate-180 text-blue-400' : ''}`} 
                   onClick={() => setIsAdminExpanded(!isAdminExpanded)}
                 />
-              )}
+              </div>
             </div>
 
             {isAdminExpanded && !isSidebarCollapsed && (
@@ -501,21 +506,19 @@ function SidebarLink({ icon: Icon, label, path, current, isSubItem, collapsed }:
         shrink-0 transition-colors duration-300
       `} />
       
-      {!collapsed && (
-        <>
-          <span className={`uppercase tracking-[0.15em] ${isSubItem ? 'text-[9px]' : 'text-[10px]'} font-black truncate transition-colors duration-300`}>
-            {label}
-          </span>
-          {current && (
-            <div className="ml-auto flex items-center justify-center shrink-0">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-              </span>
-            </div>
-          )}
-        </>
-      )}
+      <div className={`flex items-center overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'flex-1 opacity-100 ml-3'}`}>
+        <span className={`uppercase tracking-[0.15em] ${isSubItem ? 'text-[9px]' : 'text-[10px]'} font-black truncate transition-colors duration-300 whitespace-nowrap`}>
+          {label}
+        </span>
+        {current && (
+          <div className="ml-auto flex items-center justify-center shrink-0 pl-2">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+            </span>
+          </div>
+        )}
+      </div>
     </button>
   )
 }

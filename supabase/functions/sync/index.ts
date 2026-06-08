@@ -90,27 +90,50 @@ async function handleSync(
     }
   }
 
-  // ---- Amazon (Saddl) ----
-  if (source === 'amazon' || source === 'all') {
-    try {
-      const [inventory, sales] = await Promise.all([
-        fetchAmazonInventory(),
-        fetchAmazonSales(90),
-      ])
+  // ---- Load active locations from amazon_locations ----
+  let locations: { country: string; saddl_account_id: string; saddl_client_id: string }[] = []
+  try {
+    const { data: locData, error: locErr } = await supabase
+      .from('amazon_locations')
+      .select('country, saddl_account_id, saddl_client_id')
+      .eq('is_active', true)
+    if (locErr || !locData || locData.length === 0) {
+      // Fallback to UAE defaults if table doesn't exist or is empty
+      console.log('[sync] No amazon_locations found, falling back to UAE defaults')
+      locations = [{ country: 'UAE', saddl_account_id: 's2c_uae_test', saddl_client_id: 's2c_uae_test' }]
+    } else {
+      locations = locData
+    }
+  } catch {
+    locations = [{ country: 'UAE', saddl_account_id: 's2c_uae_test', saddl_client_id: 's2c_uae_test' }]
+  }
 
-      // Build asin → sku mapping from sku_master
+  // ---- Amazon (Saddl) — sync all active locations ----
+  if (source === 'amazon' || source === 'all') {
+    for (const loc of locations) {
+      try {
+        console.log(`[sync] Syncing Amazon for ${loc.country} (account=${loc.saddl_account_id}, client=${loc.saddl_client_id})`)
+
+        const [inventory, sales] = await Promise.all([
+          fetchAmazonInventory(loc.saddl_client_id),
+          fetchAmazonSales(90, loc.saddl_account_id),
+        ])
+
+      // Build asin → sku mapping from sku_master (filtered by country)
       const { data: skuMasterRows, error: smErr } = await supabase
         .from('sku_master')
         .select('sku, asin')
+        .eq('country', loc.country)
         .not('asin', 'is', null)
       if (smErr) {
-        errors.push(`sku_master lookup: ${smErr.message}`)
+        errors.push(`[${loc.country}] sku_master lookup: ${smErr.message}`)
       }
       const asinToSku: Record<string, string> = {}
       for (const row of skuMasterRows ?? []) {
         if (row.asin) asinToSku[row.asin] = row.sku
       }
-      console.log(`[sync] asin→sku map: ${Object.keys(asinToSku).length} entries`)
+      console.log(`[sync] [${loc.country}] asin→sku map: ${Object.keys(asinToSku).length} entries`)
+
 
       if (inventory.length > 0) {
         const snapshotDate = new Date().toISOString().split('T')[0]
@@ -124,10 +147,10 @@ async function handleSync(
             inbound: item.inbound,
             reserved: item.reserved,
             snapshot_date: snapshotDate,
-            country: 'UAE'
+            country: loc.country
           }))
 
-        console.log(`[sync] inventory: ${inventory.length} ASINs from Saddl, ${snapRows.length} matched to sku_master`)
+        console.log(`[sync] [${loc.country}] inventory: ${inventory.length} ASINs from Saddl, ${snapRows.length} matched to sku_master`)
 
         if (snapRows.length > 0) {
           const { error: invErr } = await supabase
@@ -151,10 +174,10 @@ async function handleSync(
             date: s.date,
             channel: 'amazon' as const,
             units_sold: s.units_sold,
-            country: 'UAE'
+            country: loc.country
           }))
 
-        console.log(`[sync] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
+        console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
 
         if (salesRows.length > 0) {
           const { error: salesErr } = await supabase
@@ -180,9 +203,10 @@ async function handleSync(
           if (rawErr) console.error('[sync] amazon_sales upsert error:', rawErr)
         }
       }
-    } catch (err) {
-      errors.push(`Amazon sync error: ${(err as Error).message}`)
-    }
+      } catch (err) {
+        errors.push(`[${loc.country}] Amazon sync error: ${(err as Error).message}`)
+      }
+    } // end for-each location
   }
 
   // ---- Locad REST API ----
