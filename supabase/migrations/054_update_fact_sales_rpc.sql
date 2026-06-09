@@ -363,8 +363,8 @@ AS $function$
 BEGIN
   RETURN QUERY
   SELECT 
-    f.sub_category,
-    SUM(f.total_units) as total_units
+    f.sub_category::TEXT,
+    SUM(f.total_units)::BIGINT as total_units
   FROM public.fact_sales f
   WHERE f.date >= CURRENT_DATE - days_count
   AND f.is_current = true
@@ -410,11 +410,11 @@ BEGIN
     GROUP BY f.date
   )
   SELECT 
-    d.date,
-    COALESCE(d.amazon_units, 0),
-    COALESCE(d.noon_units, 0),
-    COALESCE(d.minutes_units, 0),
-    COALESCE(d.total_units, 0)
+    d.date::DATE,
+    COALESCE(d.amazon_units, 0)::BIGINT,
+    COALESCE(d.noon_units, 0)::BIGINT,
+    COALESCE(d.minutes_units, 0)::BIGINT,
+    COALESCE(d.total_units, 0)::BIGINT
   FROM daily_sales d
   ORDER BY d.date ASC;
 END;
@@ -439,14 +439,14 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        f.sku,
-        MAX(f.category) as category,
-        MAX(f.product_category) as product_category,
-        MAX(f.sub_category) as sub_category,
-        SUM(CASE WHEN LOWER(f.sales_channel) = 'amazon' THEN f.total_units ELSE 0 END) as amazon_units,
-        SUM(CASE WHEN LOWER(f.sales_channel) = 'noon' THEN f.total_units ELSE 0 END) as noon_units,
-        SUM(CASE WHEN LOWER(f.sales_channel) = 'minutes' THEN f.total_units ELSE 0 END) as minutes_units,
-        SUM(f.total_units) as total_units
+        f.sku::TEXT,
+        MAX(f.category)::TEXT as category,
+        MAX(f.product_category)::TEXT as product_category,
+        MAX(f.sub_category)::TEXT as sub_category,
+        SUM(CASE WHEN LOWER(f.sales_channel) = 'amazon' THEN f.total_units ELSE 0 END)::BIGINT as amazon_units,
+        SUM(CASE WHEN LOWER(f.sales_channel) = 'noon' THEN f.total_units ELSE 0 END)::BIGINT as noon_units,
+        SUM(CASE WHEN LOWER(f.sales_channel) = 'minutes' THEN f.total_units ELSE 0 END)::BIGINT as minutes_units,
+        SUM(f.total_units)::BIGINT as total_units
     FROM fact_sales f
     WHERE f.date >= CURRENT_DATE - days_count
     AND f.is_current = true
