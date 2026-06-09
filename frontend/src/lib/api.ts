@@ -67,6 +67,28 @@ function buildQuery(params: Record<string, string | undefined>): string {
 }
 
 export const api = {
+  getLocations: async (): Promise<{ country: string, saddl_account_id: string }[]> => {
+    const { data, error } = await supabase.from('amazon_locations').select('country, saddl_account_id').eq('is_active', true)
+    if (error) {
+      console.error(error)
+      return []
+    }
+    return data || []
+  },
+
+  addLocation: async (country: string, accountId: string): Promise<boolean> => {
+    const { error } = await supabase.from('amazon_locations').insert({
+      country,
+      saddl_account_id: accountId,
+      saddl_client_id: accountId,
+      is_active: true
+    })
+    if (error) {
+      console.error(error)
+      return false
+    }
+    return true
+  },
   getCommandCenter: async (): Promise<CommandCenterResponse> =>
     fetch(`${BASE}/dashboard?country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<CommandCenterResponse>(r))
@@ -96,7 +118,7 @@ export const api = {
     fetch(`${BASE}/po`, {
       method: 'POST',
       headers: await getHeaders(),
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, country: data.country || getCountry() }),
     })
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),

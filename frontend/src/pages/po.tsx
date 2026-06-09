@@ -606,6 +606,12 @@ export default function POPage() {
                 Supplier {sortConfig?.key === 'supplier' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th 
+                className="sticky top-0 bg-[#111827] z-10 w-[8%] text-left px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
+                onClick={() => requestSort('country')}
+              >
+                Country {sortConfig?.key === 'country' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th 
                 className="sticky top-0 bg-[#111827] z-10 w-[6%] text-right px-4 py-3 text-[10px] font-black text-white uppercase tracking-widest cursor-pointer hover:bg-white/5 border-b border-white/10 transition-colors"
                 onClick={() => requestSort('skus')}
               >
@@ -640,10 +646,10 @@ export default function POPage() {
           </thead>
           <tbody className="divide-y divide-white/5 bg-transparent">
             {loading ? (
-              <><SkeletonRow cols={10} /><SkeletonRow cols={10} /><SkeletonRow cols={10} /></>
+              <><SkeletonRow cols={11} /><SkeletonRow cols={11} /><SkeletonRow cols={11} /></>
             ) : paginatedPOs.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-sm text-white text-center">
+                <td colSpan={11} className="px-4 py-8 text-sm text-white text-center">
                   {search ? 'No purchase orders match your search' : 'No purchase orders found'}
                 </td>
               </tr>
@@ -694,6 +700,18 @@ export default function POPage() {
                         />
                       </td>
                       <td className="px-4 py-4 text-sm text-white">{po.supplier}</td>
+                      <td className="px-4 py-4 text-left font-data text-xs font-black text-white/70 uppercase tracking-widest">
+                        <InlineEdit 
+                          value={po.country || 'UAE'} 
+                          placeholder="UAE"
+                          inputClassName="w-16 text-xs uppercase"
+                          onSave={async (val) => {
+                            const newCountry = val.trim().toUpperCase() || 'UAE'
+                            await api.updatePO(po.id, { country: newCountry }, po.po_number)
+                            setPOs(prev => prev.map(p => p.id === po.id ? { ...p, country: newCountry } : p))
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-4 text-right font-data text-sm text-white">{po.line_items.length}</td>
                       <td className="px-4 py-4 text-right font-data text-sm font-semibold text-white">
                         {totalUnits.toLocaleString()}

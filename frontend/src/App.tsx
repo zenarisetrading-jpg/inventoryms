@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt, Plus } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -20,6 +20,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/shared/LoadingScreen'
 import saddlLogo from './assets/saddl_logo.jpg'
 import { useRegion } from './lib/RegionContext'
+import { api } from './lib/api'
 
 type Route =
   | { name: 'dashboard' }
@@ -67,6 +68,23 @@ export default function App() {
   const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminRoute)
   const { region, setRegion } = useRegion()
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
+  const [locations, setLocations] = useState<{country: string, saddl_account_id: string}[]>([])
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false)
+
+  const fetchLocations = async () => {
+    const locs = await api.getLocations()
+    if (locs.length > 0) {
+      // De-duplicate by country name
+      const unique = Array.from(new Map(locs.map(l => [l.country, l])).values())
+      setLocations(unique)
+    } else {
+      setLocations([{ country: 'UAE', saddl_account_id: 's2c_uae_test' }, { country: 'KSA', saddl_account_id: 's2c_test' }])
+    }
+  }
+
+  useEffect(() => {
+    fetchLocations()
+  }, [])
 
   useEffect(() => {
     // Check active sessions and subscribe to auth changes
@@ -240,7 +258,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
-        <header className="h-14 bg-gradient-to-r from-[#080d1f]/95 to-[#040712]/95 backdrop-blur-md border-b border-white/[0.04] flex items-center justify-between px-4 lg:px-6 shrink-0">
+        <header className="h-14 bg-gradient-to-r from-[#080d1f]/95 to-[#040712]/95 backdrop-blur-md border-b border-white/[0.04] flex items-center justify-between px-4 lg:px-6 shrink-0 relative z-20">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
@@ -268,17 +286,21 @@ export default function App() {
               {isRegionDropdownOpen && (
                 <div className="absolute top-full right-0 mt-2 w-36 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-1">
+                    {locations.map((loc) => (
+                      <button 
+                        key={loc.country}
+                        onClick={() => { setRegion(loc.country); setIsRegionDropdownOpen(false) }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === loc.country ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                      >
+                        {loc.country}
+                      </button>
+                    ))}
+                    <div className="h-px bg-white/10 my-1 mx-2" />
                     <button 
-                      onClick={() => { setRegion('UAE'); setIsRegionDropdownOpen(false) }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === 'UAE' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                      onClick={() => { setIsAddAccountModalOpen(true); setIsRegionDropdownOpen(false) }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors text-slate-400 hover:bg-blue-500/10 hover:text-blue-400"
                     >
-                      🇦🇪 UAE
-                    </button>
-                    <button 
-                      onClick={() => { setRegion('KSA'); setIsRegionDropdownOpen(false) }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === 'KSA' ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
-                    >
-                      🇸🇦 KSA
+                      <Plus className="w-3.5 h-3.5" /> ADD ACCOUNT
                     </button>
                   </div>
                 </div>
@@ -308,7 +330,7 @@ export default function App() {
         </header>
 
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-transparent relative z-10">
+        <main key={region} className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar bg-transparent relative z-10">
           <div className="w-full min-h-full flex flex-col">
             <ErrorBoundary>
               {route.name === 'dashboard' && <CommandCenter />}
@@ -333,6 +355,17 @@ export default function App() {
           user={user} 
           onClose={() => setIsSettingsOpen(false)} 
           onUpdate={(newUser) => setUser(newUser)}
+        />
+      )}
+
+      {/* Add Account Modal */}
+      {isAddAccountModalOpen && (
+        <AddAccountModal 
+          onClose={() => setIsAddAccountModalOpen(false)}
+          onSuccess={async () => {
+            await fetchLocations()
+            setIsAddAccountModalOpen(false)
+          }}
         />
       )}
     </div>
@@ -523,3 +556,83 @@ function SidebarLink({ icon: Icon, label, path, current, isSubItem, collapsed }:
   )
 }
 
+function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [country, setCountry] = useState('')
+  const [accountId, setAccountId] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!country.trim() || !accountId.trim()) {
+      setError('Please fill in both fields.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    const success = await api.addLocation(country.trim().toUpperCase(), accountId.trim())
+    if (success) {
+      onSuccess()
+    } else {
+      setError('Failed to add account. Make sure you have permission.')
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+        <div className="p-5 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Plus className="w-5 h-5 text-blue-400" />
+            </div>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Add New Location</h3>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location Code (e.g., USA, UK)</label>
+            <input 
+              type="text" 
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
+              placeholder="Enter location code"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Saddl Account ID</label>
+            <input 
+              type="text" 
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
+              placeholder="e.g. s2c_us_test"
+            />
+          </div>
+
+          <div className="pt-2 flex gap-3">
+            <button 
+              onClick={onClose}
+              className="flex-1 py-2.5 text-[10px] font-black text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors uppercase tracking-widest"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSave}
+              disabled={loading}
+              className="flex-1 py-2.5 text-[10px] font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-900/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add Account'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

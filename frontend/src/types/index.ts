@@ -186,6 +186,7 @@ export interface PO {
   po_number: string
   po_name?: string
   supplier: string
+  country?: string
   order_date: string
   eta: string
   status: POStatus
@@ -201,6 +202,7 @@ export interface CreatePOInput {
   po_number: string
   po_name?: string
   supplier: string
+  country?: string
   order_date: string
   eta: string
   tracking_number?: string
