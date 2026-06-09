@@ -28,6 +28,7 @@ DROP FUNCTION IF EXISTS public.get_subcategory_performance(int, text[], text[], 
 DROP FUNCTION IF EXISTS public.get_sales_velocity_trend(int, text[], text[], text[]);
 DROP FUNCTION IF EXISTS public.get_sales_velocity_trend(int, text[], text[], text[], text);
 
+DROP FUNCTION IF EXISTS public.get_detailed_sales_performance();
 DROP FUNCTION IF EXISTS public.get_detailed_sales_performance(int);
 DROP FUNCTION IF EXISTS public.get_detailed_sales_performance(int, text);
 
@@ -424,6 +425,9 @@ $function$;
 -- 8. get_detailed_sales_performance
 CREATE OR REPLACE FUNCTION public.get_detailed_sales_performance(
     days_count INT DEFAULT 30,
+    p_categories TEXT[] DEFAULT NULL,
+    p_product_categories TEXT[] DEFAULT NULL,
+    p_sub_categories TEXT[] DEFAULT NULL,
     p_country TEXT DEFAULT 'UAE'
 )
 RETURNS TABLE (
@@ -436,7 +440,37 @@ RETURNS TABLE (
     minutes_units BIGINT,
     total_units BIGINT
 ) AS $$
+DECLARE
+    max_date DATE;
 BEGIN
+    SELECT MAX(date) INTO max_date FROM fact_sales WHERE is_current = true AND COALESCE(country, 'UAE') = p_country;
+    
+    IF max_date IS NULL THEN
+        SELECT MAX(date) INTO max_date FROM sales_snapshot WHERE COALESCE(country, 'UAE') = p_country;
+        
+        IF max_date IS NULL THEN RETURN; END IF;
+
+        RETURN QUERY
+        SELECT 
+            s.sku::TEXT,
+            MAX(s.category)::TEXT as category,
+            MAX(s.product_category)::TEXT as product_category,
+            MAX(s.sub_category)::TEXT as sub_category,
+            SUM(CASE WHEN LOWER(s.sales_channel) = 'amazon' THEN s.total_units ELSE 0 END)::BIGINT as amazon_units,
+            SUM(CASE WHEN LOWER(s.sales_channel) = 'noon' THEN s.total_units ELSE 0 END)::BIGINT as noon_units,
+            SUM(CASE WHEN LOWER(s.sales_channel) = 'minutes' THEN s.total_units ELSE 0 END)::BIGINT as minutes_units,
+            SUM(s.total_units)::BIGINT as total_units
+        FROM sales_snapshot s
+        WHERE s.date >= max_date - days_count
+        AND COALESCE(s.country, 'UAE') = p_country
+        AND (p_categories IS NULL OR p_categories = '{}' OR s.category = ANY(p_categories))
+        AND (p_product_categories IS NULL OR p_product_categories = '{}' OR s.product_category = ANY(p_product_categories))
+        AND (p_sub_categories IS NULL OR p_sub_categories = '{}' OR s.sub_category = ANY(p_sub_categories))
+        GROUP BY s.sku
+        ORDER BY total_units DESC;
+        RETURN;
+    END IF;
+
     RETURN QUERY
     SELECT 
         f.sku::TEXT,
@@ -448,12 +482,16 @@ BEGIN
         SUM(CASE WHEN LOWER(f.sales_channel) = 'minutes' THEN f.total_units ELSE 0 END)::BIGINT as minutes_units,
         SUM(f.total_units)::BIGINT as total_units
     FROM fact_sales f
-    WHERE f.date >= CURRENT_DATE - days_count
+    WHERE f.date >= max_date - days_count
     AND f.is_current = true
     AND COALESCE(f.country, 'UAE') = p_country
-    GROUP BY f.sku;
+    AND (p_categories IS NULL OR p_categories = '{}' OR f.category = ANY(p_categories))
+    AND (p_product_categories IS NULL OR p_product_categories = '{}' OR f.product_category = ANY(p_product_categories))
+    AND (p_sub_categories IS NULL OR p_sub_categories = '{}' OR f.sub_category = ANY(p_sub_categories))
+    GROUP BY f.sku
+    ORDER BY total_units DESC;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.get_dashboard_sales_summary(text[], text[], text[], text) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.get_mtd_forecast(text[], text[], text[], text) TO authenticated, anon, service_role;
@@ -462,4 +500,4 @@ GRANT EXECUTE ON FUNCTION public.get_mtd_sales(text) TO authenticated, anon, ser
 GRANT EXECUTE ON FUNCTION public.get_today_sales(text) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.get_subcategory_performance(int, text[], text[], text[], text) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.get_sales_velocity_trend(int, text[], text[], text[], text) TO authenticated, anon, service_role;
-GRANT EXECUTE ON FUNCTION public.get_detailed_sales_performance(int, text) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.get_detailed_sales_performance(INT, TEXT[], TEXT[], TEXT[], TEXT) TO authenticated, anon, service_role;
