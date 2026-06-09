@@ -727,14 +727,19 @@ export default function POPage() {
                       <td className="px-4 py-4"><StatusBadge status={po.status} /></td>
                       <td className="pl-4 pr-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <ActionDropdown 
-                            currentStatus={po.status}
-                            onStatusChange={async (newStatus) => {
-                              setAdvancingId(po.id);
-                              await api.updatePO(po.id, { status: newStatus as any });
-                              setAdvancingId(null);
-                              setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
-                            }}
+                            <ActionDropdown 
+                              currentStatus={po.status}
+                              onStatusChange={async (newStatus) => {
+                                setAdvancingId(po.id);
+                                const res = await api.updatePO(po.id, { status: newStatus as any });
+                                setAdvancingId(null);
+                                const resAny = res as any;
+                                if (resAny.error) {
+                                  alert('Failed to update PO status: ' + resAny.error);
+                                } else {
+                                  setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: newStatus as any } : p)));
+                                }
+                              }}
                             options={['draft', 'ordered', 'shipped', 'closed', 'cancelled']}
                             colors={{
                               draft: 'bg-slate-100 text-slate-500 border-slate-200',
