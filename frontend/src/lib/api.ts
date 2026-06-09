@@ -104,8 +104,8 @@ export const api = {
       .then(r => handleResponse<SKUDetailResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUDetailResponse)),
 
-  getPOs: async (params?: { status?: string; sku?: string; supplier?: string }): Promise<{ pos: PO[] }> =>
-    fetch(`${BASE}/po${buildQuery(params ?? {})}`, { headers: await getHeaders() })
+  getPOs: async (params?: { status?: string; sku?: string; supplier?: string; country?: string }): Promise<{ pos: PO[] }> =>
+    fetch(`${BASE}/po${buildQuery({ country: getCountry(), ...(params ?? {}) })}`, { headers: await getHeaders() })
       .then(r => handleResponse<{ pos: PO[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { pos: PO[] })),
 
@@ -273,6 +273,7 @@ export const api = {
 
   uploadPOCSV: async (file: File): Promise<UploadPOResponse> => {
     const form = new FormData()
+    form.append('country', getCountry())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']

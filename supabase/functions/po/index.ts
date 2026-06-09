@@ -145,10 +145,12 @@ async function handleList(url: URL): Promise<Response> {
   const supabase = getSupabaseAdmin()
   const statusParam = url.searchParams.get('status')
   const supplierParam = url.searchParams.get('supplier')
+  const countryParam = url.searchParams.get('country')
 
   let query = supabase.from('fact_purchase').select('*')
   if (statusParam) query = query.ilike('status', `%${statusParam.trim()}%`)
   if (supplierParam) query = query.ilike('supplier', `%${supplierParam}%`)
+  if (countryParam) query = query.eq('country', countryParam)
 
   const { data, error } = await query.order('po_number', { ascending: false })
 

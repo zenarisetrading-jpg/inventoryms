@@ -23,6 +23,7 @@ interface ParsedRow {
   sku: string
   units_ordered: number
   units_received: number
+  country?: string
 }
 
 interface POGroup {
@@ -33,6 +34,7 @@ interface POGroup {
   eta: string
   status: string
   po_notes: string
+  country?: string
   line_items: { sku: string; units_ordered: number; units_received: number; notes: string }[]
 }
 
@@ -50,6 +52,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   sku: ['sku', 'internal sku', 'item sku', 'seller sku'],
   units_ordered: ['units_ordered', 'units ordered', 'qty ordered', 'quantity ordered', 'ordered qty'],
   units_received: ['units_received', 'units received', 'qty received', 'quantity received', 'received qty'],
+  country: ['country', 'region'],
 }
 
 function normalizeHeader(v: string): string {
@@ -156,6 +159,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     sku: findColumnIndex(headerKeys, 'sku'),
     units_ordered: findColumnIndex(headerKeys, 'units_ordered'),
     units_received: findColumnIndex(headerKeys, 'units_received'),
+    country: findColumnIndex(headerKeys, 'country'),
   }
 
   const required = ['po_number', 'supplier', 'order_date', 'eta', 'sku', 'units_ordered']
@@ -186,6 +190,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const po_notes = get('po_notes')
     const notes = get('notes')
     const status = normalizeStatus(get('status'))
+    const country = get('country')
 
     if (!po_number) { errors.push({ row: i + 2, message: `Row ${i + 2}: po_number is required` }); continue }
     if (!supplier) { errors.push({ row: i + 2, message: `Row ${i + 2}: supplier is required` }); continue }
@@ -200,7 +205,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     }
 
     const units_received = parseInt(units_received_raw, 10)
-    rows.push({ po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received })
+    rows.push({ po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received, country })
   }
 
   return { rows, errors }
@@ -242,6 +247,7 @@ function groupByPO(rows: ParsedRow[]): POGroup[] {
         eta: row.eta,
         status: row.status,
         po_notes: row.po_notes || row.notes || '',
+        country: row.country,
         line_items: [],
       })
     } else {
@@ -300,6 +306,8 @@ serve(async (req: Request) => {
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
+    
+    const defaultCountry = formData.get('country') as string || 'UAE'
 
     const fileName = file.name?.toLowerCase() ?? ''
     const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet')
@@ -403,6 +411,7 @@ serve(async (req: Request) => {
           po_number: group.po_number,
           po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
           supplier: group.supplier,
+          country: group.country || defaultCountry,
           order_date: group.order_date,
           eta: group.eta,
           status: group.status || 'ordered',
@@ -476,6 +485,7 @@ serve(async (req: Request) => {
         eta: group.eta,
         status: group.status || 'ordered',
         po_notes: group.po_notes || null,
+        country: group.country || defaultCountry,
         tracking_number: null,
       }
 
@@ -488,6 +498,7 @@ serve(async (req: Request) => {
           po_number: group.po_number,
           po_name: header.po_name || group.po_name || '',
           supplier: header.supplier,
+          country: header.country || group.country || defaultCountry,
           order_date: header.order_date,
           eta: header.eta,
           status: header.status,

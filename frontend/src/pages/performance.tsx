@@ -5,6 +5,7 @@ import {
   LineChart, Line, Legend, AreaChart, Area
 } from 'recharts'
 import { TrendingUp, BarChart3, Package, Calendar, ListFilter, Search, ChevronUp, ChevronDown, Filter, X, Check, Hash, LineChart as LineIcon, ShoppingCart, HeartPulse, PieChart as PieIcon, AlertTriangle, Layers, RefreshCw, Zap } from 'lucide-react'
+import { useRegion } from '../lib/RegionContext'
 import { supabase } from '../lib/supabase'
 import { api } from '../lib/api'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
@@ -87,6 +88,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function PerformancePage() {
+  const { region } = useRegion()
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState<7 | 30 | 90>(30)
   const [valuationData, setValuationData] = useState<any[]>([])
@@ -141,7 +143,7 @@ export default function PerformancePage() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: valResult } = await supabase.rpc('get_final_valuation')
+      const { data: valResult } = await supabase.rpc('get_final_valuation', { p_country: region })
       if (valResult) {
         setValuationData([
           { node: 'AMAZON FBA', value_aed: Math.round(valResult.fba || 0) },
@@ -157,20 +159,23 @@ export default function PerformancePage() {
           days_count: days,
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_country: region
         }),
         supabase.rpc('get_sales_velocity_trend', {
           days_count: days,
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_country: region
         }),
-        supabase.rpc('get_detailed_sales_performance', { days_count: days }),
-        supabase.rpc('get_po_status_distribution'),
+        supabase.rpc('get_detailed_sales_performance', { days_count: days, p_country: region }),
+        supabase.rpc('get_po_status_distribution', { p_country: region }),
         supabase.rpc('get_coverage_health', {
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_country: region
         })
       ])
 
@@ -183,21 +188,24 @@ export default function PerformancePage() {
       const { data: summary } = await supabase.rpc('get_dashboard_sales_summary', {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+        p_country: region
       })
       if (summary) setSummaryData(summary)
 
       const { data: forecastResult } = await supabase.rpc('get_mtd_forecast', {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+        p_country: region
       })
       if (forecastResult) setMtdForecast(forecastResult)
 
       const { data: lastMonthResult } = await supabase.rpc('get_last_month_sales', {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null
+        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+        p_country: region
       })
       if (lastMonthResult) setLastMonthSales(lastMonthResult)
 
@@ -208,7 +216,7 @@ export default function PerformancePage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchData() }, [days, selCategories, selProductCategories, selSubCategories])
+  useEffect(() => { fetchData() }, [region, days, selCategories, selProductCategories, selSubCategories])
 
   // Channel Mix Data Calculation
   const channelMixData = useMemo(() => {

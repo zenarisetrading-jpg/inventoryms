@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, Fragment } from 'react'
 import { X, Upload, Check, Edit2, Plus, Trash2, Download, Search, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../lib/api'
-import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { navigate } from '../lib/router'
+import { useRegion } from '../lib/RegionContext'
+import type { PO, POStatus, CreatePOInput, UploadPOResponse } from '../types'
 import { StatusBadge } from '../components/shared/StatusBadge'
 import { Autocomplete } from '../components/shared/Autocomplete'
 import { ActionDropdown } from '../components/ActionDropdown'
@@ -209,6 +210,7 @@ function InlineEdit({
 const inputCls = 'w-full border border-zinc-300 text-zinc-900 bg-white px-3 py-2 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent'
 
 export default function POPage() {
+  const { region } = useRegion()
   const [pos, setPOs] = useState<PO[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('')
@@ -258,7 +260,7 @@ export default function POPage() {
 
   useEffect(() => {
     load(activeTab || undefined)
-  }, [activeTab])
+  }, [activeTab, region])
 
   useEffect(() => {
     api.getSuppliers().then(res => setAllSuppliers(res.suppliers || []))
@@ -355,11 +357,11 @@ export default function POPage() {
   }
 
   const downloadTemplate = () => {
-    const header = 'po_number,po_name,supplier,order_date,eta,status,po_notes,notes,sku,units_ordered,units_received'
+    const header = 'po_number,po_name,supplier,country,order_date,eta,status,po_notes,notes,sku,units_ordered,units_received'
     const example = [
-      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for straw lid,32OZSTRAWLIDBLACK,500,0',
-      'PO-001,Spring Batch,Shenzhen Supplier,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for water bottle,WB750MLBLACK,300,0',
-      'PO-002,Summer Refresh,Another Supplier,2026-03-10,2026-04-15,draft,Urgent shipment,Specific notes for navy blue,32OZWBNAVYBLUE,250,',
+      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for straw lid,32OZSTRAWLIDBLACK,500,0',
+      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for water bottle,WB750MLBLACK,300,0',
+      'PO-002,Summer Refresh,Another Supplier,KSA,2026-03-10,2026-04-15,draft,Urgent shipment,Specific notes for navy blue,32OZWBNAVYBLUE,250,0',
     ].join('\n')
     const blob = new Blob([header + '\n' + example], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -439,7 +441,7 @@ export default function POPage() {
       if (!allPOs.length) return
 
       const headers = [
-        'PO Number', 'PO Name', 'Supplier', 'Order Date', 'ETA', 'Tracking', 'Status', 'PO Notes',
+        'PO Number', 'PO Name', 'Supplier', 'Country', 'Order Date', 'ETA', 'Tracking', 'Status', 'PO Notes',
         'SKU', 'Units Ordered', 'Units Received', 'Units Per Box', 'Box Count', 'Dimensions', 'COGS', 'Shipping Cost', 'Item Notes'
       ].join(',')
 
@@ -449,6 +451,7 @@ export default function POPage() {
             `"${po.po_number}"`,
             `"${po.po_name || ''}"`,
             `"${po.supplier}"`,
+            `"${po.country || ''}"`,
             `"${po.order_date}"`,
             `"${po.eta || ''}"`,
             `"${po.tracking_number || ''}"`,
@@ -461,6 +464,7 @@ export default function POPage() {
           `"${po.po_number}"`,
           `"${po.po_name || ''}"`,
           `"${po.supplier}"`,
+          `"${po.country || ''}"`,
           `"${po.order_date}"`,
           `"${po.eta || ''}"`,
           `"${po.tracking_number || ''}"`,

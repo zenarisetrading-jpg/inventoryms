@@ -21,6 +21,7 @@ interface NewPOForm {
   po_number: string
   po_name: string
   supplier: string
+  country?: string
   order_date: string
   eta: string
   tracking_number: string
@@ -33,6 +34,7 @@ function emptyForm(): NewPOForm {
     po_number: '',
     po_name: '',
     supplier: '',
+    country: '',
     order_date: new Date().toISOString().slice(0, 10),
     eta: '',
     tracking_number: '',
@@ -58,11 +60,13 @@ export default function PONewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [allSuppliers, setAllSuppliers] = useState<string[]>([])
+  const [locations, setLocations] = useState<{country: string}[]>([])
   const [allSkus, setAllSkus] = useState<any[]>([])
   const [skuSuggestions, setSkuSuggestions] = useState<string[]>([])
 
   useEffect(() => {
     api.getSuppliers().then(res => setAllSuppliers(res.suppliers || []))
+    api.getLocations().then(res => setLocations(res || []))
     api.getSKUs().then(res => {
       console.log('SKUs fetched for suggestions:', res)
       const data = res.skus ?? []
@@ -221,6 +225,7 @@ export default function PONewPage() {
       po_number: form.po_number,
       po_name: form.po_name,
       supplier: form.supplier,
+      country: form.country || undefined,
       order_date: form.order_date,
       eta: form.eta,
       tracking_number: form.tracking_number,
@@ -274,7 +279,7 @@ export default function PONewPage() {
               <label className="text-xs font-bold text-zinc-500 uppercase">PO Name / Project</label>
               <input value={form.po_name} onChange={e => handleFormChange('po_name', e.target.value)} placeholder="e.g. Q2 Restock" className={inputCls} />
             </div>
-            <div className="md:col-span-2">
+            <div>
               <Autocomplete
                 label="Supplier"
                 required
@@ -284,6 +289,15 @@ export default function PONewPage() {
                 placeholder="Search or enter supplier name..."
                 className={inputCls}
               />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-500 uppercase">Country</label>
+              <select value={form.country} onChange={e => handleFormChange('country', e.target.value)} className={inputCls}>
+                <option value="">Default (From Region)</option>
+                {locations.map((loc, idx) => (
+                  <option key={idx} value={loc.country}>{loc.country}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-500 uppercase">Order Date <span className="text-red-500">*</span></label>
