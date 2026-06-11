@@ -3,6 +3,7 @@ import { AlertTriangle, Package } from 'lucide-react'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { SalesPerformanceCard } from '../components/SalesPerformanceCard'
 import { usePerformanceData } from '../hooks/usePerformanceData'
+import { useRegion } from '../lib/RegionContext'
 
 // Extracted Components
 import { PerformanceHeader } from '../components/performance/PerformanceHeader'
@@ -14,6 +15,8 @@ import { ValuationChart, PoStatusChart } from '../components/performance/Valuati
 import { CoverageHealth } from '../components/performance/CoverageHealth'
 
 export default function PerformancePage() {
+  const { region } = useRegion()
+  const isKSA = region === 'KSA'
   const {
     loading, error, days, setDays, search, setSearch,
     selCategories, setSelCategories, selProductCategories, setSelProductCategories,
@@ -66,8 +69,10 @@ export default function PerformancePage() {
               headerColor="bg-zinc-800"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.yesterday?.amazon_sales || 0, units: summaryData.yesterday?.amazon_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: summaryData.yesterday?.noon_sales || 0, units: summaryData.yesterday?.noon_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: summaryData.yesterday?.minutes_sales || 0, units: summaryData.yesterday?.minutes_units || 0, color: 'bg-purple-500' }
+                ...(isKSA ? [] : [
+                  { label: 'NOON', sales: summaryData.yesterday?.noon_sales || 0, units: summaryData.yesterday?.noon_units || 0, color: 'bg-blue-500' },
+                  { label: 'MINUTES', sales: summaryData.yesterday?.minutes_sales || 0, units: summaryData.yesterday?.minutes_units || 0, color: 'bg-purple-500' }
+                ])
               ]}
             />
             <SalesPerformanceCard
@@ -80,8 +85,10 @@ export default function PerformancePage() {
               headerColor="bg-blue-900/50"
               breakdown={[
                 { label: 'AMAZON', sales: summaryData.mtd?.amazon_sales || 0, units: summaryData.mtd?.amazon_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: summaryData.mtd?.noon_sales || 0, units: summaryData.mtd?.noon_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: summaryData.mtd?.minutes_sales || 0, units: summaryData.mtd?.minutes_units || 0, color: 'bg-purple-500' }
+                ...(isKSA ? [] : [
+                  { label: 'NOON', sales: summaryData.mtd?.noon_sales || 0, units: summaryData.mtd?.noon_units || 0, color: 'bg-blue-500' },
+                  { label: 'MINUTES', sales: summaryData.mtd?.minutes_sales || 0, units: summaryData.mtd?.minutes_units || 0, color: 'bg-purple-500' }
+                ])
               ]}
             />
             <SalesPerformanceCard
@@ -94,8 +101,10 @@ export default function PerformancePage() {
               headerColor="bg-emerald-900/50"
               breakdown={[
                 { label: 'AMAZON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_units || 0, color: 'bg-purple-500' }
+                ...(isKSA ? [] : [
+                  { label: 'NOON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_units || 0, color: 'bg-blue-500' },
+                  { label: 'MINUTES', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_units || 0, color: 'bg-purple-500' }
+                ])
               ]}
             />
             <SalesPerformanceCard
@@ -108,8 +117,10 @@ export default function PerformancePage() {
               headerColor="bg-indigo-900/50"
               breakdown={[
                 { label: 'AMAZON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_units || 0, color: 'bg-purple-500' }
+                ...(isKSA ? [] : [
+                  { label: 'NOON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_units || 0, color: 'bg-blue-500' },
+                  { label: 'MINUTES', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_units || 0, color: 'bg-purple-500' }
+                ])
               ]}
             />
           </>

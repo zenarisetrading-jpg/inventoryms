@@ -4,8 +4,11 @@ import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
 import { MultiSelect } from '../components/shared/MultiSelect'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
+import { useRegion } from '../lib/RegionContext'
 
 export default function InventoryPage() {
+  const { region } = useRegion()
+  const isKSA = region === 'KSA'
   const [data, setData] = useState<PlanningResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -34,7 +37,7 @@ export default function InventoryPage() {
     }
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [region])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -80,10 +83,14 @@ export default function InventoryPage() {
     ]
 
     const existingKeys = Object.keys(data.raw_data[0])
-    const finalKeys = [
+    let finalKeys = [
       ...PREFERRED_ORDER.filter(k => existingKeys.includes(k)),
       ...existingKeys.filter(k => !PREFERRED_ORDER.includes(k))
     ]
+
+    if (isKSA) {
+      finalKeys = finalKeys.filter(k => !['fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 'send_to_fbn_units', 'fbn_boxes', 'noon_coverage'].includes(k))
+    }
 
     return finalKeys.map(key => ({
       key,
@@ -249,8 +256,10 @@ export default function InventoryPage() {
             accent="text-indigo-600"
             items={[
               { label: 'FBA Units', value: renderCell('fba_units', totals['fba_units'] || totals['current_fba_stock_units']) },
-              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
-              { label: 'Minutes', value: renderCell('minutes_units', totals['minutes_units']) }
+              ...(isKSA ? [] : [
+                { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
+                { label: 'Minutes', value: renderCell('minutes_units', totals['minutes_units']) }
+              ])
             ]}
           />
           <InventoryStatCard 
@@ -268,8 +277,10 @@ export default function InventoryPage() {
             accent="text-rose-600"
             items={[
               { label: 'Amazon SV', value: renderCell('amazon_sv', totals['amazon_sv']) },
-              { label: 'Noon SV', value: renderCell('noon_sv', totals['noon_sv']) },
-              { label: 'Minutes SV', value: renderCell('minutes_sv', totals['minutes_sv']) },
+              ...(isKSA ? [] : [
+                { label: 'Noon SV', value: renderCell('noon_sv', totals['noon_sv']) },
+                { label: 'Minutes SV', value: renderCell('minutes_sv', totals['minutes_sv']) }
+              ]),
               { label: 'Total SV', value: renderCell('blended_sv', totals['blended_sv']) }
             ]}
           />
@@ -290,9 +301,13 @@ export default function InventoryPage() {
             accent="text-brand-blue"
             items={[
               { label: 'FBA Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
-              { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
+              ...(isKSA ? [] : [
+                { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) }
+              ]),
               { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
-              { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
+              ...(isKSA ? [] : [
+                { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
+              ])
             ]}
           />
         </div>
