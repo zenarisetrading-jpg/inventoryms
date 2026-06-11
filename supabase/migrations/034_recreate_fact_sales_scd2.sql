@@ -19,6 +19,7 @@ CREATE TABLE fact_sales (
     category VARCHAR(255),
     product_category VARCHAR(255),
     sub_category VARCHAR(255),
+    country VARCHAR(50),
     total_sales DECIMAL(18, 2),
     total_units DECIMAL(18, 2),
     effective_from TIMESTAMP DEFAULT NOW(),
@@ -50,7 +51,8 @@ BEGIN
                     date,
                     sales_channel,
                     fulfillment_model,
-                    sku
+                    sku,
+                    country
                 ORDER BY last_updated DESC
             ) AS rn
         FROM (
@@ -64,6 +66,7 @@ BEGIN
                 s.category,
                 s.product_category,
                 s.sub_category,
+                UPPER(COALESCE(a.country, 'UAE')) AS country,
                 SUM(a.ordered_revenue) AS total_sales,
                 SUM(a.units_ordered) AS total_units,
                 MAX(a.pulled_at) AS last_updated
@@ -75,7 +78,8 @@ BEGIN
                 s.sku,
                 s.category,
                 s.product_category,
-                s.sub_category
+                s.sub_category,
+                UPPER(COALESCE(a.country, 'UAE'))
 
             UNION ALL
 
@@ -89,6 +93,11 @@ BEGIN
                 s.category,
                 s.product_category,
                 s.sub_category,
+                CASE 
+                    WHEN UPPER(COALESCE(n.src_country, 'AE')) = 'AE' THEN 'UAE'
+                    WHEN UPPER(COALESCE(n.src_country, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
+                    ELSE UPPER(COALESCE(n.src_country, 'UAE'))
+                END AS country,
                 SUM(n.offer_price) AS total_sales,
                 COUNT(n.item_nr) AS total_units,
                 MAX(n.delivered_timestamp) AS last_updated
@@ -101,7 +110,12 @@ BEGIN
                 s.sku,
                 s.category,
                 s.product_category,
-                s.sub_category
+                s.sub_category,
+                CASE 
+                    WHEN UPPER(COALESCE(n.src_country, 'AE')) = 'AE' THEN 'UAE'
+                    WHEN UPPER(COALESCE(n.src_country, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
+                    ELSE UPPER(COALESCE(n.src_country, 'UAE'))
+                END
 
             UNION ALL
 
@@ -115,6 +129,11 @@ BEGIN
                 s.category,
                 s.product_category,
                 s.sub_category,
+                CASE 
+                    WHEN UPPER(COALESCE(m.country_code, 'AE')) = 'AE' THEN 'UAE'
+                    WHEN UPPER(COALESCE(m.country_code, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
+                    ELSE UPPER(COALESCE(m.country_code, 'UAE'))
+                END AS country,
                 SUM(m.price) AS total_sales,
                 COUNT(m.item_nr) AS total_units,
                 NOW() AS last_updated
@@ -126,7 +145,12 @@ BEGIN
                 s.sku,
                 s.category,
                 s.product_category,
-                s.sub_category
+                s.sub_category,
+                CASE 
+                    WHEN UPPER(COALESCE(m.country_code, 'AE')) = 'AE' THEN 'UAE'
+                    WHEN UPPER(COALESCE(m.country_code, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
+                    ELSE UPPER(COALESCE(m.country_code, 'UAE'))
+                END
         ) sales_data
     ) final_data
     WHERE rn = 1;
@@ -143,6 +167,7 @@ BEGIN
     AND f.sales_channel = d.sales_channel
     AND COALESCE(f.fulfillment_model,'') = COALESCE(d.fulfillment_model,'')
     AND COALESCE(f.sku,'') = COALESCE(d.sku,'')
+    AND COALESCE(f.country,'') = COALESCE(d.country,'')
     AND (
            COALESCE(f.total_sales,0) <> COALESCE(d.total_sales,0)
         OR COALESCE(f.total_units,0) <> COALESCE(d.total_units,0)
@@ -161,6 +186,7 @@ BEGIN
         category,
         product_category,
         sub_category,
+        country,
         total_sales,
         total_units,
         effective_from,
@@ -177,6 +203,7 @@ BEGIN
         d.category,
         d.product_category,
         d.sub_category,
+        d.country,
         d.total_sales,
         d.total_units,
         NOW(),
@@ -190,6 +217,7 @@ BEGIN
         AND f.sales_channel = d.sales_channel
         AND COALESCE(f.fulfillment_model,'') = COALESCE(d.fulfillment_model,'')
         AND COALESCE(f.sku,'') = COALESCE(d.sku,'')
+        AND COALESCE(f.country,'') = COALESCE(d.country,'')
     WHERE
         f.fact_sales_key IS NULL
         OR

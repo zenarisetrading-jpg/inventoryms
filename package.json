@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "install-frontend": "npm install --prefix frontend",
     "start": "serve -s frontend/dist -l $PORT"

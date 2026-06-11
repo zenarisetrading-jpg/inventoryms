@@ -14,7 +14,7 @@
 // v1.0.1 - forced redeploy for schema cache
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import {
   fetchAmazonInventory,
   fetchAmazonSales,
@@ -45,16 +45,28 @@ serve(async (req: Request) => {
 
   try {
     if (req.method === 'GET' && action === 'status') {
-      return await handleStatus()
+      return await handleStatus(req)
     }
 
     const clear = url.searchParams.get('clear') === 'true'
+    const daysParam = url.searchParams.get('days')
+    const days = daysParam ? parseInt(daysParam, 10) : 90
+    const countryParam = url.searchParams.get('country')
+
     if (req.method === 'POST') {
-      if (action === 'amazon') return await handleSync('amazon', clear)
-      if (action === 'amazon-fdw') return await handleAmazonFDW()
-      if (action === 'locad') return await handleSync('locad', clear)
-      if (action === 'all') return await handleSync('all', clear)
-      if (action === 'refresh-fact') return await handleRefreshFact()
+      if (action === 'amazon') return await handleSync(req, 'amazon', clear, days, countryParam)
+      if (action === 'amazon-fdw') return await handleAmazonFDW(req)
+      if (action === 'locad') return await handleSync(req, 'locad', clear, days, countryParam)
+      if (action === 'all') return await handleSync(req, 'all', clear, days, countryParam)
+      if (action === 'refresh-fact') return await handleRefreshFact(req)
+      if (action === 'debug-saddl') {
+        const { getPool } = await import('../_shared/saddl.ts')
+        const pool = getPool();
+        const conn = await pool.connect();
+        const { rows } = await conn.queryObject(`SELECT SUM(ordered_revenue) as total_revenue FROM sc_raw.sales_traffic WHERE account_id = 's2c_test' AND report_date >= '2026-03-01'`);
+        conn.release();
+        return new Response(JSON.stringify(rows, null, 2), { headers: { 'Content-Type': 'application/json' } });
+      }
     }
 
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404)
@@ -69,10 +81,13 @@ serve(async (req: Request) => {
 // ---------------------------------------------------------------------------
 
 async function handleSync(
+  req: Request,
   source: 'amazon' | 'locad' | 'all',
-  clear = false
+  clear = false,
+  days = 90,
+  countryParam: string | null = null
 ): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
   const synced_at = new Date().toISOString()
   let skus_processed = 0
   let locad_status: 'synced' | 'skipped_not_connected' = 'skipped_not_connected'
@@ -108,6 +123,10 @@ async function handleSync(
     locations = [{ country: 'UAE', saddl_account_id: 's2c_uae_test', saddl_client_id: 's2c_uae_test' }]
   }
 
+  if (countryParam) {
+    locations = locations.filter(l => l.country === countryParam)
+  }
+
   // ---- Amazon (Saddl) — sync all active locations ----
   if (source === 'amazon' || source === 'all') {
     for (const loc of locations) {
@@ -116,7 +135,7 @@ async function handleSync(
 
         const [inventory, sales] = await Promise.all([
           fetchAmazonInventory(loc.saddl_client_id),
-          fetchAmazonSales(90, loc.saddl_account_id),
+          fetchAmazonSales(days, loc.saddl_account_id),
         ])
 
       // Build asin → sku mapping from sku_master (filtered by country)
@@ -174,6 +193,7 @@ async function handleSync(
             date: s.date,
             channel: 'amazon' as const,
             units_sold: s.units_sold,
+            revenue: s.revenue,
             country: loc.country
           }))
 
@@ -192,6 +212,7 @@ async function handleSync(
         const rawSalesRows = sales.map(s => ({
           report_date: s.date,
           child_asin: s.asin,
+          country: loc.country,
           units_ordered: s.units_sold,
           ordered_revenue: s.revenue
         }))
@@ -199,7 +220,7 @@ async function handleSync(
         if (rawSalesRows.length > 0) {
           const { error: rawErr } = await supabase
             .from('amazon_sales')
-            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin' })
+            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin,country' })
           if (rawErr) console.error('[sync] amazon_sales upsert error:', rawErr)
         }
       }
@@ -391,8 +412,8 @@ async function handleSync(
 // handleRefreshFact
 // ---------------------------------------------------------------------------
 
-async function handleRefreshFact(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleRefreshFact(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
   
   console.log('[sync] Refreshing fact tables...')
   
@@ -424,8 +445,8 @@ async function handleRefreshFact(): Promise<Response> {
   }
 }
 
-async function handleAmazonFDW(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleAmazonFDW(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
   
   console.log('[sync] Refreshing Amazon FDW...')
   
@@ -450,8 +471,8 @@ async function handleAmazonFDW(): Promise<Response> {
 // handleStatus
 // ---------------------------------------------------------------------------
 
-async function handleStatus(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleStatus(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
 
   // Amazon (Saddl) status
   const amazonStatus = await getSaddlConnectionStatus()

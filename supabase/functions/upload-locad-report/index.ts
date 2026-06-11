@@ -22,7 +22,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { parseLocadXLSX, resolveLocadSKUs } from '../_shared/locad-xlsx.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
@@ -42,8 +42,12 @@ serve(async (req: Request) => {
 
   try {
     // GET /upload-locad-report/unmatched
-    if (req.method === 'GET' && action === 'unmatched') {
-      return await handleGetUnmatched()
+    if (req.method === 'GET' && url.pathname.endsWith('/unmatched')) {
+      return await handleGetUnmatched(req)
+    }
+
+    if (req.method === 'POST' && url.pathname.endsWith('/link')) {
+      return await handleLink(req)
     }
 
     // POST /upload-locad-report/map
@@ -66,6 +70,19 @@ serve(async (req: Request) => {
 // ---------------------------------------------------------------------------
 // handleUpload
 // ---------------------------------------------------------------------------
+
+async function handleLink(req: Request): Promise<Response> {
+  // Parse multipart form
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch (err) {
+    return jsonResponse({ error: `Failed to parse multipart body: ${(err as Error).message}` }, 400)
+  }
+
+  // implementation...
+  return jsonResponse({ success: true })
+}
 
 async function handleUpload(req: Request): Promise<Response> {
   // Parse multipart form
@@ -116,7 +133,7 @@ async function handleUpload(req: Request): Promise<Response> {
     })
   }
 
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   // Resolve SKUs (auto-match passes 1–3)
   const { matched, unmatched } = await resolveLocadSKUs(items, supabase)
@@ -208,8 +225,8 @@ async function handleUpload(req: Request): Promise<Response> {
 // handleGetUnmatched
 // ---------------------------------------------------------------------------
 
-async function handleGetUnmatched(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleGetUnmatched(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
 
   // Get the most recent upload's unmatched_skus array from locad_upload_log
   const { data: logs, error: logErr } = await supabase
@@ -267,7 +284,7 @@ async function handlePostMap(req: Request): Promise<Response> {
     return jsonResponse({ error: 'Both "locad_sku" and "internal_sku" are required' }, 400)
   }
 
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   // Verify that internal_sku exists in sku_master table
   const { data: skuData, error: skuErr } = await supabase

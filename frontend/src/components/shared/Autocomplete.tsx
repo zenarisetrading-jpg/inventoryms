@@ -38,7 +38,7 @@ export function Autocomplete({ value, onChange, suggestions, placeholder, classN
   return (
     <div ref={wrapperRef} className="relative w-full">
       {label && (
-        <label className="block text-sm font-medium text-zinc-700 mb-1.5 flex items-center justify-between">
+        <label className="text-xs font-bold text-zinc-500 uppercase mb-1.5 flex items-center justify-between">
           <span>{label} {required && <span className="text-red-500">*</span>}</span>
           {note && <span className="text-[10px] font-normal text-zinc-400">{note}</span>}
         </label>
@@ -56,12 +56,12 @@ export function Autocomplete({ value, onChange, suggestions, placeholder, classN
         className={className}
       />
       {isOpen && filtered.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        <div className="absolute z-50 w-full mt-1 bg-[#111827] border border-white/10 rounded-md shadow-2xl max-h-60 overflow-y-auto">
           {filtered.map((suggestion, index) => (
             <button
               key={index}
               type="button"
-              className="w-full px-3 py-2 text-sm text-left text-zinc-700 hover:bg-zinc-50 transition-colors border-b border-zinc-50 last:border-0"
+              className="w-full px-3 py-2 text-sm text-left text-white hover:bg-white/5 transition-colors border-b border-white/5 last:border-0"
               onClick={() => {
                 onChange(suggestion)
                 setIsOpen(false)

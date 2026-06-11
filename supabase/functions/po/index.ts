@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin, getUserEmail } from '../_shared/supabase.ts'
+import { getSupabaseAdmin, getSupabaseClient, getUserEmail } from '../_shared/supabase.ts'
 import { VALID_PO_TRANSITIONS } from '../_shared/types.ts'
 import type { POStatus } from '../_shared/types.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
@@ -51,7 +51,7 @@ async function handleCreate(req: Request): Promise<Response> {
     return errorResponse('Missing required fields or line_items', 400)
   }
 
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   // Check po_number uniqueness (across all rows)
   const { data: existing, error: checkErr } = await supabase
@@ -141,8 +141,8 @@ async function handleCreate(req: Request): Promise<Response> {
 }
 
 // GET /po  — list with grouping
-async function handleList(url: URL): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleList(req: Request, url: URL): Promise<Response> {
+  const supabase = getSupabaseClient(req)
   const statusParam = url.searchParams.get('status')
   const supplierParam = url.searchParams.get('supplier')
   const countryParam = url.searchParams.get('country')
@@ -200,8 +200,8 @@ async function handleList(url: URL): Promise<Response> {
 
 // GET /po/:po_number - Detail (renamed from ID to accommodate flat table better if needed)
 // Actually we'll keep the ID logic for compatibility but search by po_number
-async function handleDetail(idOrPo: string): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleDetail(req: Request, idOrPo: string): Promise<Response> {
+  const supabase = getSupabaseClient(req)
   
   // First try by ID, then by PO number
   const { data } = await supabase
@@ -254,7 +254,7 @@ async function handleDetail(idOrPo: string): Promise<Response> {
 // PATCH /po/:id - update status or fields
 async function handleUpdate(id: string, req: Request): Promise<Response> {
   const body = await req.json()
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   // Find the po_number first to update all rows for that PO
   const { data: currentRows, error: fetchErr } = await supabase
@@ -337,7 +337,7 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
     const { error: insErr } = await supabase.from('fact_purchase').insert(newRows)
     if (insErr) return errorResponse('Failed to insert new items', 500, insErr.message)
 
-    return handleDetail(po_number)
+    return handleDetail(req, po_number)
   }
 
   // Regular field update for all rows of this PO
@@ -355,12 +355,12 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
 
   if (error) return errorResponse('Update failed', 500, error.message)
 
-  return handleDetail(po_number)
+  return handleDetail(req, po_number)
 }
 
 // DELETE /po/:id - delete completely
 async function handleDelete(id: string, req: Request): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
   const { data } = await supabase.from('fact_purchase').select('po_number').eq('id', id).maybeSingle()
   if (!data) return errorResponse('Record not found', 404)
 
@@ -378,7 +378,8 @@ async function handleDelete(id: string, req: Request): Promise<Response> {
   if (error) return errorResponse('Delete failed', 500, error.message)
 
   try {
-    await refreshAllMetrics(supabase)
+    const adminClient = getSupabaseAdmin()
+    await refreshAllMetrics(adminClient)
   } catch (err) {
     console.error('[po delete] failed to refresh planning metrics:', err)
   }
@@ -387,8 +388,8 @@ async function handleDelete(id: string, req: Request): Promise<Response> {
 }
 
 // GET /po/suppliers - unique supplier names
-async function handleSuppliers(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleSuppliers(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
   const { data, error } = await supabase.rpc('get_unique_suppliers')
   
   if (error) {
@@ -415,15 +416,15 @@ serve(async (req: Request) => {
 
     // Special routes
     if (url.pathname.endsWith('/suppliers')) {
-      return await handleSuppliers()
+      return await handleSuppliers(req)
     }
 
     if (id) {
-      if (method === 'GET') return await handleDetail(id)
+      if (method === 'GET') return await handleDetail(req, id)
       if (method === 'PATCH') return await handleUpdate(id, req)
       if (method === 'DELETE') return await handleDelete(id, req)
     } else {
-      if (method === 'GET') return await handleList(url)
+      if (method === 'GET') return await handleList(req, url)
       if (method === 'POST') return await handleCreate(req)
     }
     return errorResponse(`Method ${method} not allowed`, 405)

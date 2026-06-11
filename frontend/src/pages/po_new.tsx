@@ -53,7 +53,7 @@ function emptyForm(): NewPOForm {
   }
 }
 
-const inputCls = 'w-full border border-zinc-300 text-zinc-900 bg-white px-3 py-2 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent'
+const inputCls = 'w-full border border-white/10 text-white bg-[#111827] px-3 py-2 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-brand-blue/50 focus:border-transparent'
 
 export default function PONewPage() {
   const [form, setForm] = useState<NewPOForm>(emptyForm())
@@ -172,6 +172,16 @@ export default function PONewPage() {
         }
       }
 
+      if (field === 'box_count') {
+        const bc = items[i].box_count || 0
+        const upb = items[i].units_per_box || 0
+        if (upb > 0 && bc > 0) {
+          items[i].units_ordered = bc * upb
+        } else if (bc <= 0) {
+          items[i].units_ordered = 0
+        }
+      }
+
       return { ...prev, line_items: items }
     })
   }
@@ -247,12 +257,12 @@ export default function PONewPage() {
     <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8 max-w-[1920px] mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/po')} className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500">
+          <button onClick={() => navigate('/po')} className="p-2 hover:bg-white/10 rounded-full transition-colors text-zinc-400">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl lg:text-2xl font-black text-sidebar uppercase tracking-tight">Create PO</h1>
-            <p className="text-xs font-bold text-muted uppercase tracking-wider opacity-60 mt-1">Define supply parameters</p>
+            <h1 className="text-xl lg:text-2xl font-black text-white uppercase tracking-tight">Create PO</h1>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider opacity-60 mt-1">Define supply parameters</p>
           </div>
         </div>
         <div className="flex gap-3">
@@ -268,8 +278,8 @@ export default function PONewPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6 pb-20">
-        <div className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm space-y-6">
-          <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-4 uppercase tracking-wider">General Information</h2>
+        <div className="bg-card p-6 rounded-xl border border-white/5 shadow-2xl space-y-6">
+          <h2 className="text-sm font-bold text-white border-b border-white/10 pb-4 uppercase tracking-wider">General Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-500 uppercase">PO Number <span className="text-red-500">*</span></label>
@@ -320,7 +330,7 @@ export default function PONewPage() {
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Purchase Items</h2>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Purchase Items</h2>
             <button
               type="button"
               onClick={addLineItem}
@@ -333,7 +343,7 @@ export default function PONewPage() {
 
           <div className="space-y-4">
             {form.line_items.map((li, i) => (
-              <div key={i} className="bg-white p-6 rounded-xl border border-zinc-200 shadow-sm relative group animate-in fade-in slide-in-from-top-2">
+              <div key={i} className="bg-card p-6 rounded-xl border border-white/5 shadow-2xl relative group animate-in fade-in slide-in-from-top-2">
                 <button
                   type="button"
                   onClick={() => removeLineItem(i)}
@@ -430,7 +440,7 @@ export default function PONewPage() {
         </div>
 
         {submitError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
+          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 px-4 py-3 rounded-lg text-sm font-medium">
             {submitError}
           </div>
         )}

@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { INCOMING_PO_STATUSES } from '../_shared/types.ts'
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ serve(async (req: Request) => {
   }
 
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseClient(req)
 
     // -------------------------------------------------------------------------
     // Force refresh the fact table to ensure the latest data is used

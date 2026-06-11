@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { parseMinutesOrderCSV, type ParsedMinutesData } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
@@ -37,7 +37,7 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'No valid rows parsed', errors: parseErrors }, 422)
     }
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseClient(req)
     
     // Build internal SKU mapping (handling 's' suffix case-insensitively)
     const { data: skuMasterRows } = await supabase

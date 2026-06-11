@@ -286,6 +286,21 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as UploadPOResponse))
   },
 
+  uploadSKUMasterCSV: async (file: File): Promise<{ rows_processed?: number; errors?: any[]; error?: string }> => {
+    const form = new FormData()
+    form.append('country', getCountry())
+    form.append('file', file)
+    const headers = await getHeaders()
+    delete (headers as any)['Content-Type']
+    return fetch(`${BASE}/upload-sku-master`, {
+      method: 'POST',
+      headers,
+      body: form,
+    })
+      .then(r => handleResponse<{ rows_processed?: number; errors?: any[]; error?: string }>(r))
+      .catch(err => ({ error: err.message } as unknown as { rows_processed?: number; errors?: any[]; error?: string }))
+  },
+
   getPlanning: async (): Promise<PlanningResponse> =>
     fetch(`${BASE}/planning?country=${getCountry()}`, { headers: await getHeaders() })
       .then(r => handleResponse<PlanningResponse>(r))

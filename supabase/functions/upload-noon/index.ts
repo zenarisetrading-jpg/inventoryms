@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { parseNoonOrderCSV } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
@@ -114,7 +114,7 @@ serve(async (req: Request) => {
       )
     }
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseClient(req)
     const skusUpdated = new Set<string>()
     const { raw_rows } = parseResult
     let rawInserted = 0

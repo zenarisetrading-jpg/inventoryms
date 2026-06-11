@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { classifyABC, refreshABCCategories } from '../_shared/abc.ts'
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -20,7 +20,7 @@ serve(async (req: Request) => {
     const rangeDays = Number.isFinite(days) && days > 0 ? Math.floor(days) : 60
     const apply = url.searchParams.get('apply') === 'true'
 
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseClient(req)
     const result = await classifyABC(supabase, rangeDays)
 
     if (apply) {

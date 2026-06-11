@@ -198,7 +198,7 @@ export default function App() {
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
-          {['irfaan.a@zenarise.org', 'thasbihak@zenarise.org', 'siraj.kamaluddin@zenarise.org'].includes(user?.email?.toLowerCase() || '') && (
+          {['Administrator'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') && (
             <SidebarLink icon={Receipt} label="Invoice Billing" path="/invoice" current={route.name === 'invoice'} collapsed={isSidebarCollapsed} />
           )}
         </nav>
@@ -374,19 +374,16 @@ export default function App() {
 
 function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClose: () => void; onUpdate: (u: SupabaseUser) => void }) {
   const [fullName, setFullName] = useState(user.user_metadata?.full_name || '')
-  const [role, setRole] = useState(user.user_metadata?.role || 'Member')
+  const [role] = useState(user.user_metadata?.role || 'Member')
   const [loading, setLoading] = useState(false)
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
 
   const handleSave = async () => {
     setLoading(true)
-    const isSuperAdmin = ['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user.email?.toLowerCase() || '')
-    const finalRole = isSuperAdmin ? 'Administrator' : role
 
     const { data, error } = await supabase.auth.updateUser({
       data: { 
-        full_name: fullName, 
-        role: finalRole 
+        full_name: fullName
       }
     })
     
@@ -434,21 +431,12 @@ function SettingsModal({ user, onClose, onUpdate }: { user: SupabaseUser; onClos
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Professional Role</label>
                 <div className="relative">
-                  <select 
-                    disabled={!['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '')}
+                  <input 
+                    type="text"
+                    disabled
                     value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className={`w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium appearance-none ${!['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '') ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
-                  >
-                    <option value="Member">Member</option>
-                    <option value="Operations Mgr">Operations Mgr</option>
-                    <option value="Supply Chain Lead">Supply Chain Lead</option>
-                    <option value="Inventory Analyst">Inventory Analyst</option>
-                    <option value="Administrator">Administrator</option>
-                  </select>
-                  {['siraj.kamaluddin@zenarise.org', 'aslamy@zenarise.org'].includes(user?.email || '') && (
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none" />
-                  )}
+                    className="w-full bg-slate-950 border border-white/5 rounded-xl py-3 px-4 text-white focus:outline-none transition-all font-medium cursor-not-allowed opacity-60"
+                  />
                 </div>
               </div>
 

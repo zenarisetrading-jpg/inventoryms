@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin } from '../_shared/supabase.ts'
+import { getSupabaseAdmin, getSupabaseClient } from '../_shared/supabase.ts'
 import { INCOMING_PO_STATUSES } from '../_shared/types.ts'
 import type { SKUCategory, ActionFlag } from '../_shared/types.ts'
 
@@ -116,14 +116,14 @@ serve(async (req: Request) => {
   try {
     if (req.method === 'GET') {
       if (skuParam) {
-        return await handleDetail(skuParam)
+        return await handleDetail(req, skuParam)
       } else {
-        return await handleList(url)
+        return await handleList(req, url)
       }
     }
 
     if (req.method === 'POST') {
-      if (skuParam === 'classify') return await handleAutoClassify()
+      if (skuParam === 'classify') return await handleAutoClassify(req)
       return await handleCreate(req)
     }
 
@@ -150,9 +150,9 @@ serve(async (req: Request) => {
 // ---------------------------------------------------------------------------
 // GET /skus — list with optional filters
 // ---------------------------------------------------------------------------
-async function handleList(url: URL): Promise<Response> {
+async function handleList(req: Request, url: URL): Promise<Response> {
   console.log('GET /skus called with params:', url.search)
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   const search = url.searchParams.get('search')?.trim() ?? null
   const category = url.searchParams.get('category')?.toUpperCase() ?? null
@@ -277,8 +277,8 @@ async function handleList(url: URL): Promise<Response> {
 // ---------------------------------------------------------------------------
 // GET /skus/:sku — full detail
 // ---------------------------------------------------------------------------
-async function handleDetail(skuId: string): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleDetail(req: Request, skuId: string): Promise<Response> {
+  const supabase = getSupabaseClient(req)
 
   // Run queries in parallel
   const [skuResult, demandResult, snapshotResult, poResult] = await Promise.all([
@@ -482,7 +482,7 @@ async function handleDetail(skuId: string): Promise<Response> {
 // POST /skus — create new SKU
 // ---------------------------------------------------------------------------
 async function handleCreate(req: Request): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
   let body: Record<string, unknown>
   try {
     body = await req.json()
@@ -538,7 +538,7 @@ async function handleCreate(req: Request): Promise<Response> {
 // PATCH /skus/:sku — update editable SKU master fields
 // ---------------------------------------------------------------------------
 async function handleUpdate(skuId: string, req: Request): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+  const supabase = getSupabaseClient(req)
 
   let body: Record<string, unknown>
   try {
@@ -585,8 +585,8 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
 // POST /skus/classify — auto-classify all active SKUs by velocity
 // Top 20% by blended_sv → A, next 30% → B, bottom 50% → C
 // ---------------------------------------------------------------------------
-async function handleAutoClassify(): Promise<Response> {
-  const supabase = getSupabaseAdmin()
+async function handleAutoClassify(req: Request): Promise<Response> {
+  const supabase = getSupabaseClient(req)
 
   // Fetch all active SKUs with their demand metrics
   const { data, error } = await supabase

@@ -27,7 +27,7 @@ import { Pool } from 'https://deno.land/x/postgres@v0.17.0/mod.ts'
 const DEFAULT_ACCOUNT_ID = 's2c_uae_test'
 const DEFAULT_CLIENT_ID = 's2c_uae_test'
 
-function getPool(): Pool {
+export function getPool(): Pool {
   const dbUrl = Deno.env.get('SADDL_DB_URL')
   if (!dbUrl) throw new Error('SADDL_DB_URL is not set')
   return new Pool(dbUrl, 3, true)

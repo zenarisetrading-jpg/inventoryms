@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseAdmin, getUserEmail } from '../_shared/supabase.ts'
+import { getSupabaseClient } from '../_shared/supabase.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5'
 
@@ -300,7 +300,7 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
 
   try {
-    const supabase = getSupabaseAdmin()
+    const supabase = getSupabaseClient(req)
     const userEmail = await getUserEmail(req)
 
     const formData = await req.formData()
