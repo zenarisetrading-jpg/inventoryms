@@ -63,7 +63,7 @@ serve(async (req: Request) => {
         const { getPool } = await import('../_shared/saddl.ts')
         const pool = getPool();
         const conn = await pool.connect();
-        const { rows } = await conn.queryObject(`SELECT SUM(ordered_revenue) as total_revenue FROM sc_raw.sales_traffic WHERE account_id = 's2c_test' AND report_date >= '2026-03-01'`);
+        const { rows } = await conn.queryObject(`SELECT * FROM sc_raw.sales_traffic LIMIT 1`);
         conn.release();
         return new Response(JSON.stringify(rows, null, 2), { headers: { 'Content-Type': 'application/json' } });
       }
@@ -138,11 +138,11 @@ async function handleSync(
           fetchAmazonSales(days, loc.saddl_account_id),
         ])
 
-      // Build asin → sku mapping from sku_master (filtered by country)
+      // Build asin → sku mapping from sku_master (filtered by saddl_id to ensure exact account matching)
       const { data: skuMasterRows, error: smErr } = await supabase
         .from('sku_master')
         .select('sku, asin')
-        .eq('country', loc.country)
+        .eq('saddl_id', loc.saddl_client_id)
         .not('asin', 'is', null)
       if (smErr) {
         errors.push(`[${loc.country}] sku_master lookup: ${smErr.message}`)
@@ -166,7 +166,8 @@ async function handleSync(
             inbound: item.inbound,
             reserved: item.reserved,
             snapshot_date: snapshotDate,
-            country: loc.country
+            country: loc.country,
+            saddl_id: loc.saddl_account_id
           }))
 
         console.log(`[sync] [${loc.country}] inventory: ${inventory.length} ASINs from Saddl, ${snapRows.length} matched to sku_master`)
@@ -175,7 +176,7 @@ async function handleSync(
           const { error: invErr } = await supabase
             .from('inventory_snapshot')
             .upsert(snapRows, {
-              onConflict: 'sku,node,warehouse_name,snapshot_date,country',
+              onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
             })
           if (invErr) {
             errors.push(`inventory_snapshot upsert: ${invErr.message}`)
@@ -194,7 +195,8 @@ async function handleSync(
             channel: 'amazon' as const,
             units_sold: s.units_sold,
             revenue: s.revenue,
-            country: loc.country
+            country: loc.country,
+            saddl_id: loc.saddl_account_id
           }))
 
         console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
@@ -202,7 +204,7 @@ async function handleSync(
         if (salesRows.length > 0) {
           const { error: salesErr } = await supabase
             .from('sales_snapshot')
-            .upsert(salesRows, { onConflict: 'sku,date,channel,country' })
+            .upsert(salesRows, { onConflict: 'sku,date,channel,country,saddl_id' })
           if (salesErr) {
             errors.push(`sales_snapshot upsert: ${salesErr.message}`)
           }
@@ -214,13 +216,22 @@ async function handleSync(
           child_asin: s.asin,
           country: loc.country,
           units_ordered: s.units_sold,
-          ordered_revenue: s.revenue
+          ordered_revenue: s.revenue,
+          saddl_id: loc.saddl_account_id,
+          marketplace_id: s.marketplace_id,
+          parent_asin: s.parent_asin,
+          ordered_revenue_currency: s.ordered_revenue_currency,
+          total_order_items: s.total_order_items,
+          page_views: s.page_views,
+          sessions: s.sessions,
+          buy_box_percentage: s.buy_box_percentage,
+          unit_session_percentage: s.unit_session_percentage
         }))
 
         if (rawSalesRows.length > 0) {
           const { error: rawErr } = await supabase
             .from('amazon_sales')
-            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin,country' })
+            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin,country,saddl_id' })
           if (rawErr) console.error('[sync] amazon_sales upsert error:', rawErr)
         }
       }
@@ -345,14 +356,15 @@ async function handleSync(
             inbound: 0,
             reserved: 0,
             snapshot_date: snapshotDate,
-            country: 'UAE'
+            country: 'UAE',
+            saddl_id: 'none' // Default for non-Amazon nodes so unique constraint holds
           }))
 
           if (snapRows.length > 0) {
             const { error: locadErr } = await supabase
               .from('inventory_snapshot')
               .upsert(snapRows, {
-                onConflict: 'sku,node,warehouse_name,snapshot_date,country',
+                onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
               })
             if (locadErr) {
               errors.push(`Locad inventory_snapshot upsert: ${locadErr.message}`)

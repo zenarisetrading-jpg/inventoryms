@@ -8,6 +8,7 @@ import { DrillDownModal } from '../components/DrillDownModal'
 import { Search, Download, RefreshCw, PlusCircle, ShieldAlert, AlertCircle, TrendingUp, Activity, Package, MoveRight, ChevronDown, ChevronUp, Clock, Calendar, DownloadCloud, CheckCircle, ArrowRight, LayoutDashboard, AlertTriangle, Receipt, X } from 'lucide-react'
 import { ActionDropdown } from '../components/ActionDropdown'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
+import { useRegion } from '../lib/RegionContext'
 
 const NODE_LABEL: Record<InventoryNode, string> = {
   amazon_fba: 'Amazon FBA',
@@ -317,6 +318,8 @@ export default function CommandCenter() {
     data: [],
   })
 
+  const { region } = useRegion()
+
   const load = useCallback(() => {
     setLoading(true)
     api.getCommandCenter().then(res => {
@@ -332,7 +335,7 @@ export default function CommandCenter() {
       setData(resp as CommandCenterResponse)
       setLoading(false)
     })
-  }, [])
+  }, [region])
 
   useEffect(() => {
     load()

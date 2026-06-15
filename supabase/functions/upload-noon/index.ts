@@ -176,6 +176,7 @@ serve(async (req: Request) => {
         channel: r.channel,
         units_sold: r.units_sold,
         country,
+        saddl_id: 'none',
         synced_at: new Date().toISOString(),
       }))
 
@@ -188,7 +189,7 @@ serve(async (req: Request) => {
           const chunk = salesUpsertRows.slice(i, i + SALES_CHUNK_SIZE)
           const { error: salesError } = await supabase
             .from('sales_snapshot')
-            .upsert(chunk, { onConflict: 'sku,date,channel,country' })
+            .upsert(chunk, { onConflict: 'sku,date,channel,country,saddl_id' })
 
           if (salesError) {
             console.error(`[upload-noon] sales_snapshot upsert error at chunk ${i}:`, salesError)

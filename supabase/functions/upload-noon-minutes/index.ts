@@ -72,11 +72,12 @@ serve(async (req: Request) => {
     const upsertRows = Array.from(deduped.values()).map(r => ({
       ...r,
       country,
+      saddl_id: 'none',
       synced_at: new Date().toISOString()
     }))
 
     if (upsertRows.length > 0) {
-      const { error } = await supabase.from('sales_snapshot').upsert(upsertRows, { onConflict: 'sku,date,channel,country' })
+      const { error } = await supabase.from('sales_snapshot').upsert(upsertRows, { onConflict: 'sku,date,channel,country,saddl_id' })
       if (error) return jsonResponse({ error: error.message }, 500)
     }
 

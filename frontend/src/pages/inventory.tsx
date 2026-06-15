@@ -17,6 +17,7 @@ export default function InventoryPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [error, setError] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([])
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
 
@@ -123,6 +124,10 @@ export default function InventoryPage() {
       list = list.filter(item => selectedCategories.includes((item as any).category || (item as any).abc_class))
     }
 
+    if (selectedProductCategories.length > 0) {
+      list = list.filter(item => selectedProductCategories.includes((item as any).product_category))
+    }
+
     if (selectedSubCategories.length > 0) {
       list = list.filter(item => selectedSubCategories.includes((item as any).sub_category))
     }
@@ -136,7 +141,7 @@ export default function InventoryPage() {
       })
     }
     return list
-  }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedSubCategories, selectedStatus])
+  }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedProductCategories, selectedSubCategories, selectedStatus])
 
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
@@ -216,6 +221,15 @@ export default function InventoryPage() {
             />
 
             <MultiSelect
+              label="Product Category"
+              placeholder="PRODUCT CAT"
+              icon={Layers}
+              options={Array.from(new Set((data?.raw_data || []).map((r: any) => r.product_category).filter(Boolean))).sort().map((c: any) => ({ label: c.toUpperCase(), value: c }))}
+              selected={selectedProductCategories}
+              onChange={setSelectedProductCategories}
+            />
+
+            <MultiSelect
               label="SubCategory"
               placeholder="SUB-CAT"
               icon={Layers}
@@ -248,7 +262,7 @@ export default function InventoryPage() {
       </div>
 
       {/* ── SUMMARY STATS ────────────────────────────────────────────── */}
-      {!error && processedData.length > 0 && (
+      {!error && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
           <InventoryStatCard 
             title="Channel Stock" 
@@ -319,6 +333,16 @@ export default function InventoryPage() {
           <div className="m-8 p-6 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-6">
             <AlertTriangle className="h-8 w-8 text-rose-500" />
             <p className="text-sm font-medium text-rose-900 uppercase leading-relaxed tracking-wide">{error}</p>
+          </div>
+        )}
+
+        {!error && processedData.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-transparent">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+              <Layers className="w-8 h-8 text-zinc-500 opacity-50" />
+            </div>
+            <h3 className="text-sm font-black text-zinc-400 uppercase tracking-widest mb-2">No Records Found</h3>
+            <p className="text-xs text-zinc-600 font-bold uppercase tracking-wider">There are no inventory records matching your criteria or the system feed is empty.</p>
           </div>
         )}
 

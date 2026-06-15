@@ -158,6 +158,7 @@ async function handleList(req: Request, url: URL): Promise<Response> {
   const category = url.searchParams.get('category')?.toUpperCase() ?? null
   const flag = url.searchParams.get('flag')?.toUpperCase() ?? null
   const country = url.searchParams.get('country') || 'UAE'
+  const accountId = url.searchParams.get('account_id')
 
   const cutoff60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
@@ -173,18 +174,28 @@ async function handleList(req: Request, url: URL): Promise<Response> {
     query = query.eq('category', category)
   }
 
+  let salesQuery = supabase
+    .from('sales_snapshot')
+    .select('sku')
+    .eq('country', country)
+    .gte('date', cutoff60)
+    .gt('units_sold', 0)
+
+  let demandQuery = supabase
+    .from('demand_metrics')
+    .select('sku, blended_sv, total_coverage, projected_coverage, action_flag, should_reorder, suggested_reorder_units')
+    .eq('country', country)
+
+  if (accountId) {
+    query = query.eq('saddl_id', accountId)
+    salesQuery = salesQuery.eq('saddl_id', accountId)
+    demandQuery = demandQuery.eq('saddl_id', accountId)
+  }
+
   const [{ data, error }, liveSalesResult, demandResult] = await Promise.all([
     query,
-    supabase
-      .from('sales_snapshot')
-      .select('sku')
-      .eq('country', country)
-      .gte('date', cutoff60)
-      .gt('units_sold', 0),
-    supabase
-      .from('demand_metrics')
-      .select('sku, blended_sv, total_coverage, projected_coverage, action_flag, should_reorder, suggested_reorder_units')
-      .eq('country', country)
+    salesQuery,
+    demandQuery
   ])
 
   if (error) {

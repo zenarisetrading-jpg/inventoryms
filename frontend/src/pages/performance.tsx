@@ -56,6 +56,10 @@ export default function PerformancePage() {
         handleConsolidatedRefresh={handleConsolidatedRefresh}
       />
 
+
+
+
+      {/* NEW: Sales Performance Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {summaryData && (
           <>

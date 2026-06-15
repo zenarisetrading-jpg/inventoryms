@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt, Plus } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt, Plus, Edit2, Trash2 } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -68,17 +68,18 @@ export default function App() {
   const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminRoute)
   const { region, setRegion } = useRegion()
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
-  const [locations, setLocations] = useState<{country: string, saddl_account_id: string}[]>([])
+  const [locations, setLocations] = useState<{country: string, saddl_account_id: string, display_name: string}[]>([])
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false)
+  const [editingLocation, setEditingLocation] = useState<{country: string, saddl_account_id: string, display_name: string} | null>(null)
 
   const fetchLocations = async () => {
     const locs = await api.getLocations()
     if (locs.length > 0) {
-      // De-duplicate by country name
-      const unique = Array.from(new Map(locs.map(l => [l.country, l])).values())
+      // De-duplicate by saddl_account_id
+      const unique = Array.from(new Map(locs.map(l => [l.saddl_account_id, l])).values())
       setLocations(unique)
     } else {
-      setLocations([{ country: 'UAE', saddl_account_id: 's2c_uae_test' }, { country: 'KSA', saddl_account_id: 's2c_test' }])
+      setLocations([{ country: 'UAE', saddl_account_id: 's2c_uae_test', display_name: 'UAE' }, { country: 'KSA', saddl_account_id: 's2c_test', display_name: 'KSA' }])
     }
   }
 
@@ -277,9 +278,11 @@ export default function App() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-white/[0.05] hover:bg-white/[0.03] transition-all bg-slate-900/50"
               >
                 <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                  <span className="text-[9px] font-black text-blue-400">{region.substring(0,2)}</span>
+                  <span className="text-[9px] font-black text-blue-400">
+                    {(locations.find(l => l.saddl_account_id === region)?.country || region).substring(0,2)}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-white uppercase tracking-wider">{region}</span>
+                <span className="text-xs font-bold text-white uppercase tracking-wider">{locations.find(l => l.saddl_account_id === region)?.display_name || region}</span>
                 <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isRegionDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
               
@@ -287,13 +290,25 @@ export default function App() {
                 <div className="absolute top-full right-0 mt-2 w-36 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-1">
                     {locations.map((loc) => (
-                      <button 
-                        key={loc.country}
-                        onClick={() => { setRegion(loc.country); setIsRegionDropdownOpen(false) }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider uppercase transition-colors ${region === loc.country ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
-                      >
-                        {loc.country}
-                      </button>
+                      <div key={loc.saddl_account_id} className="flex items-center w-full relative group">
+                        <button 
+                          onClick={() => { setRegion(loc.saddl_account_id, loc.country); setIsRegionDropdownOpen(false) }}
+                          className={`flex-1 flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors ${region === loc.saddl_account_id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                        >
+                          <span className="uppercase">{loc.display_name || loc.country}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-500 ml-auto uppercase">{loc.country}</span>
+                        </button>
+                        <button 
+                          onMouseDown={(e) => { 
+                            e.preventDefault(); // Prevent onBlur from closing the dropdown before click
+                            setEditingLocation(loc); 
+                            setIsRegionDropdownOpen(false);
+                          }}
+                          className="absolute right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/10 rounded-md transition-all"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
+                        </button>
+                      </div>
                     ))}
                     <div className="h-px bg-white/10 my-1 mx-2" />
                     <button 
@@ -365,6 +380,18 @@ export default function App() {
           onSuccess={async () => {
             await fetchLocations()
             setIsAddAccountModalOpen(false)
+          }}
+        />
+      )}
+
+      {/* Edit Account Modal */}
+      {editingLocation && (
+        <EditAccountModal 
+          location={editingLocation}
+          onClose={() => setEditingLocation(null)}
+          onSuccess={async () => {
+            await fetchLocations()
+            setEditingLocation(null)
           }}
         />
       )}
@@ -546,22 +573,23 @@ function SidebarLink({ icon: Icon, label, path, current, isSubItem, collapsed }:
 
 function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [country, setCountry] = useState('')
+  const [displayName, setDisplayName] = useState('')
   const [accountId, setAccountId] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleSave = async () => {
-    if (!country.trim() || !accountId.trim()) {
-      setError('Please fill in both fields.')
+    if (!country.trim() || !accountId.trim() || !displayName.trim()) {
+      setError('Please fill in all fields.')
       return
     }
     setLoading(true)
     setError(null)
-    const success = await api.addLocation(country.trim().toUpperCase(), accountId.trim())
-    if (success) {
+    const result = await api.addLocation(country.trim().toUpperCase(), accountId.trim(), displayName.trim())
+    if (result.success) {
       onSuccess()
     } else {
-      setError('Failed to add account. Make sure you have permission.')
+      setError(`Failed to add account: ${result.error || 'Unknown error'}`)
     }
     setLoading(false)
   }
@@ -584,13 +612,13 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         <div className="p-5 space-y-4">
           {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location Code (e.g., USA, UK)</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name (e.g., USA, UK)</label>
             <input 
               type="text" 
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
-              placeholder="Enter location code"
+              placeholder="Enter account name"
             />
           </div>
           <div className="space-y-2">
@@ -619,6 +647,151 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add Account'}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditAccountModal({ location, onClose, onSuccess }: { location: {country: string, saddl_account_id: string, display_name: string}, onClose: () => void; onSuccess: () => void }) {
+  const [displayName, setDisplayName] = useState(location.display_name || location.country)
+  const [accountId, setAccountId] = useState(location.saddl_account_id)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const handleSave = async () => {
+    if (!displayName.trim() || !accountId.trim()) {
+      setError('Please fill in all fields.')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    const result = await api.updateLocation(location.saddl_account_id, displayName.trim(), accountId.trim())
+    if (result.success) {
+      onSuccess()
+    } else {
+      setError(`Failed to update account: ${result.error || 'Unknown error'}`)
+    }
+    setLoading(false)
+  }
+
+  const handleDelete = async () => {
+    setLoading(true)
+    setError(null)
+    const result = await api.deleteLocation(location.saddl_account_id)
+    if (result.success) {
+      onSuccess()
+    } else {
+      setError(`Failed to delete account: ${result.error || 'Unknown error'}`)
+      setConfirmDelete(false)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+        <div className="p-5 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Edit2 className="w-5 h-5 text-blue-400" />
+            </div>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Edit Account</h3>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="p-5 space-y-4">
+          {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
+          
+          {!confirmDelete ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Location Code</label>
+                <input 
+                  type="text" 
+                  value={location.country}
+                  disabled
+                  className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white/50 focus:outline-none transition-all font-medium text-sm cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name (e.g., Zenarise UAE)</label>
+                <input 
+                  type="text" 
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
+                  placeholder="Enter account name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Saddl Account ID</label>
+                <input 
+                  type="text" 
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
+                  placeholder="e.g. s2c_us_test"
+                />
+              </div>
+
+              <div className="pt-2 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <button 
+                    onClick={onClose}
+                    className="flex-1 py-2.5 text-[10px] font-black text-white/60 bg-white/5 hover:bg-white/10 rounded-xl transition-colors uppercase tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="flex-1 py-2.5 text-[10px] font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-900/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                  >
+                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Changes'}
+                  </button>
+                </div>
+                
+                <div className="h-px bg-white/5 my-1" />
+                
+                <button 
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full py-2.5 text-[10px] font-black text-red-400/80 bg-red-400/5 hover:bg-red-400/10 rounded-xl transition-colors uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete Account
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="py-2 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6 text-red-400" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-white font-black uppercase tracking-widest text-sm">Delete Account?</h4>
+                <p className="text-xs text-slate-400 font-medium leading-relaxed">This will permanently remove the account <span className="text-white">{location.country}</span>.</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex-1 py-2.5 text-[10px] font-black text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors uppercase tracking-widest"
+                >
+                  No, Cancel
+                </button>
+                <button 
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="flex-1 py-2.5 text-[10px] font-black text-white bg-red-600 hover:bg-red-500 rounded-xl shadow-lg shadow-red-900/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

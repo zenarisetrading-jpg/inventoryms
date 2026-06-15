@@ -92,7 +92,20 @@ export async function fetchAmazonInventory(
 export async function fetchAmazonSales(
   days: number,
   accountId: string = DEFAULT_ACCOUNT_ID
-): Promise<{ asin: string; date: string; units_sold: number; revenue: number }[]> {
+): Promise<{ 
+  asin: string; 
+  date: string; 
+  units_sold: number; 
+  revenue: number;
+  marketplace_id: string;
+  parent_asin: string;
+  ordered_revenue_currency: string;
+  total_order_items: number;
+  page_views: number;
+  sessions: number;
+  buy_box_percentage: number;
+  unit_session_percentage: number;
+}[]> {
   const pool = getPool()
   const conn = await pool.connect()
   const cutoff = new Date()
@@ -105,16 +118,32 @@ export async function fetchAmazonSales(
       report_date: string
       units_sold: number
       revenue: number
+      marketplace_id: string
+      parent_asin: string
+      ordered_revenue_currency: string
+      total_order_items: number
+      page_views: number
+      sessions: number
+      buy_box_percentage: number
+      unit_session_percentage: number
     }>(`
       SELECT
         child_asin                   AS asin,
         report_date::text            AS report_date,
         SUM(units_ordered)           AS units_sold,
-        SUM(COALESCE(ordered_revenue, 0)) AS revenue
+        SUM(COALESCE(ordered_revenue, 0)) AS revenue,
+        MAX(marketplace_id)          AS marketplace_id,
+        MAX(parent_asin)             AS parent_asin,
+        MAX(ordered_revenue_currency_code) AS ordered_revenue_currency,
+        SUM(total_order_items)       AS total_order_items,
+        SUM(page_views)              AS page_views,
+        SUM(sessions)                AS sessions,
+        AVG(buy_box_percentage)      AS buy_box_percentage,
+        AVG(unit_session_percentage) AS unit_session_percentage
       FROM sc_raw.sales_traffic
       WHERE account_id = $1
         AND report_date >= $2
-        AND (units_ordered > 0 OR COALESCE(ordered_revenue, 0) > 0)
+        AND (units_ordered > 0 OR COALESCE(ordered_revenue, 0) > 0 OR sessions > 0 OR page_views > 0)
         AND child_asin IS NOT NULL
         AND child_asin <> ''
       GROUP BY child_asin, report_date
@@ -126,6 +155,14 @@ export async function fetchAmazonSales(
       date:       String(r.report_date).slice(0, 10),
       units_sold: Number(r.units_sold) || 0,
       revenue:    Number(r.revenue) || 0,
+      marketplace_id: r.marketplace_id || null,
+      parent_asin: r.parent_asin || null,
+      ordered_revenue_currency: r.ordered_revenue_currency || null,
+      total_order_items: Number(r.total_order_items) || 0,
+      page_views: Number(r.page_views) || 0,
+      sessions: Number(r.sessions) || 0,
+      buy_box_percentage: Number(r.buy_box_percentage) || 0,
+      unit_session_percentage: Number(r.unit_session_percentage) || 0,
     }))
   } catch (err) {
     console.error('[saddl] fetchAmazonSales error:', err)

@@ -161,12 +161,14 @@ async function handleUpload(req: Request): Promise<Response> {
       inbound: 0,
       reserved: 0,
       snapshot_date: report_date,
+      country: 'UAE',
+      saddl_id: 'none'
     }))
 
     const { error } = await supabase
       .from('inventory_snapshot')
       .upsert(snapRows, {
-        onConflict: 'sku,node,warehouse_name,snapshot_date',
+        onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
       })
     if (error) {
       upsertError = error.message

@@ -141,11 +141,20 @@ serve(async (req: Request) => {
     const supabase = getSupabaseClient(req)
     const url = new URL(req.url)
     const country = url.searchParams.get('country') || 'UAE'
+    const accountId = url.searchParams.get('account_id')
 
     // 1. Fetch data from fact_inventory_planning and sku_master separately to avoid relationship issues
+    let factQuery = supabase.from('fact_inventory_planning').select('*').eq('country', country)
+    let masterQuery = supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active').eq('country', country)
+    
+    if (accountId) {
+      factQuery = factQuery.eq('saddl_id', accountId)
+      masterQuery = masterQuery.eq('saddl_id', accountId)
+    }
+
     const [factRes, masterRes] = await Promise.all([
-      supabase.from('fact_inventory_planning').select('*').eq('country', country),
-      supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active').eq('country', country)
+      factQuery,
+      masterQuery
     ])
 
     if (factRes.error) throw factRes.error
@@ -167,20 +176,34 @@ serve(async (req: Request) => {
     )
 
     // 2. Fetch Inbound POs from fact_purchase (flattened source)
-    const { data: allPurchases } = await supabase
+    let inboundQuery = supabase
       .from('fact_purchase')
       .select('po_number, supplier, eta, status, sku, units_ordered, units_received')
       .eq('country', country)
       .order('eta', { ascending: true })
+
+    if (accountId) {
+      inboundQuery = inboundQuery.eq('saddl_id', accountId)
+    }
+
+    const { data: allPurchases } = await inboundQuery
 
     const inboundRows = (allPurchases || []).filter(r => 
       r.status && INCOMING_PO_STATUSES.includes(r.status.toLowerCase() as any)
     )
 
     // 3. Last synced & snapshot dates (still from snapshots)
+    let syncQuery = supabase.from('inventory_snapshot').select('synced_at').eq('country', country).order('synced_at', { ascending: false }).limit(1)
+    let snapQuery = supabase.from('inventory_snapshot').select('node, snapshot_date').eq('country', country).order('snapshot_date', { ascending: false })
+    
+    if (accountId) {
+      syncQuery = syncQuery.eq('saddl_id', accountId)
+      snapQuery = snapQuery.eq('saddl_id', accountId)
+    }
+
     const [latestSnapshot, snapDates] = await Promise.all([
-      supabase.from('inventory_snapshot').select('synced_at').eq('country', country).order('synced_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('inventory_snapshot').select('node, snapshot_date').eq('country', country).order('snapshot_date', { ascending: false })
+      syncQuery.maybeSingle(),
+      snapQuery
     ])
 
     const latestDateByNode: Record<string, string> = {}

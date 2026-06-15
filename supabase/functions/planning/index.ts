@@ -18,11 +18,20 @@ serve(async (req: Request) => {
 
     const url = new URL(req.url)
     const country = url.searchParams.get('country') || 'UAE'
+    const accountId = url.searchParams.get('account_id')
+
+    let factQuery = supabase.from('fact_inventory_planning').select('*').eq('country', country)
+    let masterQuery = supabase.from('sku_master').select('sku, name, is_active').eq('country', country)
+
+    if (accountId) {
+      factQuery = factQuery.eq('saddl_id', accountId)
+      masterQuery = masterQuery.eq('saddl_id', accountId)
+    }
 
     // 1. Fetch data from fact_inventory_planning and sku_master separately
     const [factRes, masterRes] = await Promise.all([
-      supabase.from('fact_inventory_planning').select('*').eq('country', country),
-      supabase.from('sku_master').select('sku, name, is_active').eq('country', country)
+      factQuery,
+      masterQuery
     ])
 
     if (factRes.error) throw factRes.error

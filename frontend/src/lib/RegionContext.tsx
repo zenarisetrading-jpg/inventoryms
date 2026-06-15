@@ -2,22 +2,23 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type RegionContextType = {
   region: string;
-  setRegion: (region: string) => void;
+  setRegion: (accountId: string, countryCode: string) => void;
 };
 
 const RegionContext = createContext<RegionContextType>({
-  region: 'UAE',
+  region: 's2c_uae_test',
   setRegion: () => {},
 });
 
 export const useRegion = () => useContext(RegionContext);
 
 export const RegionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [region, setRegionState] = useState(() => localStorage.getItem('selected_region') || 'UAE');
+  const [region, setRegionState] = useState(() => localStorage.getItem('selected_account') || 's2c_uae_test');
 
-  const setRegion = (newRegion: string) => {
-    localStorage.setItem('selected_region', newRegion);
-    setRegionState(newRegion);
+  const setRegion = (accountId: string, countryCode: string) => {
+    localStorage.setItem('selected_account', accountId);
+    localStorage.setItem('selected_country', countryCode);
+    setRegionState(accountId);
     // Optionally reload or trigger a custom event so other components that don't
     // use the context directly can re-fetch data
     window.dispatchEvent(new Event('region_changed'));
@@ -25,9 +26,9 @@ export const RegionProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     const handleStorageChange = () => {
-      const storedRegion = localStorage.getItem('selected_region') || 'UAE';
-      if (storedRegion !== region) {
-        setRegionState(storedRegion);
+      const storedAccount = localStorage.getItem('selected_account') || 's2c_uae_test';
+      if (storedAccount !== region) {
+        setRegionState(storedAccount);
       }
     };
     window.addEventListener('storage', handleStorageChange);

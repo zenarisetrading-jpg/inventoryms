@@ -156,6 +156,7 @@ serve(async (req: Request) => {
         country: mappedCountry,
         snapshot_date: today,
         synced_at: new Date().toISOString(),
+        saddl_id: 'none'
       }
     })
 
@@ -179,7 +180,7 @@ serve(async (req: Request) => {
       const chunk = upsertRows.slice(i, i + CHUNK_SIZE)
       const { error: upsertError } = await supabase
         .from('inventory_snapshot')
-        .upsert(chunk, { onConflict: 'sku,node,warehouse_name,snapshot_date,country' })
+        .upsert(chunk, { onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id' })
 
       if (upsertError) {
         console.error('upload-noon-inventory: upsert error', upsertError)

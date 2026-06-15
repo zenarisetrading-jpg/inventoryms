@@ -12,11 +12,17 @@ export interface SKU {
   category: SKUCategory
   sub_category: string | null
   units_per_box: number
-  moq: number
-  lead_time_days: number
-  cogs: number | null
   dimensions: string | null
   is_active: boolean
+  lead_time_for_manufacturing_days?: number | null
+  lead_time_days_min?: number | null
+  lead_time_days_max?: number | null
+  amazon_active?: boolean
+  noon_active?: boolean
+  weight_kg?: number | null
+  cbm?: number | null
+  country?: string
+  saddl_id?: string | null
 }
 
 export interface CommandCenterResponse {

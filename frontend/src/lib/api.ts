@@ -56,19 +56,23 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 function getCountry(): string {
-  return localStorage.getItem('selected_region') || 'UAE'
+  return localStorage.getItem('selected_country') || 'UAE'
+}
+
+function getAccountId(): string {
+  return localStorage.getItem('selected_account') || 's2c_uae_test'
 }
 
 function buildQuery(params: Record<string, string | undefined>): string {
-  const allParams = { ...params, country: getCountry() }
+  const allParams = { ...params, country: getCountry(), account_id: getAccountId() }
   const entries = Object.entries(allParams).filter(([, v]) => v !== undefined && v !== '')
   if (entries.length === 0) return ''
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`).join('&')
 }
 
 export const api = {
-  getLocations: async (): Promise<{ country: string, saddl_account_id: string }[]> => {
-    const { data, error } = await supabase.from('amazon_locations').select('country, saddl_account_id').eq('is_active', true)
+  getLocations: async (): Promise<{ country: string, saddl_account_id: string, display_name: string }[]> => {
+    const { data, error } = await supabase.from('amazon_locations').select('country, saddl_account_id, display_name').eq('is_active', true)
     if (error) {
       console.error(error)
       return []
@@ -76,21 +80,44 @@ export const api = {
     return data || []
   },
 
-  addLocation: async (country: string, accountId: string): Promise<boolean> => {
+  addLocation: async (country: string, accountId: string, displayName: string): Promise<{ success: boolean; error?: string }> => {
     const { error } = await supabase.from('amazon_locations').insert({
       country,
       saddl_account_id: accountId,
       saddl_client_id: accountId,
+      display_name: displayName,
       is_active: true
     })
     if (error) {
       console.error(error)
-      return false
+      return { success: false, error: error.message }
     }
-    return true
+    return { success: true }
+  },
+
+  updateLocation: async (oldAccountId: string, newDisplayName: string, newAccountId: string): Promise<{ success: boolean; error?: string }> => {
+    const { error } = await supabase.from('amazon_locations').update({
+      saddl_account_id: newAccountId,
+      saddl_client_id: newAccountId,
+      display_name: newDisplayName
+    }).eq('saddl_account_id', oldAccountId)
+    if (error) {
+      console.error(error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
+  },
+
+  deleteLocation: async (accountId: string): Promise<{ success: boolean; error?: string }> => {
+    const { error } = await supabase.from('amazon_locations').delete().eq('saddl_account_id', accountId)
+    if (error) {
+      console.error(error)
+      return { success: false, error: error.message }
+    }
+    return { success: true }
   },
   getCommandCenter: async (): Promise<CommandCenterResponse> =>
-    fetch(`${BASE}/dashboard?country=${getCountry()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/dashboard?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
       .then(r => handleResponse<CommandCenterResponse>(r))
       .catch(err => ({ error: err.message } as unknown as CommandCenterResponse)),
 
@@ -100,7 +127,7 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as SKUListResponse)),
 
   getSKU: async (sku: string): Promise<SKUDetailResponse> =>
-    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
       .then(r => handleResponse<SKUDetailResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUDetailResponse)),
 
@@ -168,6 +195,12 @@ export const api = {
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
+
+  bulkUpsertSKUs: async (skus: any[]): Promise<{ ok: true, count: number }> => {
+    const { error } = await supabase.from('sku_master').upsert(skus, { onConflict: 'sku,country' })
+    if (error) throw new Error(error.message)
+    return { ok: true, count: skus.length }
+  },
 
   uploadNoonCSV: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
@@ -302,12 +335,12 @@ export const api = {
   },
 
   getPlanning: async (): Promise<PlanningResponse> =>
-    fetch(`${BASE}/planning?country=${getCountry()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/planning?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
       .then(r => handleResponse<PlanningResponse>(r))
       .catch(err => ({ error: err.message } as unknown as PlanningResponse)),
 
   getAnalytics: async (days: 7 | 30 | 90 = 30): Promise<AnalyticsResponse> =>
-    fetch(`${BASE}/analytics?days=${days}&country=${getCountry()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/analytics?days=${days}&country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
       .then(r => handleResponse<AnalyticsResponse>(r))
       .catch(err => ({ error: err.message } as unknown as AnalyticsResponse)),
 
