@@ -156,11 +156,12 @@ export function parseNoonOrderCSV(csvText: string): ParsedNoonData {
 
     try {
       const rawRow = extractRow(cols, colIndex)
-      raw_rows.push(rawRow)
 
       // Status filter
       const status = rawRow.status.trim().toLowerCase()
       if (!CONFIRMED_STATUSES.has(status)) continue
+
+      raw_rows.push(rawRow)
 
       // partner_sku — trim aggressively and remove all internal spaces
       const partner_sku = rawRow.partner_sku.replace(/\s+/g, '')

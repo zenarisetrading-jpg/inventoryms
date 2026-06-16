@@ -1,3 +1,9 @@
+-- 067_update_refresh_for_saddl_id.sql
+
+-- 1. Drop and recreate the idx_fact_sales_lookup index to include saddl_id if we want
+DROP INDEX IF EXISTS idx_fact_sales_lookup;
+CREATE INDEX IF NOT EXISTS idx_fact_sales_lookup ON public.fact_sales (date, sales_channel, sku, country, saddl_id) WHERE is_current = TRUE;
+
 CREATE OR REPLACE FUNCTION public.refresh_fact_sales_data(days_back integer DEFAULT 14)
 RETURNS void
 LANGUAGE plpgsql
@@ -23,7 +29,8 @@ BEGIN
                     sales_channel,
                     fulfillment_model,
                     sku,
-                    country -- ADDED COUNTRY PARTITION
+                    country,
+                    saddl_id
                 ORDER BY last_updated DESC
             ) AS rn
         FROM (
@@ -39,7 +46,8 @@ BEGIN
                 s.category,
                 s.product_category,
                 s.sub_category,
-                UPPER(COALESCE(a.country, 'UAE')) AS country, -- ADDED COUNTRY
+                UPPER(COALESCE(a.country, 'UAE')) AS country,
+                COALESCE(a.saddl_id, 'none') AS saddl_id,
                 SUM(
                     CASE 
                         WHEN UPPER(COALESCE(a.country, 'UAE')) IN ('KSA', 'SA') AND COALESCE(a.ordered_revenue, 0) = 0 
@@ -62,7 +70,8 @@ BEGIN
                 s.category,
                 s.product_category,
                 s.sub_category,
-                UPPER(COALESCE(a.country, 'UAE'))
+                UPPER(COALESCE(a.country, 'UAE')),
+                COALESCE(a.saddl_id, 'none')
 
             UNION ALL
 
@@ -82,7 +91,8 @@ BEGIN
                     WHEN UPPER(COALESCE(n.src_country, 'AE')) = 'AE' THEN 'UAE'
                     WHEN UPPER(COALESCE(n.src_country, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
                     ELSE UPPER(COALESCE(n.src_country, 'UAE'))
-                END AS country, -- NORMALIZED COUNTRY
+                END AS country,
+                COALESCE(n.saddl_id, 'none') AS saddl_id,
                 SUM(n.offer_price) AS total_sales,
                 COUNT(n.item_nr) AS total_units,
                 MAX(n.delivered_timestamp) AS last_updated
@@ -109,7 +119,8 @@ BEGIN
                     WHEN UPPER(COALESCE(n.src_country, 'AE')) = 'AE' THEN 'UAE'
                     WHEN UPPER(COALESCE(n.src_country, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
                     ELSE UPPER(COALESCE(n.src_country, 'UAE'))
-                END
+                END,
+                COALESCE(n.saddl_id, 'none')
 
             UNION ALL
 
@@ -129,7 +140,8 @@ BEGIN
                     WHEN UPPER(COALESCE(m.country_code, 'AE')) = 'AE' THEN 'UAE'
                     WHEN UPPER(COALESCE(m.country_code, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
                     ELSE UPPER(COALESCE(m.country_code, 'UAE'))
-                END AS country, -- FIXED COUNTRY (Derived from m.country_code)
+                END AS country,
+                COALESCE(m.saddl_id, 'none') AS saddl_id,
                 SUM(m.price) AS total_sales,
                 COUNT(m.item_nr) AS total_units,
                 NOW() AS last_updated
@@ -155,7 +167,8 @@ BEGIN
                     WHEN UPPER(COALESCE(m.country_code, 'AE')) = 'AE' THEN 'UAE'
                     WHEN UPPER(COALESCE(m.country_code, 'AE')) IN ('SA', 'KSA') THEN 'KSA'
                     ELSE UPPER(COALESCE(m.country_code, 'UAE'))
-                END
+                END,
+                COALESCE(m.saddl_id, 'none')
         ) sales_data
     ) final_data
     WHERE rn = 1;
@@ -174,7 +187,8 @@ BEGIN
     AND f.sales_channel = d.sales_channel
     AND COALESCE(f.fulfillment_model,'') = COALESCE(d.fulfillment_model,'')
     AND COALESCE(f.sku,'') = COALESCE(d.sku,'')
-    AND COALESCE(f.country,'') = COALESCE(d.country,'') -- ADDED COUNTRY MATCH
+    AND COALESCE(f.country,'') = COALESCE(d.country,'')
+    AND COALESCE(f.saddl_id,'') = COALESCE(d.saddl_id,'')
     AND (
            COALESCE(f.total_sales,0) <> COALESCE(d.total_sales,0)
         OR COALESCE(f.total_units,0) <> COALESCE(d.total_units,0)
@@ -195,7 +209,8 @@ BEGIN
         category,
         product_category,
         sub_category,
-        country, -- ADDED COUNTRY
+        country,
+        saddl_id,
         total_sales,
         total_units,
         effective_from,
@@ -212,7 +227,8 @@ BEGIN
         d.category,
         d.product_category,
         d.sub_category,
-        d.country, -- ADDED COUNTRY
+        d.country,
+        d.saddl_id,
         d.total_sales,
         d.total_units,
         NOW(),
@@ -226,7 +242,8 @@ BEGIN
         AND f.sales_channel = d.sales_channel
         AND COALESCE(f.fulfillment_model,'') = COALESCE(d.fulfillment_model,'')
         AND COALESCE(f.sku,'') = COALESCE(d.sku,'')
-        AND COALESCE(f.country,'') = COALESCE(d.country,'') -- ADDED COUNTRY MATCH
+        AND COALESCE(f.country,'') = COALESCE(d.country,'')
+        AND COALESCE(f.saddl_id,'') = COALESCE(d.saddl_id,'')
     WHERE f.fact_sales_key IS NULL
     OR (
            COALESCE(f.total_sales,0) <> COALESCE(d.total_sales,0)

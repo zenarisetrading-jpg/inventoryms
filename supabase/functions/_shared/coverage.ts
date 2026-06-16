@@ -28,7 +28,8 @@ export async function computeCoverage(
   sku: SKU,
   blended_sv: number,
   supabase: SupabaseClient,
-  country: string = 'UAE'
+  country: string = 'UAE',
+  saddl_id: string = 'none'
 ): Promise<CoverageResult> {
   // Default per-node structure
   const emptyNode = { available: 0, inbound: 0, coverage_days: 0 }
@@ -37,6 +38,7 @@ export async function computeCoverage(
       amazon_fba: { ...emptyNode },
       noon_fbn: { ...emptyNode },
       locad_warehouse: { ...emptyNode },
+      Minutes: { ...emptyNode },
     },
     total_available: 0,
     total_coverage: blended_sv === 0 ? Infinity : 0,
@@ -53,6 +55,7 @@ export async function computeCoverage(
     .select('node, warehouse_name, available, inbound, snapshot_date')
     .eq('sku', sku.sku)
     .eq('country', country)
+    .eq('saddl_id', saddl_id)
     .order('snapshot_date', { ascending: false })
 
   if (snapError || !snapshots || snapshots.length === 0) {
@@ -95,6 +98,7 @@ export async function computeCoverage(
     amazon_fba: { available: 0, inbound: 0 },
     noon_fbn: { available: 0, inbound: 0 },
     locad_warehouse: { available: 0, inbound: 0 },
+    Minutes: { available: 0, inbound: 0 },
   }
 
   for (const row of latestRows) {
@@ -189,6 +193,11 @@ export async function computeCoverage(
         available: nodeAggregates.locad_warehouse.available,
         inbound: nodeAggregates.locad_warehouse.inbound,
         coverage_days: coverageDays(nodeAggregates.locad_warehouse.available),
+      },
+      Minutes: {
+        available: nodeAggregates.Minutes.available,
+        inbound: nodeAggregates.Minutes.inbound,
+        coverage_days: coverageDays(nodeAggregates.Minutes.available),
       },
     },
     total_available,

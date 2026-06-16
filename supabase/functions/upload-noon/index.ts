@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseClient } from '../_shared/supabase.ts'
+import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { parseNoonOrderCSV } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
@@ -61,11 +61,13 @@ serve(async (req: Request) => {
     // -----------------------------------------------------------------------
     let csvText: string
     let country = 'UAE'
+    let saddl_id = 'none'
 
     try {
       const form = await req.formData()
       const file = form.get('file') as File | null
       country = (form.get('country') as string) || 'UAE'
+      saddl_id = (form.get('saddl_id') as string) || 'none'
 
       if (!file) {
         return jsonResponse({ error: 'No file field found in form data. Provide a file under the key "file".' }, 400)
@@ -114,7 +116,7 @@ serve(async (req: Request) => {
       )
     }
 
-    const supabase = getSupabaseClient(req)
+    const supabase = getSupabaseAdmin()
     const skusUpdated = new Set<string>()
     const { raw_rows } = parseResult
     let rawInserted = 0
@@ -176,7 +178,7 @@ serve(async (req: Request) => {
         channel: r.channel,
         units_sold: r.units_sold,
         country,
-        saddl_id: 'none',
+        saddl_id: saddl_id,
         synced_at: new Date().toISOString(),
       }))
 
@@ -204,11 +206,12 @@ serve(async (req: Request) => {
       if (raw_rows && raw_rows.length > 0) {
         const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
         
-        // Filter and map in one pass to avoid creating multiple large arrays
-        const dbRows = []
+        // Deduplicate rows from CSV by item_nr (keep the last one)
+        const dedupedCsvRows = new Map<string, any>()
+        
         for (const r of raw_rows) {
-          if (r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase())) {
-            dbRows.push({
+          if (r.status && CONFIRMED_STATUSES.has(r.status.toLowerCase()) && r.item_nr) {
+            dedupedCsvRows.set(r.item_nr, {
               id_partner: parseInt(r.id_partner) || null,
               src_country: r.src_country,
               country_code: r.country_code,
@@ -219,25 +222,23 @@ serve(async (req: Request) => {
               sku: r.sku,
               status: r.status,
               offer_price: r.offer_price,
-              gmv_lcy: parseFloat(r.gmv_lcy) || 0,
+              gmv_lcy: parseFloat(r.gmv_lcy as any) || 0,
               currency_code: r.currency_code,
               brand_code: r.brand_code,
               family: r.family,
               fulfillment_model: r.fulfillment_model,
               order_timestamp: r.order_timestamp,
               shipment_timestamp: r.shipment_timestamp || null,
-              delivered_timestamp: r.delivered_timestamp || null
+              delivered_timestamp: r.delivered_timestamp || null,
+              saddl_id: saddl_id
             })
           }
         }
 
-        const validDbRows = dbRows.filter(r => r.item_nr)
+        // Free memory
+        parseResult.raw_rows = []
+        raw_rows.length = 0
         
-        // Deduplicate rows from CSV by item_nr (keep the last one)
-        const dedupedCsvRows = new Map<string, any>()
-        for (const r of validDbRows) {
-          dedupedCsvRows.set(r.item_nr, r)
-        }
         const finalDbRows = Array.from(dedupedCsvRows.values())
         
         const itemNrs = Array.from(dedupedCsvRows.keys())
@@ -316,33 +317,40 @@ serve(async (req: Request) => {
       // Attempt updates one SKU at a time so a missing column only suppresses
       // this optional step rather than failing the whole upload.
       try {
-        const priceUpdatePromises = avg_prices.map(({ sku, avg_sell_price_aed }) =>
-          supabase
-            .from('sku_master')
-            .update({ avg_sell_price_aed })
-            .eq('sku', sku)
-        )
+        const CHUNK_SIZE = 50
+        for (let i = 0; i < avg_prices.length; i += CHUNK_SIZE) {
+          const chunk = avg_prices.slice(i, i + CHUNK_SIZE)
+          const priceUpdatePromises = chunk.map(({ sku, avg_sell_price_aed }) =>
+            supabase
+              .from('sku_master')
+              .update({ avg_sell_price_aed })
+              .eq('sku', sku)
+          )
 
-        const results = await Promise.allSettled(priceUpdatePromises)
+          const results = await Promise.allSettled(priceUpdatePromises)
 
-        // Log any unexpected errors but do not fail the response
-        for (const result of results) {
-          if (result.status === 'rejected') {
-            console.warn('[upload-noon] avg_sell_price_aed update skipped (column may not exist):', result.reason)
-          } else if (result.value.error) {
-            // Column missing typically surfaces as a PostgREST 400/PGRST116 or similar
-            const errMsg: string = result.value.error.message ?? ''
-            if (
-              errMsg.includes('avg_sell_price_aed') ||
-              errMsg.includes('column') ||
-              errMsg.toLowerCase().includes('does not exist')
-            ) {
-              // Column not yet added to schema — skip silently as per spec
-              console.info('[upload-noon] avg_sell_price_aed column not present on sku_master — skipping price update')
-              break
+          let columnMissing = false
+          // Log any unexpected errors but do not fail the response
+          for (const result of results) {
+            if (result.status === 'rejected') {
+              console.warn('[upload-noon] avg_sell_price_aed update skipped (column may not exist):', result.reason)
+            } else if (result.value.error) {
+              // Column missing typically surfaces as a PostgREST 400/PGRST116 or similar
+              const errMsg: string = result.value.error.message ?? ''
+              if (
+                errMsg.includes('avg_sell_price_aed') ||
+                errMsg.includes('column') ||
+                errMsg.toLowerCase().includes('does not exist')
+              ) {
+                // Column not yet added to schema — skip silently as per spec
+                console.info('[upload-noon] avg_sell_price_aed column not present on sku_master — skipping price update')
+                columnMissing = true
+                break
+              }
+              console.warn('[upload-noon] avg_sell_price_aed update warning:', errMsg)
             }
-            console.warn('[upload-noon] avg_sell_price_aed update warning:', errMsg)
           }
+          if (columnMissing) break
         }
       } catch (priceUpdateErr) {
         // Non-critical — log and continue

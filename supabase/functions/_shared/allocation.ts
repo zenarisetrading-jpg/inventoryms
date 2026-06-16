@@ -91,7 +91,9 @@ export async function computeAllocation(
   coverage: CoverageResult,
   amazon_sv: number,
   noon_sv: number,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  country: string = 'UAE',
+  saddl_id: string = 'none'
 ): Promise<AllocationPlan[]> {
   const plans: AllocationPlan[] = []
   const today = new Date().toISOString().split('T')[0]
@@ -162,8 +164,10 @@ export async function computeAllocation(
           units_to_ship: plan.units_to_ship,
           status: 'pending',
           plan_date: today,
+          country: country,
+          saddl_id: saddl_id,
         },
-        { onConflict: 'sku,node,plan_date' }
+        { onConflict: 'sku,node,plan_date,country,saddl_id' }
       )
       if (error) {
         console.error(

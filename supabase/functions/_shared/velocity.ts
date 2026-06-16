@@ -16,7 +16,8 @@ import { refreshABCCategories } from './abc.ts'
 export async function computeVelocity(
   sku: string,
   supabase: SupabaseClient,
-  country: string = 'UAE'
+  country: string = 'UAE',
+  saddl_id: string = 'none'
 ): Promise<{ sv_7: number; sv_90: number; blended_sv: number; amazon_sv: number; noon_sv: number; minutes_sv: number }> {
   const today = new Date()
   const date7dAgo = new Date(today)
@@ -28,12 +29,13 @@ export async function computeVelocity(
 
   const fmt = (d: Date) => d.toISOString().split('T')[0]
 
-  // Fetch last 90 days of sales data for this SKU (all channels, filtered by country)
+  // Fetch last 90 days of sales data for this SKU (all channels, filtered by country and saddl_id)
   const { data, error } = await supabase
     .from('sales_snapshot')
     .select('date, channel, units_sold')
     .eq('sku', sku)
     .eq('country', country)
+    .eq('saddl_id', saddl_id)
     .gte('date', fmt(date90dAgo))
     .lte('date', fmt(today))
 
@@ -102,32 +104,35 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
   date60dAgo.setDate(today.getDate() - 60)
   const fmt = (d: Date) => d.toISOString().split('T')[0]
 
-  // Load active locations — process each country separately
-  let countries: string[] = ['UAE']
+  // Load active locations — process each country and account separately
+  let locations: { country: string; saddl_account_id: string }[] = [{ country: 'UAE', saddl_account_id: 'none' }]
   try {
     const { data: locData } = await supabase
       .from('amazon_locations')
-      .select('country')
+      .select('country, saddl_account_id')
       .eq('is_active', true)
     if (locData && locData.length > 0) {
-      countries = locData.map((l: { country: string }) => l.country)
+      locations = locData
     }
   } catch {
     // fallback to UAE only
   }
 
-  for (const country of countries) {
-    console.log(`[velocity] refreshAllMetrics for country=${country}`)
+  for (const loc of locations) {
+    console.log(`[velocity] refreshAllMetrics for country=${loc.country}, saddl_id=${loc.saddl_account_id}`)
 
     // Fetch active SKUs for this country
     const { data: skus, error: skuError } = await supabase
       .from('sku_master')
       .select('*')
       .eq('is_active', true)
-      .eq('country', country)
+      .eq('country', loc.country)
+      // Note: If sku_master does not have saddl_id or it's not strictly 1-to-1,
+      // we just pull SKUs for the country and process them for this account.
+      // Assuming SKUs are scoped by country.
 
     if (skuError || !skus || skus.length === 0) {
-      console.error(`refreshAllMetrics: no active SKUs for country=${country}`, skuError)
+      console.error(`refreshAllMetrics: no active SKUs for country=${loc.country}`, skuError)
       continue
     }
 
@@ -139,6 +144,8 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
     .delete()
     .eq('status', 'pending')
     .eq('plan_date', todayStr)
+    .eq('country', loc.country)
+    .eq('saddl_id', loc.saddl_account_id)
 
     // Process SKUs in parallel batches of 10 to stay well within the 60s timeout
     const BATCH_SIZE = 10
@@ -147,11 +154,11 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
 
       await Promise.all(batch.map(async (sku: SKU) => {
         try {
-          // Velocity (country-aware)
-          const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase, country)
+          // Velocity (country and saddl_id aware)
+          const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase, loc.country, loc.saddl_account_id)
 
           // Coverage
-          const coverage = await computeCoverage(sku, blended_sv, supabase, country)
+          const coverage = await computeCoverage(sku, blended_sv, supabase, loc.country, loc.saddl_account_id)
 
         // Action flag
         const action_flag = computeActionFlag(sku, blended_sv, coverage)
@@ -170,7 +177,8 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
             .from('demand_metrics')
             .upsert({
               sku: sku.sku,
-              country,
+              country: loc.country,
+              saddl_id: loc.saddl_account_id,
               sv_7,
               sv_90,
               blended_sv,
@@ -189,19 +197,19 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
               should_reorder: reorder?.should_reorder ?? false,
               suggested_reorder_units: reorder?.suggested_units ?? 0,
               updated_at: new Date().toISOString(),
-            }, { onConflict: 'sku,country' })
+            }, { onConflict: 'sku,country,saddl_id' })
           if (metricsErr) {
-            console.error(`refreshAllMetrics: demand_metrics upsert error for ${sku.sku} (${country})`, metricsErr)
+            console.error(`refreshAllMetrics: demand_metrics upsert error for ${sku.sku} (${loc.country}, ${loc.saddl_account_id})`, metricsErr)
           }
 
           // Allocation plans (insert fresh ones per-SKU)
-          await computeAllocation(sku, coverage, amazon_sv, noon_sv, supabase)
+          await computeAllocation(sku, coverage, amazon_sv, noon_sv, supabase, loc.country, loc.saddl_account_id)
         } catch (err) {
-          console.error(`refreshAllMetrics: error processing SKU ${sku.sku} (${country})`, err)
+          console.error(`refreshAllMetrics: error processing SKU ${sku.sku} (${loc.country}, ${loc.saddl_account_id})`, err)
         }
       }))
     }
-  } // end for-each country
+  } // end for-each location
 
   // Reclassify all SKUs on every refresh (60-day rolling window)
   try {

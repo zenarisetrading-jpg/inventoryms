@@ -205,6 +205,7 @@ export const api = {
   uploadNoonCSV: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
     form.append('country', getCountry())
+    form.append('saddl_id', getAccountId())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type'] // Let browser set boundary for FormData
@@ -220,6 +221,7 @@ export const api = {
   uploadNoonInventory: async (file: File): Promise<UploadNoonInventoryResponse> => {
     const form = new FormData()
     form.append('country', getCountry())
+    form.append('saddl_id', getAccountId())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']
@@ -235,6 +237,7 @@ export const api = {
   uploadNoonMinutesSales: async (file: File): Promise<UploadNoonResponse> => {
     const form = new FormData()
     form.append('country', getCountry())
+    form.append('saddl_id', getAccountId())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']

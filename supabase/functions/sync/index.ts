@@ -399,9 +399,9 @@ async function handleSync(
       console.log('[sync] Refreshing fact tables as part of full sync...')
       const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
       if (err1) errors.push(`Planning Refresh Error: ${err1.message}`)
-      const { error: err2 } = await supabase.rpc('refresh_fact_sales_data')
+      const { error: err2 } = await supabase.rpc('refresh_fact_sales_data', { days_back: days })
       if (err2) {
-        const { error: errRaw } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_fact_sales_data()' })
+        const { error: errRaw } = await supabase.rpc('execute_sql', { sql: `SELECT public.refresh_fact_sales_data(${days})` })
         if (errRaw) errors.push(`Sales Refresh Error: ${errRaw.message}`)
       }
     } catch (err) {
@@ -438,11 +438,11 @@ async function handleRefreshFact(req: Request): Promise<Response> {
     }
     
     // 2. Refresh Sales Performance Fact (The new SCD Type 2 table)
-    const { error: err2 } = await supabase.rpc('refresh_fact_sales_data')
+    const { error: err2 } = await supabase.rpc('refresh_fact_sales_data', { days_back: 90 }) // Hardcoded 90 for standalone refresh API
     if (err2) {
       console.error('[sync] refresh_fact_sales_data error:', err2)
       // Fallback: Try raw SQL execution via utility function if RPC fails due to schema cache
-      const { error: errRaw } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_fact_sales_data()' })
+      const { error: errRaw } = await supabase.rpc('execute_sql', { sql: 'SELECT public.refresh_fact_sales_data(90)' })
       if (errRaw) {
         throw new Error(`Sales Refresh Error: ${err2.message} (Raw: ${errRaw.message})`)
       }

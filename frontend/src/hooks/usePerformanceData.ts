@@ -32,7 +32,7 @@ export function usePerformanceData() {
   async function fetchData() {
     setLoading(true)
     try {
-      const { data: valResult } = await supabase.rpc('get_final_valuation', { p_country: region })
+      const { data: valResult } = await supabase.rpc('get_final_valuation', { p_saddl_id: region })
       if (valResult) {
         setValuationData([
           { node: 'AMAZON FBA', value_aed: Math.round(valResult.fba || 0) },
@@ -49,22 +49,22 @@ export function usePerformanceData() {
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
           p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-          p_country: region
+          p_saddl_id: region
         }),
         supabase.rpc('get_sales_velocity_trend', {
           days_count: days,
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
           p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-          p_country: region
+          p_saddl_id: region
         }),
-        supabase.rpc('get_detailed_sales_performance', { days_count: days, p_country: region }),
-        supabase.rpc('get_po_status_distribution', { p_country: region }),
+        supabase.rpc('get_detailed_sales_performance', { days_count: days, p_saddl_id: region }),
+        supabase.rpc('get_po_status_distribution', { p_saddl_id: region }),
         supabase.rpc('get_coverage_health', {
           p_categories: selCategories.length > 0 ? selCategories : null,
           p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
           p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-          p_country: region
+          p_saddl_id: region
         })
       ])
 
@@ -78,7 +78,7 @@ export function usePerformanceData() {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
         p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_country: region
+        p_saddl_id: region
       })
       if (summary) setSummaryData(summary)
 
@@ -86,7 +86,7 @@ export function usePerformanceData() {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
         p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_country: region
+        p_saddl_id: region
       })
       if (forecastResult) setMtdForecast(forecastResult)
 
@@ -94,7 +94,7 @@ export function usePerformanceData() {
         p_categories: selCategories.length > 0 ? selCategories : null,
         p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
         p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_country: region
+        p_saddl_id: region
       })
       if (lastMonthResult) setLastMonthSales(lastMonthResult)
 

@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseClient } from '../_shared/supabase.ts'
+import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -70,13 +70,14 @@ serve(async (req: Request) => {
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
 
   try {
-    const supabase = getSupabaseClient(req)
+    const supabase = getSupabaseAdmin()
     const today = new Date().toISOString().slice(0, 10)
 
     // Parse multipart form
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const country = (formData.get('country') as string) || 'UAE'
+    const saddl_id = (formData.get('saddl_id') as string) || 'none'
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const text = await file.text()
@@ -156,7 +157,7 @@ serve(async (req: Request) => {
         country: mappedCountry,
         snapshot_date: today,
         synced_at: new Date().toISOString(),
-        saddl_id: 'none'
+        saddl_id: saddl_id
       }
     })
 
@@ -175,7 +176,7 @@ serve(async (req: Request) => {
     }
 
     // Use chunks to avoid request size limits
-    const CHUNK_SIZE = 100
+    const CHUNK_SIZE = 1000
     for (let i = 0; i < upsertRows.length; i += CHUNK_SIZE) {
       const chunk = upsertRows.slice(i, i + CHUNK_SIZE)
       const { error: upsertError } = await supabase
@@ -188,12 +189,14 @@ serve(async (req: Request) => {
       }
     }
 
-    // Refresh all metrics after successful write
+    // Refresh all metrics after successful write (SKIP to avoid timeouts)
+    /*
     try {
       await refreshAllMetrics(supabase)
     } catch (e) {
       console.error('upload-noon-inventory: refreshAllMetrics error', e)
     }
+    */
 
     return jsonResponse({
       rows_processed: rows.length,

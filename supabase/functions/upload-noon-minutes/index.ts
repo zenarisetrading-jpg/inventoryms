@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseClient } from '../_shared/supabase.ts'
+import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { parseMinutesOrderCSV, type ParsedMinutesData } from '../_shared/noon-csv.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 
@@ -27,6 +27,7 @@ serve(async (req: Request) => {
     const form = await req.formData()
     const file = form.get('file') as File | null
     const country = (form.get('country') as string) || 'UAE'
+    const saddl_id = (form.get('saddl_id') as string) || 'none'
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
 
     const csvText = await file.text()
@@ -37,7 +38,7 @@ serve(async (req: Request) => {
       return jsonResponse({ error: 'No valid rows parsed', errors: parseErrors }, 422)
     }
 
-    const supabase = getSupabaseClient(req)
+    const supabase = getSupabaseAdmin()
     
     // Build internal SKU mapping (handling 's' suffix case-insensitively)
     const { data: skuMasterRows } = await supabase
@@ -72,7 +73,7 @@ serve(async (req: Request) => {
     const upsertRows = Array.from(deduped.values()).map(r => ({
       ...r,
       country,
-      saddl_id: 'none',
+      saddl_id: saddl_id,
       synced_at: new Date().toISOString()
     }))
 
@@ -108,7 +109,8 @@ serve(async (req: Request) => {
             price: r.price,
             partner_sku: r.partner_sku,
             item_status: r.item_status,
-            return_date: r.return_date || null
+            return_date: r.return_date || null,
+            saddl_id: saddl_id
           })
         }
       }
