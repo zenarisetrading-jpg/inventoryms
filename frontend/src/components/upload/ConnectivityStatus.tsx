@@ -19,7 +19,7 @@ export function ConnectivityStatus({ healthRows, loading, loadData }: Connectivi
       <div className="flex-1 overflow-hidden">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-white/5">
+            <tr className="border-b border-white/5 group">
               <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Entity</th>
               <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Type</th>
               <th className="pb-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Last Payload</th>
@@ -28,10 +28,10 @@ export function ConnectivityStatus({ healthRows, loading, loadData }: Connectivi
           </thead>
           <tbody className="divide-y divide-white/5">
             {healthRows.map(row => (
-              <tr key={row.source} className="group">
-                <td className="py-4 font-black text-white text-[11px] uppercase tracking-tight">{row.source}</td>
-                <td className="py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{row.type}</td>
-                <td className="py-4 font-data text-xs text-zinc-400">{formatRelativeTime(row.lastUpdated)}</td>
+              <tr className="group hover:bg-white/10 transition-colors" key={row.source}>
+                <td className="py-4 font-black text-white text-[11px] uppercase tracking-tight"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.source}</span></td>
+                <td className="py-4 text-[10px] font-bold text-zinc-500 uppercase tracking-widest"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.type}</span></td>
+                <td className="py-4 font-data text-xs text-zinc-400"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatRelativeTime(row.lastUpdated)}</span></td>
                 <td className="py-4 text-right"><StatusLabel status={row.status} /></td>
               </tr>
             ))}

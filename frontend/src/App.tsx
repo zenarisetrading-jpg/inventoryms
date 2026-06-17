@@ -16,6 +16,7 @@ import { navigate } from './lib/router'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
 import LoginPage from './pages/login'
+import { CursorSpotlight } from './components/shared/CursorSpotlight'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 import { LoadingScreen } from './components/shared/LoadingScreen'
 import saddlLogo from './assets/saddl_logo.jpg'
@@ -130,6 +131,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-body overflow-hidden relative">
+      <CursorSpotlight />
       {/* Immersive Futuristic Background Elements */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
         {/* Soft Ambient Mesh Glows */}
@@ -653,9 +655,10 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   )
 }
 
-function EditAccountModal({ location, onClose, onSuccess }: { location: {country: string, saddl_account_id: string, display_name: string}, onClose: () => void; onSuccess: () => void }) {
+function EditAccountModal({ location, onClose, onSuccess }: { location: {country: string, saddl_account_id: string, display_name: string, is_active?: boolean}, onClose: () => void; onSuccess: () => void }) {
   const [displayName, setDisplayName] = useState(location.display_name || location.country)
   const [accountId, setAccountId] = useState(location.saddl_account_id)
+  const [isActive, setIsActive] = useState(location.is_active !== false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -667,7 +670,7 @@ function EditAccountModal({ location, onClose, onSuccess }: { location: {country
     }
     setLoading(true)
     setError(null)
-    const result = await api.updateLocation(location.saddl_account_id, displayName.trim(), accountId.trim())
+    const result = await api.updateLocation(location.saddl_account_id, displayName.trim(), accountId.trim(), isActive)
     if (result.success) {
       onSuccess()
     } else {
@@ -737,6 +740,19 @@ function EditAccountModal({ location, onClose, onSuccess }: { location: {country
                   className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
                   placeholder="e.g. s2c_us_test"
                 />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl">
+                <div>
+                  <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Account Status</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{isActive ? 'Account is active and visible' : 'Account is hidden/disabled'}</div>
+                </div>
+                <button
+                  onClick={() => setIsActive(!isActive)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isActive ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                </button>
               </div>
 
               <div className="pt-2 flex flex-col gap-3">

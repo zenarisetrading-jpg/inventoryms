@@ -29,7 +29,7 @@ export function DetailedPerformanceTable({ filteredAndSortedSales, sortField, so
       <div className="overflow-auto max-h-[420px] custom-scrollbar">
         <table className="w-full text-left border-collapse min-w-[1400px]">
           <thead className="sticky top-0 z-20 bg-[#111827] shadow-none border-white/10">
-            <tr className="border-b border-zinc-200">
+            <tr className="border-b border-zinc-200 group">
               <th onClick={() => toggleSort('total_units')} className="px-6 py-5 text-[11px] font-black text-white uppercase tracking-widest w-16 cursor-pointer hover:text-brand-blue text-center">
                 # <SortIcon field="total_units" />
               </th>
@@ -61,23 +61,21 @@ export function DetailedPerformanceTable({ filteredAndSortedSales, sortField, so
           </thead>
           <tbody className="divide-y divide-white/5">
             {filteredAndSortedSales.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-8 py-20 text-center text-white font-black uppercase tracking-widest">
-                  No performance data found matching your current filters.
-                </td>
+              <tr className="group hover:bg-white/10 transition-colors">
+                <td colSpan={9} className="px-8 py-20 text-center text-white font-black uppercase tracking-widest"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">No performance data found matching your current filters.</span></td>
               </tr>
             )}
             {filteredAndSortedSales.map((row, i) => (
-              <tr key={i} className="hover:bg-white/10 transition-colors group">
-                <td className="px-6 py-5 text-center text-[11px] font-black text-white group-hover:font-bold">{i + 1}</td>
-                <td className="px-8 py-5 text-[12px] font-black text-white uppercase group-hover:font-bold">{row.category}</td>
-                <td className="px-8 py-5 text-[12px] font-black text-white uppercase group-hover:font-bold">{row.product_category}</td>
-                <td className="px-8 py-5 text-[12px] font-black text-white uppercase group-hover:font-bold">{row.sub_category}</td>
-                <td className="px-8 py-5 text-[12px] font-black text-white font-data uppercase group-hover:font-bold">{row.sku}</td>
-                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-amber group-hover:font-bold">{row.amazon_units?.toLocaleString()}</td>
-                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-blue group-hover:font-bold">{row.noon_units?.toLocaleString()}</td>
-                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-indigo-600 group-hover:font-bold">{row.minutes_units?.toLocaleString()}</td>
-                <td className="px-8 py-5 text-right font-data text-[15px] font-black text-primary group-hover:font-bold">{row.total_units?.toLocaleString()}</td>
+              <tr className="group hover:bg-white/10 transition-colors" key={i}>
+                <td className="px-6 py-5 text-center text-[11px] font-black text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{i + 1}</span></td>
+                <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.category}</span></td>
+                <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.product_category}</span></td>
+                <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.sub_category}</span></td>
+                <td className="px-8 py-5 text-[12px] font-black text-white font-data uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.sku}</span></td>
+                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-amber"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.amazon_units?.toLocaleString()}</span></td>
+                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-blue"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.noon_units?.toLocaleString()}</span></td>
+                <td className="px-8 py-5 text-right font-data text-[13px] font-black text-indigo-600"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.minutes_units?.toLocaleString()}</span></td>
+                <td className="px-8 py-5 text-right font-data text-[15px] font-black text-primary"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.total_units?.toLocaleString()}</span></td>
               </tr>
             ))}
           </tbody>

@@ -351,7 +351,7 @@ export default function InventoryPage() {
           <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
             <table className="w-fit min-w-full border-collapse">
               <thead className="sticky top-0 z-30 bg-card">
-                <tr className="bg-white/5">
+                <tr className="bg-white/5 group">
                   {columns.map((col, i) => (
                     <th
                       key={col.key}
@@ -377,7 +377,7 @@ export default function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {processedData.map((row: any, idx) => (
-                  <tr key={idx} className="group hover:bg-white/5 transition-colors">
+                  <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5" key={idx}>
                     {columns.map((col, i) => (
                       <td
                         key={col.key}
@@ -386,20 +386,18 @@ export default function InventoryPage() {
                           px-4 py-2 border-white/5 h-[48px]
                           ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
                         `}
-                      >
-                        <span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
+                      ><span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
                             (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-primary' :
                               'font-semibold text-zinc-300'
                           } ${row.is_active === false ? 'opacity-40' : ''}`}>
                           {renderCell(col.key, row[col.key])}
-                        </span>
-                      </td>
+                        </span></td>
                     ))}
                   </tr>
                 ))}
               </tbody>
               <tfoot className="sticky bottom-0 z-30 bg-zinc-900 border-t-2 border-brand-amber">
-                <tr className="h-[48px]">
+                <tr className="h-[48px] group">
                   {columns.map((col, i) => (
                     <td
                       key={col.key}
@@ -408,13 +406,11 @@ export default function InventoryPage() {
                         px-4 py-2 bg-zinc-900 border-zinc-800
                         ${i === 0 ? 'sticky left-0 z-40 border-r border-zinc-800 shadow-[2px_0_10px_rgba(0,0,0,0.3)]' : ''}
                       `}
-                    >
-                      <span className={`text-[13px] font-black uppercase truncate block ${
+                    ><span className={`text-[13px] font-black uppercase truncate block ${
                         i === 0 ? 'text-brand-amber' : 'text-white'
                       }`}>
                         {i === 0 ? 'TOTALS' : (totals[col.key] != null ? renderCell(col.key, totals[col.key]) : '')}
-                      </span>
-                    </td>
+                      </span></td>
                   ))}
                 </tr>
               </tfoot>
@@ -431,7 +427,7 @@ export default function InventoryPage() {
               <p className="text-[12px] font-bold uppercase text-emerald-600">ENGINE ACTIVE</p>
             </div>
           </div>
-          <p className="text-[12px] font-bold uppercase text-zinc-400 tracking-widest leading-none opacity-60">S2C ENTERPRISE LOGISTICS OS</p>
+          <p className="text-[12px] font-bold uppercase text-zinc-400 tracking-widest leading-none opacity-60">Saddl Inventory</p>
         </div>
       </div>
 

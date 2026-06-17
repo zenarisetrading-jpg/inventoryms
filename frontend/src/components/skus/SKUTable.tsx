@@ -46,7 +46,7 @@ export function SKUTable({
     <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
       <table className="w-fit min-w-full border-collapse">
         <thead className="sticky top-0 z-30 bg-card">
-          <tr className="bg-white/5">
+          <tr className="bg-white/5 group">
             {columns.map((col, i) => (
               <th
                 key={col}
@@ -104,8 +104,7 @@ export function SKUTable({
                     px-4 py-2 border-white/5 h-[48px] whitespace-nowrap
                     ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
                   `}
-                >
-                  {col === 'is_active' || col === 'amazon_active' || col === 'noon_active' ? (
+                ><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{col === 'is_active' || col === 'amazon_active' || col === 'noon_active' ? (
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                       {renderStatusToggle(row, col)}
                       <span className={`text-[10px] font-black uppercase ${row[col] ? 'text-emerald-600' : 'text-zinc-400'}`}>
@@ -191,8 +190,7 @@ export function SKUTable({
                         {row[col] === null || row[col] === undefined ? '-' : String(row[col])}
                       </span>
                     </div>
-                  )}
-                </td>
+                  )}</span></td>
               ))}
             </tr>
           ))}

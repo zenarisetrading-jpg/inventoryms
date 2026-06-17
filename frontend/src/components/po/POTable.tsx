@@ -26,11 +26,9 @@ interface POTableProps {
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <tr>
+    <tr className="group hover:bg-white/10 transition-colors">
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-2.5">
-          <div className="animate-pulse h-3 bg-zinc-100/10 rounded w-full" />
-        </td>
+        <td key={i} className="px-4 py-2.5"><div className="animate-pulse h-3 bg-zinc-100/10 rounded w-full" /></td>
       ))}
     </tr>
   )
@@ -46,7 +44,7 @@ export function POTable({
       <div className="max-h-[600px] overflow-y-auto overflow-x-auto w-full custom-scrollbar">
         <table className="w-full table-fixed text-sm min-w-[1000px]">
           <thead className="bg-[#111827] sticky top-0 z-10 border-b border-white/10">
-            <tr className="bg-[#111827]">
+            <tr className="bg-[#111827] group">
               <th className="sticky top-0 bg-[#111827] z-10 w-[3%] text-center px-4 py-3 border-b border-white/10">
                 <input
                   type="checkbox"
@@ -120,10 +118,8 @@ export function POTable({
             {loading ? (
               <><SkeletonRow cols={11} /><SkeletonRow cols={11} /><SkeletonRow cols={11} /></>
             ) : paginatedPOs.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="px-4 py-8 text-sm text-white text-center">
-                  {search ? 'No purchase orders match your search' : 'No purchase orders found'}
-                </td>
+              <tr className="group hover:bg-white/10 transition-colors">
+                <td colSpan={11} className="px-4 py-8 text-sm text-white text-center"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{search ? 'No purchase orders match your search' : 'No purchase orders found'}</span></td>
               </tr>
             ) : (
               paginatedPOs.map(po => {
@@ -133,7 +129,7 @@ export function POTable({
                 return (
                   <Fragment key={po.id}>
                     <tr
-                      className="hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5"
+                      className="hover:bg-white/5 transition-colors cursor-pointer border-b border-white/5 group"
                       onClick={() => setExpandedId(isExpanded ? null : po.id)}
                     >
                       <td className="px-4 py-4 text-center" onClick={e => e.stopPropagation()}>
@@ -154,11 +150,8 @@ export function POTable({
                           }}
                         />
                       </td>
-                      <td className="px-3 py-2.5 text-center text-zinc-500 text-xs">
-                        {isExpanded ? '▼' : '▶'}
-                      </td>
-                      <td className="px-4 py-4 font-data text-sm font-semibold text-white">
-                        {po.po_number}
+                      <td className="px-3 py-2.5 text-center text-zinc-500 text-xs"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{isExpanded ? '▼' : '▶'}</span></td>
+                      <td className="px-4 py-4 font-data text-sm font-semibold text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{po.po_number}
                         <InlineEdit 
                           value={po.po_name} 
                           placeholder="+ Add po_name"
@@ -168,11 +161,9 @@ export function POTable({
                             await api.updatePO(po.id, { po_name: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, po_name: val } : p))
                           }}
-                        />
-                      </td>
-                      <td className="px-4 py-4 text-sm text-white">{po.supplier}</td>
-                      <td className="px-4 py-4 text-left font-data text-xs font-black text-white/70 uppercase tracking-widest">
-                        <InlineEdit 
+                        /></span></td>
+                      <td className="px-4 py-4 text-sm text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{po.supplier}</span></td>
+                      <td className="px-4 py-4 text-left font-data text-xs font-black text-white/70 uppercase tracking-widest"><InlineEdit 
                           value={po.country || 'UAE'} 
                           placeholder="UAE"
                           inputClassName="w-16 text-xs uppercase"
@@ -181,14 +172,10 @@ export function POTable({
                             await api.updatePO(po.id, { country: newCountry }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, country: newCountry } : p))
                           }}
-                        />
-                      </td>
-                      <td className="px-4 py-4 text-right font-data text-sm text-white">{po.line_items.length}</td>
-                      <td className="px-4 py-4 text-right font-data text-sm font-semibold text-white">
-                        {totalUnits.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-4 font-data text-xs text-white">
-                        <InlineEdit 
+                        /></td>
+                      <td className="px-4 py-4 text-right font-data text-sm text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{po.line_items.length}</span></td>
+                      <td className="px-4 py-4 text-right font-data text-sm font-semibold text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{totalUnits.toLocaleString()}</span></td>
+                      <td className="px-4 py-4 font-data text-xs text-white"><InlineEdit 
                           type="date"
                           value={po.order_date} 
                           displayValue={formatDate(po.order_date)}
@@ -198,10 +185,8 @@ export function POTable({
                             await api.updatePO(po.id, { order_date: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, order_date: val } : p))
                           }}
-                        />
-                      </td>
-                      <td className="px-4 py-4 font-data text-xs text-white">
-                        <InlineEdit 
+                        /></td>
+                      <td className="px-4 py-4 font-data text-xs text-white"><InlineEdit 
                           type="date"
                           value={po.eta} 
                           displayValue={formatDate(po.eta)}
@@ -211,8 +196,7 @@ export function POTable({
                             await api.updatePO(po.id, { eta: val }, po.po_number)
                             setPOs(prev => prev.map(p => p.id === po.id ? { ...p, eta: val } : p))
                           }}
-                        />
-                      </td>
+                        /></td>
                       <td className="px-4 py-4"><StatusBadge status={po.status} /></td>
                       <td className="pl-4 pr-8 py-4 text-right" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
@@ -261,13 +245,12 @@ export function POTable({
 
                     {/* Expanded row */}
                     {isExpanded && (
-                      <tr key={`${po.id}-expanded`} className="bg-white/5 border-b border-white/5">
-                        <td colSpan={2} />
-                        <td colSpan={8} className="px-8 py-6">
+                      <tr className="group hover:bg-white/10 transition-colors bg-white/5 border-b border-white/5" key={`${po.id}-expanded`}>
+                        <td colSpan={2} /><td colSpan={8} className="px-8 py-6">
                           <div className="text-[10px] font-black text-white uppercase tracking-widest mb-4">Line Items Breakdown</div>
                           <table className="w-full text-left border-collapse">
                             <thead>
-                              <tr className="border-b border-white/5">
+                              <tr className="border-b border-white/5 group">
                                 <th className="py-3 pr-4 text-[10px] font-black text-white uppercase tracking-widest w-[20%]">SKU</th>
                                 <th className="py-3 pr-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Ordered</th>
                                 <th className="py-3 pr-4 text-right text-[10px] font-black text-white uppercase tracking-widest">Received</th>
@@ -307,7 +290,7 @@ export function POTable({
                                       const bc = li.box_count || (upb > 0 && li.units_ordered > 0 ? Math.ceil(li.units_ordered / upb) : 0)
 
                                       return (
-                                        <tr key={i} className="group/item">
+                                        <tr className="group hover:bg-white/10 transition-colors group/item" key={i}>
                                           <td className="py-2 pr-4 text-sm text-white">
                                             <InlineEdit 
                                               value={li.sku} 
@@ -335,10 +318,8 @@ export function POTable({
                                                 }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={li.units_ordered} 
                                               className="justify-end"
@@ -370,10 +351,8 @@ export function POTable({
                                                 }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={li.units_received} 
                                               className="justify-end"
@@ -384,10 +363,8 @@ export function POTable({
                                                 newItems[i] = { ...li, units_received: num }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={upb || ''} 
                                               className="justify-end"
@@ -418,10 +395,8 @@ export function POTable({
                                                 }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={bc || ''} 
                                               className="justify-end"
@@ -438,10 +413,8 @@ export function POTable({
                                                 newItems[i] = { ...li, box_count: num, units_ordered: uo }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-left font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-left font-data text-sm text-white"><InlineEdit 
                                               value={dims || ''} 
                                               inputClassName="w-32 text-sm text-white"
                                               onSave={async (val) => {
@@ -449,10 +422,8 @@ export function POTable({
                                                 newItems[i] = { ...li, dimensions: val }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={cogs || ''} 
                                               className="justify-end"
@@ -463,10 +434,8 @@ export function POTable({
                                                 newItems[i] = { ...li, cogs_per_unit: num }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 pr-4 text-right font-data text-sm text-white">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={li.shipping_cost_per_unit} 
                                               className="justify-end"
@@ -477,10 +446,8 @@ export function POTable({
                                                 newItems[i] = { ...li, shipping_cost_per_unit: num }
                                                 await saveItems(newItems)
                                               }}
-                                            />
-                                          </td>
-                                          <td className="py-2 text-left font-data text-sm text-white relative">
-                                            <InlineEdit 
+                                            /></td>
+                                          <td className="py-2 text-left font-data text-sm text-white relative"><InlineEdit 
                                               value={li.notes} 
                                               inputClassName="w-48 text-sm text-white"
                                               onSave={async (val) => {
@@ -499,14 +466,12 @@ export function POTable({
                                               className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-red-500 hover:bg-white/5 rounded transition-colors"
                                             >
                                               <Trash2 className="h-3 w-3" />
-                                            </button>
-                                          </td>
+                                            </button></td>
                                         </tr>
                                       )
                                     })}
-                                    <tr className="border-t border-zinc-100/10">
-                                      <td colSpan={9} className="py-3">
-                                        <button
+                                    <tr className="border-t border-zinc-100/10 group">
+                                      <td colSpan={9} className="py-3"><button
                                           onClick={() => {
                                             const newItem = { sku: '', units_ordered: 1, units_received: 0, units_per_box: 0, box_count: 0, dimensions: '', cogs_per_unit: 0, shipping_cost_per_unit: 0, notes: '' }
                                             const newItems = [...po.line_items, newItem]
@@ -516,8 +481,7 @@ export function POTable({
                                         >
                                           <Plus className="h-3 w-3" />
                                           Add New Item
-                                        </button>
-                                      </td>
+                                        </button></td>
                                     </tr>
                                   </>
                                 )

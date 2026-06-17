@@ -215,7 +215,7 @@ export default function HealthPage() {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-white/5">
+            <tr className="border-b border-white/5 group">
               <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Source Entity</th>
               <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Integration</th>
               <th className="text-left px-5 py-3 text-[10px] font-black text-zinc-500 uppercase tracking-widest">Last Payload</th>
@@ -227,57 +227,41 @@ export default function HealthPage() {
           <tbody className="divide-y divide-white/5">
             {loading ? (
               [...Array(4)].map((_, i) => (
-                <tr key={i}>
+                <tr className="group hover:bg-white/10 transition-colors" key={i}>
                   {[...Array(6)].map((_, j) => (
-                    <td key={j} className="px-5 py-4">
-                      <div className="animate-pulse h-3 bg-zinc-50 rounded w-full" />
-                    </td>
+                    <td key={j} className="px-5 py-4"><div className="animate-pulse h-3 bg-zinc-50 rounded w-full" /></td>
                   ))}
                 </tr>
               ))
             ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-10 text-sm text-zinc-400 text-center font-medium">
-                  Initializing health monitors...
-                </td>
+              <tr className="group hover:bg-white/10 transition-colors">
+                <td colSpan={6} className="px-5 py-10 text-sm text-zinc-400 text-center font-medium"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Initializing health monitors...</span></td>
               </tr>
             ) : (
               rows.map(row => (
-                <tr key={row.source} className="hover:bg-white/5 transition-colors group">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
+                <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5" key={row.source}>
+                  <td className="px-5 py-4"><div className="flex items-center gap-3">
                       <div className={`w-2 h-2 rounded-full ${
                         row.status === 'ok' || row.status === 'fresh' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
                         row.status === 'warning' || row.status === 'stale' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]' :
                         'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
                       }`} />
                       <span className="font-black text-white uppercase tracking-tight">{row.source}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-1 rounded">
+                    </div></td>
+                  <td className="px-5 py-4"><span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest bg-white/5 px-2 py-1 rounded inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">
                       {row.type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4 font-data text-xs text-zinc-400">
-                    {row.lastUpdated ? formatRelativeTime(row.lastUpdated) : (
+                    </span></td>
+                  <td className="px-5 py-4 font-data text-xs text-zinc-400"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.lastUpdated ? formatRelativeTime(row.lastUpdated) : (
                       <span className="text-zinc-600 italic">No data</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <StatusLabel status={row.status} />
-                  </td>
-                  <td className="px-5 py-4 text-xs text-zinc-500 font-medium">
-                    {row.detail ?? '—'}
-                  </td>
-                  <td className="px-5 py-4 text-right">
-                    <button
+                    )}</span></td>
+                  <td className="px-5 py-4"><StatusLabel status={row.status} /></td>
+                  <td className="px-5 py-4 text-xs text-zinc-500 font-medium"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.detail ?? '—'}</span></td>
+                  <td className="px-5 py-4 text-right"><button
                       onClick={() => navigate(row.action.path)}
                       className="text-[10px] font-black uppercase tracking-widest text-brand-blue hover:text-brand-blue/80 opacity-0 group-hover:opacity-100 transition-all underline underline-offset-4"
                     >
                       {row.action.label}
-                    </button>
-                  </td>
+                    </button></td>
                 </tr>
               ))
             )}

@@ -109,7 +109,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
         <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-fit min-w-full text-sm border-separate border-spacing-0">
             <thead className="bg-[#111827] sticky top-0 z-30 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.5)]">
-              <tr>
+              <tr className="group hover:bg-white/10 transition-colors">
                 <HeaderCell>SKU</HeaderCell>
                 <HeaderCell>Product Name</HeaderCell>
                 {type === 'alerts' && (
@@ -176,9 +176,8 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
             </thead>
             <tbody className="divide-y divide-white/5">
               {safeData.map((item, i) => (
-                <tr key={i} className="group hover:bg-white/5 transition-all duration-150">
-                  <td className="py-3 px-2">
-                    <button
+                <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5 transition-all duration-150" key={i}>
+                  <td className="py-3 px-2"><button
                       onClick={() => {
                         navigate('/sku/' + item.sku)
                         onClose()
@@ -186,174 +185,99 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-1 rounded border whitespace-nowrap font-data text-[11px] font-black"
                     >
                       {item.sku}
-                    </button>
-                  </td>
-                  <td className="py-3 px-2">
-                    <p className="text-[11px] font-semibold text-white truncate max-w-[280px]">
+                    </button></td>
+                  <td className="py-3 px-2"><p className="text-[11px] font-semibold text-white truncate max-w-[280px]">
                       {item.name}
-                    </p>
-                  </td>
+                    </p></td>
 
                   {type === 'alerts' && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {formatCov(item.coverage_amazon)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {formatCov(item.coverage_noon)}
-                      </td>
-                      <td className="py-3 px-2">
-                         <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter ${
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_amazon)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_noon)}</span></td>
+                      <td className="py-3 px-2"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter ${
                            item.action_flag === 'CRITICAL_OOS_RISK' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                          }`}>
                            {item.action_flag?.replace(/_/g, ' ')}
-                         </span>
-                      </td>
+                         </span></td>
                     </>
                   )}
 
                   {type === 'ship_now' && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.amazon_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.noon_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.minutes_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.total_units_to_ship || item.units_to_ship}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.send_to_fba_units ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.send_to_fbn_units ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.send_to_minutes_units ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.suggested_boxes_amazon ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.suggested_boxes_noon ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.suggested_boxes_minutes ?? 0}
-                      </td>
-                      <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase">
-                        {item.allocation_logic}
-                      </td>
-                      <td className="py-3 px-2">
-                        <ActionDropdown 
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.amazon_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.noon_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.minutes_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.total_units_to_ship || item.units_to_ship}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.send_to_fba_units ?? 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.send_to_fbn_units ?? 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.send_to_minutes_units ?? 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_boxes_amazon ?? 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_boxes_noon ?? 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_boxes_minutes ?? 0}</span></td>
+                      <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.allocation_logic}</span></td>
+                      <td className="py-3 px-2"><ActionDropdown 
                           currentStatus={rowStatuses[`${item.sku}-${i}`] || 'shipped'} 
                           onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
-                        />
-                      </td>
+                        /></td>
                     </>
                   )}
 
                   {type === 'reorder_now' && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.blended_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.suggested_units}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.moq || '—'}
-                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.blended_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_units}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.moq || '—'}</span></td>
                     </>
                   )}
                   
                   {type === 'inbound' && (
                     <>
-                      <td className="py-3 px-2">
-                         <div className="flex flex-col">
+                      <td className="py-3 px-2"><div className="flex flex-col">
                             <span className="text-[10px] font-black text-primary uppercase">{item.po_number}</span>
                             <span className="text-[9px] text-muted font-bold">{item.supplier}</span>
-                         </div>
-                      </td>
-                      <td className="py-3 px-2">
-                         <span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-tighter">
+                         </div></td>
+                      <td className="py-3 px-2"><span className="inline-block px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-tighter inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">
                             {item.status}
-                         </span>
-                      </td>
-                      <td className="py-3 px-2">
-                        <ActionDropdown 
+                         </span></td>
+                      <td className="py-3 px-2"><ActionDropdown 
                           currentStatus={rowStatuses[`${item.sku}-${i}`] || item.status || 'shipped'} 
                           onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
-                        />
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.total_units}
-                      </td>
-                      <td className="py-3 px-2 text-[10px] text-white font-bold">
-                        {item.eta ? new Date(item.eta).toLocaleDateString() : '—'}
-                      </td>
+                        /></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.total_units}</span></td>
+                      <td className="py-3 px-2 text-[10px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.eta ? new Date(item.eta).toLocaleDateString() : '—'}</span></td>
                     </>
                   )}
 
                   {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_total') && (
                     <>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.blended_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {type === 'oos_amazon' ? (item.fba_units || 0) : 
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.blended_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{type === 'oos_amazon' ? (item.fba_units || 0) : 
                          type === 'oos_noon' ? ((item.fbn_units || 0) + (item.minutes_units || 0)) : 
-                         ((item.fba_units || 0) + (item.fbn_units || 0) + (item.minutes_units || 0))}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {formatCov(item.coverage_amazon)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {formatCov(item.coverage_noon)}
-                      </td>
-                      <td className="py-3 px-2">
-                         <span className="inline-block px-2 py-0.5 rounded bg-red-100 text-red-600 text-[9px] font-black uppercase tracking-tighter">
+                         ((item.fba_units || 0) + (item.fbn_units || 0) + (item.minutes_units || 0))}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_amazon)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_noon)}</span></td>
+                      <td className="py-3 px-2"><span className="inline-block px-2 py-0.5 rounded bg-red-100 text-red-600 text-[9px] font-black uppercase tracking-tighter inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">
                            OUT OF STOCK
-                         </span>
-                      </td>
+                         </span></td>
                     </>
                   )}
 
                   {type === 'oos_fleet_risk' && (
                     <>
-                      <td className="py-3 px-2">
-                        <span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                      <td className="py-3 px-2"><span className={`text-[10px] font-black uppercase px-1.5 py-0.5 rounded border ${
                           item.category === 'A' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
                           item.category === 'B' ? 'bg-blue-50 text-blue-700 border-blue-200' : 
                           'bg-zinc-50 text-zinc-600 border-zinc-200'
                         }`}>
                           Tier {item.category || 'C'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 text-[10px] font-bold text-muted uppercase truncate max-w-[100px]">
-                        {item.product_category || '—'}
-                      </td>
-                      <td className="py-3 px-2 text-[10px] font-bold text-muted uppercase truncate max-w-[100px]">
-                        {item.sub_category || '—'}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.blended_sv || 0).toFixed(2)}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.suggested_units?.toLocaleString() || 0}
-                      </td>
-                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.total_cost_aed || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </td>
+                        </span></td>
+                      <td className="py-3 px-2 text-[10px] font-bold text-muted uppercase truncate max-w-[100px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.product_category || '—'}</span></td>
+                      <td className="py-3 px-2 text-[10px] font-bold text-muted uppercase truncate max-w-[100px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.sub_category || '—'}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.blended_sv || 0).toFixed(2)}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_units?.toLocaleString() || 0}</span></td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.total_cost_aed || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></td>
                     </>
                   )}
                 </tr>
@@ -361,58 +285,30 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
             </tbody>
             {type === 'ship_now' && (
               <tfoot className="bg-slate-50 sticky bottom-0 z-30 shadow-[0_-2px_10px_-3px_rgba(0,0,0,0.07)] border-t-2 border-slate-200">
-                <tr className="font-bold text-white bg-[#111827]">
-                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}>Totals</td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.amazon_sv) || 0), 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.noon_sv) || 0), 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.minutes_sv) || 0), 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_fba_units) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_fbn_units) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_minutes_units) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_amazon) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_noon) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_minutes) || 0), 0).toLocaleString()}
-                  </td>
+                <tr className="font-bold text-white bg-[#111827] group">
+                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Totals</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.amazon_sv) || 0), 0).toFixed(2)}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.noon_sv) || 0), 0).toFixed(2)}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.minutes_sv) || 0), 0).toFixed(2)}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.send_to_fba_units) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.send_to_fbn_units) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.send_to_minutes_units) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_amazon) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_noon) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_minutes) || 0), 0).toLocaleString()}</span></td>
                   <td colSpan={2}></td>
                 </tr>
               </tfoot>
             )}
             {type === 'reorder_now' && (
               <tfoot className="bg-slate-50 sticky bottom-0 z-20 border-t-2 border-slate-200">
-                <tr className="font-bold text-white bg-[#111827]">
-                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}>Totals</td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.blended_sv) || 0), 0).toFixed(2)}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_units) || 0), 0).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
+                <tr className="font-bold text-white bg-[#111827] group">
+                  <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Totals</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.blended_sv) || 0), 0).toFixed(2)}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.suggested_units) || 0), 0).toLocaleString()}</span></td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{safeData.reduce((sum, item) => sum + (Number(item.total_cost_aed || (item.suggested_units * (item.cogs || 0))) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></td>
                   <td colSpan={1}></td>
                 </tr>
               </tfoot>
@@ -422,7 +318,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
 
         {/* Footer */}
         <div className="px-6 py-4 bg-white/5 border-t border-white/5 text-[10px] text-zinc-500 font-black uppercase tracking-widest flex justify-between">
-          <span>S2C Dynamics - Inventory OS</span>
+          <span>Saddl Inventory</span>
           <span>Security Protocol Active</span>
         </div>
       </div>

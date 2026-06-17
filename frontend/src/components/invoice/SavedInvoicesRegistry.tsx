@@ -53,7 +53,7 @@ export function SavedInvoicesRegistry({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-white/10 text-zinc-400 font-bold uppercase tracking-wider text-[10px]">
+              <tr className="border-b border-white/10 text-zinc-400 font-bold uppercase tracking-wider text-[10px] group">
                 <th className="py-3 px-4 font-black">Invoice No</th>
                 <th className="py-3 px-4 font-black">Date</th>
                 <th className="py-3 px-4 font-black">Client (Bill To)</th>
@@ -72,18 +72,12 @@ export function SavedInvoicesRegistry({
                       isCurrent ? 'bg-blue-500/[0.03] border-l-2 border-l-brand-blue' : ''
                     }`}
                   >
-                    <td className="py-3.5 px-4 font-mono font-bold text-white group-hover:text-brand-blue transition-colors flex items-center gap-2">
-                      {isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse shrink-0" />}
-                      {inv.invoice_no || '-'}
-                    </td>
-                    <td className="py-3.5 px-4 text-zinc-300 font-medium font-mono">{inv.invoice_date || '-'}</td>
-                    <td className="py-3.5 px-4 text-zinc-300">
-                      <div className="font-semibold truncate max-w-[280px]">{inv.buyer_name || '-'}</div>
-                      <div className="text-[10px] text-zinc-500 font-mono truncate max-w-[280px]">{inv.buyer_email || '-'}</div>
-                    </td>
-                    <td className="py-3.5 px-4 text-right font-mono font-bold text-white">
-                      {(inv.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED
-                    </td>
+                    <td className="py-3.5 px-4 font-mono font-bold text-white group-hover:text-brand-blue transition-colors flex items-center gap-2"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse shrink-0" />}
+                      {inv.invoice_no || '-'}</span></td>
+                    <td className="py-3.5 px-4 text-zinc-300 font-medium font-mono"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{inv.invoice_date || '-'}</span></td>
+                    <td className="py-3.5 px-4 text-zinc-300"><div className="font-semibold truncate max-w-[280px]">{inv.buyer_name || '-'}</div>
+                      <div className="text-[10px] text-zinc-500 font-mono truncate max-w-[280px]">{inv.buyer_email || '-'}</div></td>
+                    <td className="py-3.5 px-4 text-right font-mono font-bold text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{(inv.total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED</span></td>
                     <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-2">
                         <button

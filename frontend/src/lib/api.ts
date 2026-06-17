@@ -71,8 +71,8 @@ function buildQuery(params: Record<string, string | undefined>): string {
 }
 
 export const api = {
-  getLocations: async (): Promise<{ country: string, saddl_account_id: string, display_name: string }[]> => {
-    const { data, error } = await supabase.from('amazon_locations').select('country, saddl_account_id, display_name').eq('is_active', true)
+  getLocations: async (): Promise<{ country: string, saddl_account_id: string, display_name: string, is_active?: boolean }[]> => {
+    const { data, error } = await supabase.from('amazon_locations').select('country, saddl_account_id, display_name, is_active').order('country')
     if (error) {
       console.error(error)
       return []
@@ -95,11 +95,12 @@ export const api = {
     return { success: true }
   },
 
-  updateLocation: async (oldAccountId: string, newDisplayName: string, newAccountId: string): Promise<{ success: boolean; error?: string }> => {
+  updateLocation: async (oldAccountId: string, newDisplayName: string, newAccountId: string, isActive: boolean): Promise<{ success: boolean; error?: string }> => {
     const { error } = await supabase.from('amazon_locations').update({
       saddl_account_id: newAccountId,
       saddl_client_id: newAccountId,
-      display_name: newDisplayName
+      display_name: newDisplayName,
+      is_active: isActive
     }).eq('saddl_account_id', oldAccountId)
     if (error) {
       console.error(error)

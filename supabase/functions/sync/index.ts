@@ -65,7 +65,7 @@ serve(async (req: Request) => {
         const conn = await pool.connect();
         const { rows } = await conn.queryObject(`SELECT * FROM sc_raw.sales_traffic LIMIT 1`);
         conn.release();
-        return new Response(JSON.stringify(rows, null, 2), { headers: { 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify(rows, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2), { headers: { 'Content-Type': 'application/json' } });
       }
     }
 
@@ -127,16 +127,19 @@ async function handleSync(
     locations = locations.filter(l => l.country === countryParam)
   }
 
-  // ---- Amazon (Saddl) — sync all active locations ----
   if (source === 'amazon' || source === 'all') {
-    for (const loc of locations) {
+    await Promise.all(locations.map(async (loc) => {
       try {
         console.log(`[sync] Syncing Amazon for ${loc.country} (account=${loc.saddl_account_id}, client=${loc.saddl_client_id})`)
 
-        const [inventory, sales] = await Promise.all([
-          fetchAmazonInventory(loc.saddl_client_id),
-          fetchAmazonSales(days, loc.saddl_account_id),
-        ])
+        const inventory = await fetchAmazonInventory(loc.saddl_client_id).catch(err => {
+          errors.push(`[${loc.country}] fetch inventory err: ${err.message}`);
+          return [];
+        });
+        const sales = await fetchAmazonSales(days, loc.saddl_account_id).catch(err => {
+          errors.push(`[${loc.country}] fetch sales err: ${err.message}`);
+          return [];
+        });
 
       // Build asin → sku mapping from sku_master (filtered by saddl_id to ensure exact account matching)
       const { data: skuMasterRows, error: smErr } = await supabase
@@ -217,28 +220,23 @@ async function handleSync(
           country: loc.country,
           units_ordered: s.units_sold,
           ordered_revenue: s.revenue,
-          saddl_id: loc.saddl_account_id,
-          marketplace_id: s.marketplace_id,
-          parent_asin: s.parent_asin,
-          ordered_revenue_currency: s.ordered_revenue_currency,
-          total_order_items: s.total_order_items,
-          page_views: s.page_views,
-          sessions: s.sessions,
-          buy_box_percentage: s.buy_box_percentage,
-          unit_session_percentage: s.unit_session_percentage
+          saddl_id: loc.saddl_account_id
         }))
 
         if (rawSalesRows.length > 0) {
           const { error: rawErr } = await supabase
             .from('amazon_sales')
             .upsert(rawSalesRows, { onConflict: 'report_date,child_asin,country,saddl_id' })
-          if (rawErr) console.error('[sync] amazon_sales upsert error:', rawErr)
+          if (rawErr) {
+            console.error('[sync] amazon_sales upsert error:', rawErr)
+            errors.push(`[${loc.country}] amazon_sales upsert: ${rawErr.message}`)
+          }
         }
       }
       } catch (err) {
         errors.push(`[${loc.country}] Amazon sync error: ${(err as Error).message}`)
       }
-    } // end for-each location
+    }));
   }
 
   // ---- Locad REST API ----

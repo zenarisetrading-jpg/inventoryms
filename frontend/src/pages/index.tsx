@@ -91,7 +91,7 @@ function KPITile({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.05em] mb-1 truncate">{label}</p>
+          <p className="text-[12px] lg:text-[12px] font-black text-white uppercase tracking-[0.05em] mb-1 truncate">{label}</p>
           <p className="text-xl lg:text-2xl font-black font-data text-white tracking-tight leading-none">
             {value}
           </p>
@@ -100,7 +100,7 @@ function KPITile({
           <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-white" />
         </div>
       </div>
-      {sub && <p className="text-[9px] lg:text-[10px] font-bold text-white mt-1.5 lg:mt-2 flex items-center gap-1 leading-tight">
+      {sub && <p className="text-[12px] lg:text-[12px] font-bold text-white mt-1.5 lg:mt-2 flex items-center gap-1 leading-tight">
         <span className="w-1 h-1 rounded-full bg-white shrink-0" />
         <span className="truncate">{sub}</span>
       </p>}
@@ -135,11 +135,11 @@ function InventoryHealthBar({ data }: { data: CommandCenterResponse | null }) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-black text-zinc-500 uppercase tracking-[0.1em] flex items-center gap-2">
+        <h3 className="text-[13px] font-black text-zinc-500 uppercase tracking-[0.1em] flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-zinc-400" />
           Fleet Health Snapshot
         </h3>
-        <span className="text-[10px] font-black text-white bg-white/5 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10 shadow-sm">
+        <span className="text-[12px] font-black text-white bg-white/5 px-3 py-1 rounded-full uppercase tracking-widest border border-white/10 shadow-sm">
           {total} Active Signals
         </span>
       </div>
@@ -157,7 +157,7 @@ function InventoryHealthBar({ data }: { data: CommandCenterResponse | null }) {
         {segments.map(seg => (
           <div key={seg.label} className="flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-sm ${seg.color} shadow-sm`} />
-            <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{seg.label} <span className="text-primary ml-1">{seg.count}</span></span>
+            <span className="text-[12px] font-bold text-muted uppercase tracking-wider">{seg.label} <span className="text-primary ml-1">{seg.count}</span></span>
           </div>
         ))}
       </div>
@@ -206,12 +206,12 @@ function SectionCard({
           </div>
           <div>
             <span className="text-xs font-black text-primary uppercase tracking-widest leading-none block">{title}</span>
-            {subtitle && <p className="text-[10px] text-muted font-bold mt-1 uppercase tracking-widest opacity-70">{subtitle}</p>}
+            {subtitle && <p className="text-[12px] text-muted font-bold mt-1 uppercase tracking-widest opacity-70">{subtitle}</p>}
           </div>
         </div>
         <div className="flex items-center gap-3">
           {extra}
-          <span className="text-[11px] font-black text-white bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
+          <span className="text-[13px] font-black text-white bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg shrink-0 shadow-sm">
             {count}
           </span>
         </div>
@@ -244,11 +244,9 @@ function SectionCard({
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <tr>
+    <tr className="group hover:bg-white/10 transition-colors">
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="animate-pulse h-3 bg-slate-100 rounded-lg w-full" />
-        </td>
+        <td key={i} className="px-4 py-3"><div className="animate-pulse h-3 bg-slate-100 rounded-lg w-full" /></td>
       ))}
     </tr>
   )
@@ -256,13 +254,11 @@ function SkeletonRow({ cols }: { cols: number }) {
 
 function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; message?: string }) {
   return (
-    <tr>
-      <td colSpan={cols} className="px-4 py-8 text-[11px] font-bold text-zinc-500 text-center uppercase tracking-widest bg-white/5">
-        <div className="flex flex-col items-center gap-2">
+    <tr className="group hover:bg-white/10 transition-colors">
+      <td colSpan={cols} className="px-4 py-8 text-[13px] font-bold text-zinc-500 text-center uppercase tracking-widest bg-white/5"><div className="flex flex-col items-center gap-2">
           <ShieldAlert className="w-8 h-8 opacity-20" />
           {message}
-        </div>
-      </td>
+        </div></td>
     </tr>
   )
 }
@@ -270,7 +266,7 @@ function EmptyRow({ cols, message = 'No signals detected' }: { cols: number; mes
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return (
     <th
-      className="px-4 py-3 text-[10px] font-black text-white uppercase tracking-[0.1em] text-center"
+      className="px-4 py-3 text-[12px] font-black text-white uppercase tracking-[0.1em] text-center"
     >
       {children}
     </th>
@@ -281,7 +277,7 @@ function SKULink({ sku }: { sku: string }) {
   return (
     <button
       onClick={() => navigate('/sku/' + sku)}
-      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-0.5 rounded border group-hover:text-white group-hover:font-bold group-hover:bg-brand-blue/30"
+      className="bg-brand-blue/10 border-brand-blue/20 text-brand-blue hover:text-white transition-colors px-2 py-0.5 rounded border group-hover:text-white group-hover:bg-brand-blue/30"
     >
       {sku}
     </button>
@@ -297,7 +293,7 @@ function ActionTag({ action }: { action: 'SHIP' | 'REORDER' | 'TRANSFER' | 'EXCE
     HOLD: 'bg-emerald-50 text-emerald-600 border-emerald-200',
   }[action]
   return (
-    <span className={`inline-block px-2.5 py-1 rounded-md text-[9px] font-black border uppercase tracking-widest ${cfg}`}>
+    <span className={`inline-block px-2.5 py-1 rounded-md text-[12px] font-black border uppercase tracking-widest ${cfg}`}>
       {action}
     </span>
   )
@@ -307,6 +303,7 @@ export default function CommandCenter() {
   const [data, setData] = useState<CommandCenterResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [syncStep, setSyncStep] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [approvedPlans, setApprovedPlans] = useState<Set<string>>(new Set())
@@ -346,11 +343,27 @@ export default function CommandCenter() {
   const handleSyncAll = async () => {
     setSyncing(true)
     setSyncError(null)
-    const res = await api.triggerSync('all')
-    setSyncing(false)
-    const resAny = res as unknown as { error?: string }
-    if (resAny.error) setSyncError(resAny.error)
-    else load()
+    
+    try {
+      setSyncStep('1/3: Amazon & Locad APIs...')
+      const resSync = await api.triggerSync('all') as any
+      if (resSync.error) throw new Error(`API Sync: ${resSync.error}`)
+
+      setSyncStep('2/3: Remote FDW Sync...')
+      const resFDW = await api.triggerAmazonFDW() as any
+      if (resFDW.error) console.warn('FDW Sync warning:', resFDW.error)
+
+      setSyncStep('3/3: Rebuilding Fact Tables...')
+      const resFact = await api.refreshFactTable() as any
+      if (resFact.error) throw new Error(`Fact Refresh: ${resFact.error}`)
+
+    } catch (err: any) {
+      setSyncError(err.message)
+    } finally {
+      setSyncStep(null)
+      setSyncing(false)
+      load()
+    }
   }
 
   const handleRefreshFact = async () => {
@@ -510,9 +523,9 @@ export default function CommandCenter() {
           </h1>
           <div className="flex items-center gap-2 mt-2">
             <LayoutDashboard className="w-3.5 h-3.5 text-brand-blue" />
-            <span className="text-[9px] lg:text-[10px] font-black text-white uppercase tracking-[0.2em]">Regional Logistics Controller</span>
+            <span className="text-[12px] lg:text-[12px] font-black text-white uppercase tracking-[0.2em]">Regional Logistics Controller</span>
             {data?.last_synced && (
-              <span className="text-[9px] lg:text-[10px] font-bold text-white flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
+              <span className="text-[12px] lg:text-[12px] font-bold text-white flex items-center gap-1 before:content-['·'] before:mr-1 uppercase">
                 Systems Sync: {formatRelativeTime(data.last_synced)}
               </span>
             )}
@@ -520,18 +533,18 @@ export default function CommandCenter() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-col items-start lg:items-end mr-2">
-            <span className="text-[9px] font-black text-white uppercase tracking-widest">Global Status</span>
+            <span className="text-[12px] font-black text-white uppercase tracking-widest">Global Status</span>
             <div className="flex items-center gap-1.5 mt-1">
               <span className="w-2 h-2 rounded-full bg-green-500 shadow-sm shadow-green-200 animate-pulse" />
-              <span className="text-[10px] font-black text-primary uppercase">Amazon API Live</span>
+              <span className="text-[12px] font-black text-primary uppercase">Amazon API Live</span>
             </div>
           </div>
           <button
             onClick={handleSyncAll}
             disabled={syncing || refreshing}
-            className="flex-1 sm:flex-none px-6 py-3 text-[10px] lg:text-[11px] font-black border border-brand-blue/30 bg-brand-blue text-white rounded-2xl hover:shadow-xl hover:shadow-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            className="flex-1 sm:flex-none px-6 py-3 text-[12px] lg:text-[13px] font-black border border-brand-blue/30 bg-brand-blue text-white rounded-2xl hover:shadow-xl hover:shadow-brand-blue/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest flex items-center justify-center gap-2"
           >
-            {syncing ? 'Syncing...' : 'Global Sync'}
+            {syncing ? (syncStep || 'Syncing...') : 'Global Master Sync'}
           </button>
         </div>
       </div>
@@ -546,8 +559,8 @@ export default function CommandCenter() {
                 <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" />
               </div>
               <div>
-                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-1">Protocol Sync Error</h3>
-                <p className="text-[11px] lg:text-[12px] font-black text-white uppercase tracking-wider opacity-90 leading-tight">
+                <h3 className="text-[12px] font-black text-red-500 uppercase tracking-[0.2em] mb-1">Protocol Sync Error</h3>
+                <p className="text-[13px] lg:text-[12px] font-black text-white uppercase tracking-wider opacity-90 leading-tight">
                   {syncError}
                 </p>
               </div>
@@ -568,9 +581,9 @@ export default function CommandCenter() {
           <AlertCircle className="w-6 h-6 text-red-500 shrink-0 mt-1" />
           <div className="flex-1">
             <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">Channel Integration Error</h3>
-            <p className="text-[11px] mt-1 text-red-600/80 font-medium leading-relaxed">System failed to establish handshake with Supabase Edge Functions. {(data as any).error} {(data as any).detail ? `- ${(data as any).detail}` : ''}</p>
+            <p className="text-[13px] mt-1 text-red-600/80 font-medium leading-relaxed">System failed to establish handshake with Supabase Edge Functions. {(data as any).error} {(data as any).detail ? `- ${(data as any).detail}` : ''}</p>
             <div className="flex gap-4 mt-4">
-              <button onClick={load} className="px-4 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
+              <button onClick={load} className="px-4 py-2 bg-red-600 text-white rounded-lg text-[12px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
                 Reconnect
               </button>
             </div>
@@ -682,7 +695,7 @@ export default function CommandCenter() {
               })}
             />
           </div>
-          <div className="flex items-center gap-4 text-[9px] font-black text-white uppercase tracking-[0.2em] px-1">
+          <div className="flex items-center gap-4 text-[12px] font-black text-white uppercase tracking-[0.2em] px-1">
             <span>Snapshot Engine:</span>
             <div className="flex gap-4">
               <span className="flex items-center gap-1.5"><Package className="w-3 h-3" /> Amazon {data.latest_snapshot_amazon ?? '—'}</span>
@@ -726,7 +739,7 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.alerts || [], 'high_priority_stockouts')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[12px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
               <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
@@ -735,7 +748,7 @@ export default function CommandCenter() {
           <>
             <table className="w-full text-sm">
               <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
-                <tr>
+                <tr className="group hover:bg-white/10 transition-colors">
                   <Th>SKU</Th>
                   <Th>Coverage</Th>
                   <Th right>AMZ</Th>
@@ -746,29 +759,19 @@ export default function CommandCenter() {
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={5} /> : (data?.alerts.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
                   data?.alerts.map(a => (
-                    <tr key={a.sku} className="hover:bg-white/10 transition-colors group">
-                      <td className="px-4 py-2.5">
-                        <div className="flex flex-col items-center justify-center">
+                    <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={a.sku}>
+                      <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                           <SKULink sku={a.sku} />
-                          <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white group-hover:font-bold text-center">{a.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <span className="text-[10px] font-black text-white uppercase group-hover:text-white group-hover:font-bold">
+                          <span className="text-[12px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white text-center transition-all duration-200">{a.name}</span>
+                        </div></td>
+                      <td className="px-4 py-2.5 text-center"><span className="text-[12px] font-black text-white uppercase group-hover:text-white transition-all duration-200 inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">
                           {getMarketplace(a.coverage_amazon ?? 99, a.coverage_noon ?? 99)}
-                        </span>
-                      </td>
-                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(a.coverage_amazon)} group-hover:font-bold`}>
-                        {formatCovDays(a.coverage_amazon)}
-                      </td>
-                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(a.coverage_noon)} group-hover:font-bold`}>
-                        {formatCovDays(a.coverage_noon)}
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        <div className="flex justify-center">
+                        </span></td>
+                      <td className={`px-4 py-2.5 text-center font-data text-[13px] ${coverageColor(a.coverage_amazon)} transition-all duration-200`}><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCovDays(a.coverage_amazon)}</span></td>
+                      <td className={`px-4 py-2.5 text-center font-data text-[13px] ${coverageColor(a.coverage_noon)} transition-all duration-200`}><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCovDays(a.coverage_noon)}</span></td>
+                      <td className="px-4 py-2.5 text-center"><div className="flex justify-center">
                           <ActionFlagBadge flag={a.action_flag as ActionFlag} />
-                        </div>
-                      </td>
+                        </div></td>
                     </tr>
                   ))
                 )}
@@ -793,7 +796,7 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.ship_now || [], 'staged_replenishment')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[12px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
               <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
@@ -802,7 +805,7 @@ export default function CommandCenter() {
           <>
             <table className="w-full text-sm">
               <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
-                <tr>
+                <tr className="group hover:bg-white/10 transition-colors">
                   <Th>SKU</Th>
                   <Th right>SV</Th>
                   <Th right>Staged</Th>
@@ -817,30 +820,20 @@ export default function CommandCenter() {
                     const sugAmz = toSafeNumber(row.suggested_boxes_amazon, 0)
                     const sugNoon = toSafeNumber(row.suggested_boxes_noon, 0)
                     return (
-                      <tr key={`${sku}-${idx}`} className="hover:bg-white/10 transition-colors group">
-                        <td className="px-4 py-2.5">
-                          <div className="flex flex-col items-center justify-center">
+                      <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={`${sku}-${idx}`}>
+                        <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                             <SKULink sku={sku} />
-                            <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[150px] group-hover:text-white group-hover:font-bold text-center">{String(row.name)}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
-                          {toSafeNumber(row.blended_sv).toFixed(1)}
-                        </td>
-                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
-                          {toSafeNumber(row.total_units_to_ship)}
-                        </td>
-                        <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
-                          {sugAmz + sugNoon + toSafeNumber(row.suggested_boxes_minutes, 0)}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex justify-center">
+                            <span className="text-[12px] font-medium text-white mt-0.5 truncate max-w-[150px] group-hover:text-white text-center transition-all duration-200">{String(row.name)}</span>
+                          </div></td>
+                        <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{toSafeNumber(row.blended_sv).toFixed(1)}</span></td>
+                        <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{toSafeNumber(row.total_units_to_ship)}</span></td>
+                        <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{sugAmz + sugNoon + toSafeNumber(row.suggested_boxes_minutes, 0)}</span></td>
+                        <td className="px-4 py-2.5"><div className="flex justify-center">
                             <ActionDropdown 
                               currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
                               onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
                             />
-                          </div>
-                        </td>
+                          </div></td>
                       </tr>
                     )
                   })
@@ -848,17 +841,11 @@ export default function CommandCenter() {
               </tbody>
               {shipNowRows.length > 0 && (
                 <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
-                  <tr className="font-bold text-white">
-                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary text-center">Totals</td>
-                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
-                      {shipNowRows.reduce((sum, item) => sum + toSafeNumber(item.blended_sv), 0).toFixed(1)}
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
-                      {totalShipUnits.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-center font-data text-[11px]">
-                      {totalShipBoxes.toLocaleString()}
-                    </td>
+                  <tr className="font-bold text-white group">
+                    <td className="px-4 py-2.5 text-[12px] uppercase tracking-widest text-primary text-center"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Totals</span></td>
+                    <td className="px-4 py-2.5 text-center font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{shipNowRows.reduce((sum, item) => sum + toSafeNumber(item.blended_sv), 0).toFixed(1)}</span></td>
+                    <td className="px-4 py-2.5 text-center font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{totalShipUnits.toLocaleString()}</span></td>
+                    <td className="px-4 py-2.5 text-center font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{totalShipBoxes.toLocaleString()}</span></td>
                     <td className="px-4 py-2.5"></td>
                   </tr>
                 </tfoot>
@@ -883,7 +870,7 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.reorder_now || [], 'procurement_orders')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[12px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
               <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
@@ -892,7 +879,7 @@ export default function CommandCenter() {
           <>
             <table className="w-full text-sm">
               <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
-                <tr>
+                <tr className="group hover:bg-white/10 transition-colors">
                   <Th>SKU</Th>
                   <Th right>Req. Units</Th>
                   <Th right>Cost</Th>
@@ -903,33 +890,23 @@ export default function CommandCenter() {
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
                   data?.reorder_now.map(r => (
-                    <tr key={r.sku} className="hover:bg-white/10 transition-colors group">
+                    <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={r.sku}>
                       <td className="px-4 py-2.5 text-center"><div className="flex justify-center"><SKULink sku={r.sku} /></div></td>
-                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">{r.suggested_units}</td>
-                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
-                        {Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </td>
-                      <td className={`px-4 py-2.5 text-center font-data text-[11px] ${coverageColor(r.projected_coverage)} group-hover:font-bold`}>{formatCovDays(r.projected_coverage)}</td>
-                      <td className="px-4 py-2.5 text-center">
-                        <button onClick={() => navigate('/po')} className="text-[9px] font-black uppercase text-brand-blue hover:underline group-hover:text-white group-hover:font-bold">Draft PO</button>
-                      </td>
+                      <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{r.suggested_units}</span></td>
+                      <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></td>
+                      <td className={`px-4 py-2.5 text-center font-data text-[13px] ${coverageColor(r.projected_coverage)} transition-all duration-200`}><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCovDays(r.projected_coverage)}</span></td>
+                      <td className="px-4 py-2.5 text-center"><button onClick={() => navigate('/po')} className="text-[12px] font-black uppercase text-brand-blue hover:underline group-hover:text-white transition-all duration-200">Draft PO</button></td>
                     </tr>
                   ))
                 )}
               </tbody>
               {(data?.reorder_now.length ?? 0) > 0 && (
                 <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
-                  <tr className="font-bold text-white">
-                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-widest text-primary">Totals</td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
-                      {(data?.reorder_now ?? []).reduce((sum, r) => sum + (r.suggested_units || 0), 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
-                      {(data?.reorder_now ?? []).reduce((sum, r) => sum + (Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </td>
-                    <td className="px-4 py-2.5 text-right font-data text-[11px]">
-                      {((data?.reorder_now ?? []).reduce((sum, r) => sum + (r.projected_coverage || 0), 0) / (data?.reorder_now.length || 1)).toFixed(1)}d
-                    </td>
+                  <tr className="font-bold text-white group">
+                    <td className="px-4 py-2.5 text-[12px] uppercase tracking-widest text-primary"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Totals</span></td>
+                    <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{(data?.reorder_now ?? []).reduce((sum, r) => sum + (r.suggested_units || 0), 0).toLocaleString()}</span></td>
+                    <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{(data?.reorder_now ?? []).reduce((sum, r) => sum + (Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></td>
+                    <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{((data?.reorder_now ?? []).reduce((sum, r) => sum + (r.projected_coverage || 0), 0) / (data?.reorder_now.length || 1)).toFixed(1)}d</span></td>
                     <td className="px-4 py-2.5"></td>
                   </tr>
                 </tfoot>
@@ -954,7 +931,7 @@ export default function CommandCenter() {
           extra={(
             <button 
               onClick={() => exportToCSV(data?.inbound || [], 'supply_in_transit')}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
+              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[12px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
               <Download className="w-3.5 h-3.5" /> DOWNLOAD ALL
             </button>
@@ -963,7 +940,7 @@ export default function CommandCenter() {
           <>
             <table className="w-full text-sm">
               <thead className="bg-white/5 border-b border-white/10 sticky top-0 z-10 backdrop-blur-md">
-                <tr>
+                <tr className="group hover:bg-white/10 transition-colors">
                   <Th>PO #</Th>
                   <Th>SKU</Th>
                   <Th right>Units</Th>
@@ -979,16 +956,14 @@ export default function CommandCenter() {
                     units: li.units_ordered,
                     eta: b.eta
                   }))).map((row: any) => (
-                    <tr key={`${row.po}-${row.sku}`} className="hover:bg-white/10 transition-colors group">
-                      <td className="px-4 py-2.5 text-center font-data text-[10px] font-bold text-white group-hover:font-bold">{row.po}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex flex-col items-center justify-center">
+                    <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={`${row.po}-${row.sku}`}>
+                      <td className="px-4 py-2.5 text-center font-data text-[12px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.po}</span></td>
+                      <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                           <SKULink sku={row.sku} />
-                          <span className="text-[10px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white group-hover:font-bold text-center">{row.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">{row.units}</td>
-                      <td className="px-4 py-2.5 text-center text-[10px] font-bold text-white group-hover:font-bold">{formatDate(row.eta)}</td>
+                          <span className="text-[12px] font-medium text-white mt-0.5 truncate max-w-[180px] group-hover:text-white text-center transition-all duration-200">{row.name}</span>
+                        </div></td>
+                      <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.units}</span></td>
+                      <td className="px-4 py-2.5 text-center text-[12px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatDate(row.eta)}</span></td>
                     </tr>
                   ))
                 )}
