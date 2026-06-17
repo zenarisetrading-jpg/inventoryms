@@ -7,16 +7,27 @@ interface LocadSyncProps {
   locadState: { loading: boolean, error: string | null, result: UploadLocadResponse | null }
   syncStatus: SyncStatus | null
   handleUpload: (type: 'locad', file: File) => void
+  handleLocadApiSync: () => void
   setShowMappingModal: (v: boolean) => void
 }
 
-export function LocadSync({ locadState, syncStatus, handleUpload, setShowMappingModal }: LocadSyncProps) {
+export function LocadSync({ locadState, syncStatus, handleUpload, handleLocadApiSync, setShowMappingModal }: LocadSyncProps) {
   return (
     <SectionTile 
       icon={Package} 
       title="Locad Logistics Sync" 
       subtitle="Inventory reports & warehouse matching"
       accent="border-t-brand-blue"
+      headerAction={
+        <button 
+          onClick={handleLocadApiSync}
+          disabled={locadState.loading}
+          className="flex items-center gap-2 px-3 py-1.5 bg-brand-blue/10 border border-brand-blue/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-brand-blue hover:bg-brand-blue/20 disabled:opacity-50 transition-all"
+        >
+          <RefreshCw className={`h-3 w-3 ${locadState.loading ? 'animate-spin' : ''}`} />
+          API Sync
+        </button>
+      }
     >
       <div className="flex flex-col h-full space-y-6">
         <div className="flex-1">

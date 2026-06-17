@@ -27,6 +27,9 @@ interface ShipNowItem {
   name: string
   allocation_logic: string
   blended_sv: number
+  amazon_sv: number
+  noon_sv: number
+  minutes_sv: number
   current_fba_stock_units: number
   current_fbn_stock_units: number
   boxes_in_hand: number
@@ -34,10 +37,12 @@ interface ShipNowItem {
   boxes_required_30d_noon: number
   suggested_boxes_amazon: number
   suggested_boxes_noon: number
+  suggested_boxes_minutes: number
   total_boxes_to_ship: number
   total_units_to_ship: number
   send_to_fba_units: number
   send_to_fbn_units: number
+  send_to_minutes_units: number
   units_per_box: number
   plan_date: string
 }
@@ -239,6 +244,8 @@ serve(async (req: Request) => {
       const noon_cov = Number(r.noon_coverage || 0)
       const fba_boxes = Number(r.fba_boxes || 0)
       const fbn_boxes = Number(r.fbn_boxes || 0)
+      const minutes_sv = Number(r.minutes_sv || 0)
+      const minutes_boxes = Number(r.minutes_boxes || 0)
       const reorder_qty = Number(r.suggested_reorder_qty || 0)
 
       // 1. Map Alerts & Counters
@@ -259,12 +266,15 @@ serve(async (req: Request) => {
       }
 
       // 2. Ship Now (either fba boxes or fbn boxes > 0)
-      if (fba_boxes > 0 || fbn_boxes > 0) {
+      if (fba_boxes > 0 || fbn_boxes > 0 || minutes_boxes > 0) {
         ship_now.push({
           sku: r.sku,
           name: skuMeta.name,
-          allocation_logic: isCritical ? 'CRITICAL PRIORITIZED' : 'STANDARD REPLENISHMENT',
+          allocation_logic: r.allocation_reason || (isCritical ? 'CRITICAL PRIORITIZED' : 'STANDARD REPLENISHMENT'),
           blended_sv,
+          amazon_sv,
+          noon_sv,
+          minutes_sv,
           current_fba_stock_units: fba_units,
           current_fbn_stock_units: fbn_units,
           boxes_in_hand: Number(r.locad_boxes || 0),
@@ -272,10 +282,12 @@ serve(async (req: Request) => {
           boxes_required_30d_noon: Math.ceil(Number(r.noon_sv * 30) / Math.max(1, r.units_per_box)),
           suggested_boxes_amazon: fba_boxes,
           suggested_boxes_noon: fbn_boxes,
-          total_boxes_to_ship: fba_boxes + fbn_boxes,
-          total_units_to_ship: Number(r.send_to_fba_units || 0) + Number(r.send_to_fbn_units || 0),
+          suggested_boxes_minutes: minutes_boxes,
+          total_boxes_to_ship: fba_boxes + fbn_boxes + minutes_boxes,
+          total_units_to_ship: Number(r.send_to_fba_units || 0) + Number(r.send_to_fbn_units || 0) + Number(r.send_to_minutes_units || 0),
           send_to_fba_units: Number(r.send_to_fba_units || 0),
           send_to_fbn_units: Number(r.send_to_fbn_units || 0),
+          send_to_minutes_units: Number(r.send_to_minutes_units || 0),
           units_per_box: Number(r.units_per_box || 1),
           plan_date: new Date().toISOString()
         })

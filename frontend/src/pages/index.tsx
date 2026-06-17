@@ -404,7 +404,11 @@ export default function CommandCenter() {
         row.suggested_boxes_noon ?? (row.node === 'noon_fbn' ? row.boxes_to_ship : 0),
         0
       )
-      const totalBoxes = incomingAmazonBoxes + incomingNoonBoxes
+      const incomingMinutesBoxes = toSafeNumber(
+        row.suggested_boxes_minutes,
+        0
+      )
+      const totalBoxes = incomingAmazonBoxes + incomingNoonBoxes + incomingMinutesBoxes
       const incomingUnits = toSafeNumber(row.total_units_to_ship ?? row.units_to_ship, 0)
       
       // Super Fallback: If units_per_box is missing or 1, try to infer it from Total Units / Total Boxes
@@ -425,6 +429,11 @@ export default function CommandCenter() {
         (incomingNoonBoxes > 0 ? incomingNoonBoxes * upb : (row.node === 'noon_fbn' ? incomingUnits : 0)), 
         0
       )
+      const incomingMinutesUnits = toSafeNumber(
+        row.send_to_minutes_units ?? 
+        (incomingMinutesBoxes > 0 ? incomingMinutesBoxes * upb : 0), 
+        0
+      )
 
       if (!existing) {
         grouped.set(sku, {
@@ -433,6 +442,9 @@ export default function CommandCenter() {
           plan_date: row.plan_date ?? null,
           allocation_logic: row.allocation_logic ?? null,
           blended_sv: row.blended_sv ?? null,
+          amazon_sv: row.amazon_sv ?? null,
+          noon_sv: row.noon_sv ?? null,
+          minutes_sv: row.minutes_sv ?? null,
           current_fba_stock_units: row.current_fba_stock_units ?? null,
           current_fbn_stock_units: row.current_fbn_stock_units ?? null,
           boxes_in_hand: row.boxes_in_hand ?? null,
@@ -440,18 +452,22 @@ export default function CommandCenter() {
           boxes_required_30d_noon: row.boxes_required_30d_noon ?? null,
           suggested_boxes_amazon: incomingAmazonBoxes,
           suggested_boxes_noon: incomingNoonBoxes,
+          suggested_boxes_minutes: incomingMinutesBoxes,
           total_units_to_ship: incomingUnits,
           send_to_fba_units: incomingFbaUnits,
           send_to_fbn_units: incomingFbnUnits,
+          send_to_minutes_units: incomingMinutesUnits,
         })
         continue
       }
 
       existing.suggested_boxes_amazon = toSafeNumber(existing.suggested_boxes_amazon, 0) + incomingAmazonBoxes
       existing.suggested_boxes_noon = toSafeNumber(existing.suggested_boxes_noon, 0) + incomingNoonBoxes
+      existing.suggested_boxes_minutes = toSafeNumber(existing.suggested_boxes_minutes, 0) + incomingMinutesBoxes
       existing.total_units_to_ship = toSafeNumber(existing.total_units_to_ship, 0) + incomingUnits
       existing.send_to_fba_units = toSafeNumber(existing.send_to_fba_units, 0) + incomingFbaUnits
       existing.send_to_fbn_units = toSafeNumber(existing.send_to_fbn_units, 0) + incomingFbnUnits
+      existing.send_to_minutes_units = toSafeNumber(existing.send_to_minutes_units, 0) + incomingMinutesUnits
 
       if (!existing.allocation_logic && row.allocation_logic) existing.allocation_logic = row.allocation_logic
       if (existing.blended_sv == null && row.blended_sv != null) existing.blended_sv = row.blended_sv
@@ -476,6 +492,8 @@ export default function CommandCenter() {
   const totalShipUnits = shipNowRows.reduce((s, item) => s + toSafeNumber(item.total_units_to_ship, 0), 0)
   const totalShipBoxesAmazon = shipNowRows.reduce((s, item) => s + toSafeNumber(item.suggested_boxes_amazon, 0), 0)
   const totalShipBoxesNoon = shipNowRows.reduce((s, item) => s + toSafeNumber(item.suggested_boxes_noon, 0), 0)
+  const totalShipBoxesMinutes = shipNowRows.reduce((s, item) => s + toSafeNumber(item.suggested_boxes_minutes, 0), 0)
+  const totalShipBoxes = totalShipBoxesAmazon + totalShipBoxesNoon + totalShipBoxesMinutes
   const totalReorderUnits = (data?.reorder_now ?? []).reduce((s, i) => s + (i.suggested_units ?? 0), 0)
   const criticalCount = (data?.alerts ?? []).filter(a => a.action_flag === 'CRITICAL_OOS_RISK').length
   const oosRiskCount = (data?.alerts ?? []).filter(a => a.action_flag === 'OOS_RISK').length
@@ -595,7 +613,7 @@ export default function CommandCenter() {
             <KPITile
               label="Ship Pending"
               value={data.ship_now.length}
-              sub={`${totalShipUnits} Units (${totalShipBoxesAmazon + totalShipBoxesNoon} Boxes) staged - Send to FBA and FBN`}
+              sub={`${totalShipUnits} Units (${totalShipBoxes} Boxes) staged - Send to Channels`}
               accentColor="border-l-blue-500"
               icon={MoveRight}
               onDoubleClick={() => setDrillModal({
@@ -813,7 +831,7 @@ export default function CommandCenter() {
                           {toSafeNumber(row.total_units_to_ship)}
                         </td>
                         <td className="px-4 py-2.5 text-center font-data text-[11px] font-bold text-white group-hover:font-bold">
-                          {sugAmz + sugNoon}
+                          {sugAmz + sugNoon + toSafeNumber(row.suggested_boxes_minutes, 0)}
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-center">
@@ -839,7 +857,7 @@ export default function CommandCenter() {
                       {totalShipUnits.toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5 text-center font-data text-[11px]">
-                      {(totalShipBoxesAmazon + totalShipBoxesNoon).toLocaleString()}
+                      {totalShipBoxes.toLocaleString()}
                     </td>
                     <td className="px-4 py-2.5"></td>
                   </tr>

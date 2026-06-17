@@ -100,7 +100,7 @@ export function UploadingState({ label = "Processing Payload..." }: { label?: st
   )
 }
 
-export function SectionTile({ icon: Icon, title, subtitle, accent, children }: { icon: any, title: string, subtitle: string, accent: string, children: React.ReactNode }) {
+export function SectionTile({ icon: Icon, title, subtitle, accent, headerAction, children }: { icon: any, title: string, subtitle: string, accent: string, headerAction?: React.ReactNode, children: React.ReactNode }) {
   return (
     <div className={`bg-card border border-white/5 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-t-4 ${accent}`}>
       <div className="px-6 py-5 border-b border-white/5 bg-white/5 flex items-center justify-between">
@@ -111,6 +111,7 @@ export function SectionTile({ icon: Icon, title, subtitle, accent, children }: {
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest opacity-60 mt-1.5">{subtitle}</p>
           </div>
         </div>
+        {headerAction && <div>{headerAction}</div>}
       </div>
       <div className="flex-1 p-6 flex flex-col">
         {children}

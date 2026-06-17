@@ -80,7 +80,8 @@ export default function InventoryPage() {
       'required_30d', 'stock_in_hand', 'shortfall', 'moq',
       'amazon_coverage', 'noon_coverage', 'total_coverage', 'cogs',
       'suggested_reorder_qty', 'already_ordered', 'pending_qty_to_reorder', 'total_reorder_cost',
-      'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes'
+      'send_to_fba_units', 'send_to_fbn_units', 'send_to_minutes_units', 'fba_boxes', 'fbn_boxes', 'minutes_boxes',
+      'priority_rank', 'allocation_reason'
     ]
 
     const existingKeys = Object.keys(data.raw_data[0])
@@ -149,7 +150,7 @@ export default function InventoryPage() {
       'fba_units', 'fbn_units', 'minutes_units', 'locad_units', 'locad_boxes', 'stock_in_hand', 
       'amazon_sv', 'noon_sv', 'minutes_sv', 'blended_sv',
       'shortfall', 'moq', 'suggested_reorder_qty', 'total_reorder_cost',
-      'send_to_fba_units', 'send_to_fbn_units', 'fba_boxes', 'fbn_boxes',
+      'send_to_fba_units', 'send_to_fbn_units', 'send_to_minutes_units', 'fba_boxes', 'fbn_boxes', 'minutes_boxes',
       'current_fba_stock_units', 'current_fbn_stock_units', 'stock_in_hand_units',
       'shortfall_units', 'suggested_units', 'total_cost_aed', 'units_to_ship',
       'suggested_units_amazon', 'suggested_units_noon', 'suggested_boxes_amazon', 'suggested_boxes_noon',
@@ -310,17 +311,17 @@ export default function InventoryPage() {
             ]}
           />
           <InventoryStatCard 
-            title="Send to FBA/N" 
+            title="Send to Channels" 
             icon={Send}
             accent="text-brand-blue"
             items={[
+              { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
               { label: 'FBA Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
               ...(isKSA ? [] : [
-                { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) }
-              ]),
-              { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
-              ...(isKSA ? [] : [
-                { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) }
+                { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) },
+                { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
+                { label: 'Minutes Boxes', value: renderCell('minutes_boxes', totals['minutes_boxes']) },
+                { label: 'Minutes Units', value: renderCell('send_to_minutes_units', totals['send_to_minutes_units']) }
               ])
             ]}
           />

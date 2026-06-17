@@ -121,13 +121,17 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                 )}
                 {type === 'ship_now' && (
                   <>
-                    <HeaderCell right>Velocity</HeaderCell>
+                    <HeaderCell right>AMZ SV</HeaderCell>
+                    <HeaderCell right>NOON SV</HeaderCell>
+                    <HeaderCell right>MIN SV</HeaderCell>
                     <HeaderCell right>Staged Units</HeaderCell>
-                    <HeaderCell right>SENT TO FBA UNITS</HeaderCell>
-                    <HeaderCell right>SENT TO FBN UNITS</HeaderCell>
+                    <HeaderCell right>AMZ UNITS</HeaderCell>
+                    <HeaderCell right>NOON UNITS</HeaderCell>
+                    <HeaderCell right>MIN UNITS</HeaderCell>
                     <HeaderCell right>Total Boxes</HeaderCell>
                     <HeaderCell right>AMZ Boxes</HeaderCell>
                     <HeaderCell right>Noon Boxes</HeaderCell>
+                    <HeaderCell right>MIN Boxes</HeaderCell>
                     <HeaderCell>Logic</HeaderCell>
                     <HeaderCell>Action</HeaderCell>
                   </>
@@ -211,7 +215,13 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                   {type === 'ship_now' && (
                     <>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {Number(item.blended_sv || 0).toFixed(2)}
+                        {Number(item.amazon_sv || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
+                        {Number(item.noon_sv || 0).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
+                        {Number(item.minutes_sv || 0).toFixed(2)}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.total_units_to_ship || item.units_to_ship}
@@ -223,13 +233,19 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                         {item.send_to_fbn_units ?? 0}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
-                        {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))}
+                        {item.send_to_minutes_units ?? 0}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
+                        {item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_boxes_amazon ?? 0}
                       </td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
                         {item.suggested_boxes_noon ?? 0}
+                      </td>
+                      <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold">
+                        {item.suggested_boxes_minutes ?? 0}
                       </td>
                       <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase">
                         {item.allocation_logic}
@@ -348,7 +364,13 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                 <tr className="font-bold text-white bg-[#111827]">
                   <td className="py-3 px-2 text-[11px] uppercase tracking-widest text-primary" colSpan={2}>Totals</td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.blended_sv) || 0), 0).toFixed(2)}
+                    {safeData.reduce((sum, item) => sum + (Number(item.amazon_sv) || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
+                    {safeData.reduce((sum, item) => sum + (Number(item.noon_sv) || 0), 0).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
+                    {safeData.reduce((sum, item) => sum + (Number(item.minutes_sv) || 0), 0).toFixed(2)}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.total_units_to_ship || item.units_to_ship) || 0), 0).toLocaleString()}
@@ -360,13 +382,19 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     {safeData.reduce((sum, item) => sum + (Number(item.send_to_fbn_units) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
-                    {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0))) || 0), 0).toLocaleString()}
+                    {safeData.reduce((sum, item) => sum + (Number(item.send_to_minutes_units) || 0), 0).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
+                    {safeData.reduce((sum, item) => sum + (Number(item.total_boxes_to_ship || ((item.suggested_boxes_amazon || 0) + (item.suggested_boxes_noon || 0) + (item.suggested_boxes_minutes || 0))) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_amazon) || 0), 0).toLocaleString()}
                   </td>
                   <td className="py-3 px-2 text-right font-data text-[11px]">
                     {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_noon) || 0), 0).toLocaleString()}
+                  </td>
+                  <td className="py-3 px-2 text-right font-data text-[11px]">
+                    {safeData.reduce((sum, item) => sum + (Number(item.suggested_boxes_minutes) || 0), 0).toLocaleString()}
                   </td>
                   <td colSpan={2}></td>
                 </tr>

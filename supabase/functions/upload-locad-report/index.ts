@@ -162,7 +162,7 @@ async function handleUpload(req: Request): Promise<Response> {
       reserved: 0,
       snapshot_date: report_date,
       country: 'UAE',
-      saddl_id: 'none'
+      saddl_id: 's2c_uae_test'
     }))
 
     const { error } = await supabase

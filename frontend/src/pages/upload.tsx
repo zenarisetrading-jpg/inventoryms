@@ -17,7 +17,7 @@ export default function OperationsHub() {
     triggerLoading, masterStep, handleMasterRefresh,
     showGuide, setShowGuide,
     locadState, noonSalesState, noonInvState, minutesState,
-    handleUpload
+    handleUpload, handleLocadApiSync
   } = useOperationsHub()
 
   if (loading && !syncStatus) return <LoadingScreen message="Initializing Operations Hub..." fullScreen />
@@ -48,6 +48,7 @@ export default function OperationsHub() {
             locadState={locadState}
             syncStatus={syncStatus}
             handleUpload={handleUpload}
+            handleLocadApiSync={handleLocadApiSync}
             setShowMappingModal={setShowMappingModal}
           />
           <MinutesSync 

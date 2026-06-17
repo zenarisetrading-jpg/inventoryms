@@ -357,7 +357,7 @@ async function handleSync(
             reserved: 0,
             snapshot_date: snapshotDate,
             country: 'UAE',
-            saddl_id: 'none' // Default for non-Amazon nodes so unique constraint holds
+            saddl_id: 's2c_uae_test' // Mapped to primary account per user request
           }))
 
           if (snapRows.length > 0) {
@@ -394,19 +394,20 @@ async function handleSync(
   }
 
   // ---- Refresh Fact Tables ----
-  if (source === 'all') {
-    try {
-      console.log('[sync] Refreshing fact tables as part of full sync...')
-      const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
-      if (err1) errors.push(`Planning Refresh Error: ${err1.message}`)
+  try {
+    console.log(`[sync] Refreshing fact tables for source=${source}...`)
+    const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
+    if (err1) errors.push(`Planning Refresh Error: ${err1.message}`)
+
+    if (source === 'amazon' || source === 'all') {
       const { error: err2 } = await supabase.rpc('refresh_fact_sales_data', { days_back: days })
       if (err2) {
         const { error: errRaw } = await supabase.rpc('execute_sql', { sql: `SELECT public.refresh_fact_sales_data(${days})` })
         if (errRaw) errors.push(`Sales Refresh Error: ${errRaw.message}`)
       }
-    } catch (err) {
-      errors.push(`refresh_fact error: ${(err as Error).message}`)
     }
+  } catch (err) {
+    errors.push(`refresh_fact error: ${(err as Error).message}`)
   }
 
   const overallStatus = errors.length === 0 ? 'ok' : 'partial'

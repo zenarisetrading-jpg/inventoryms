@@ -53,6 +53,17 @@ export function useOperationsHub() {
     }
   }
 
+  const handleLocadApiSync = async () => {
+    setLocadState({ loading: true, error: null, result: null })
+    try {
+      await api.triggerSync('locad')
+      loadData()
+      setLocadState({ loading: false, error: null, result: null })
+    } catch (err: any) {
+      setLocadState({ loading: false, error: err.message, result: null })
+    }
+  }
+
   const handleMasterRefresh = async () => {
     setTriggerLoading(true)
     setMasterStep('amazon-saddl')
@@ -81,6 +92,6 @@ export function useOperationsHub() {
     triggerLoading, masterStep, handleMasterRefresh,
     showGuide, setShowGuide,
     locadState, noonSalesState, noonInvState, minutesState,
-    handleUpload
+    handleUpload, handleLocadApiSync
   }
 }
