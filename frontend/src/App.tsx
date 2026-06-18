@@ -646,7 +646,7 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
-              placeholder="e.g. s2c_us_test"
+              placeholder="e.g. mycompany_us_test"
             />
           </div>
 
@@ -738,7 +738,7 @@ function EditAccountModal({ location, onClose, onSuccess }: { location: {country
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name (e.g., Zenarise UAE)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name (e.g., MyCompany UAE)</label>
                 <input 
                   type="text" 
                   value={displayName}
@@ -754,7 +754,7 @@ function EditAccountModal({ location, onClose, onSuccess }: { location: {country
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
                   className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
-                  placeholder="e.g. s2c_us_test"
+                  placeholder="e.g. mycompany_us_test"
                 />
               </div>
 

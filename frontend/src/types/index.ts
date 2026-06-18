@@ -19,6 +19,7 @@ export interface SKU {
   lead_time_days_max?: number | null
   amazon_active?: boolean
   noon_active?: boolean
+  minutes_active?: boolean
   weight_kg?: number | null
   cbm?: number | null
   country?: string
@@ -214,6 +215,7 @@ export interface CreatePOInput {
   tracking_number?: string
   po_notes?: string
   notes?: string
+  saddl_id?: string
   line_items: (POLineItem & { sku: string; units_ordered: number })[]
 }
 

@@ -131,8 +131,8 @@ serve(async (req: Request) => {
       if (internal) {
         // Logic: if warehouse code contains DS or ID -> Minutes, else -> noon_fbn
         const whCode = row.warehouse_code || 'FBN_GENERIC'
-        // Extra strict check: Must start with city code + (DS|ID) + digits
-        const isMinutes = /^(AJM|AUH|DXB|SHJ)(DS|ID)\d+/i.test(whCode)
+        // Extra strict check: Must start with 3-letter city code + (DS|ID) + digits
+        const isMinutes = /^[A-Z]{3}(DS|ID)\d+/i.test(whCode)
         const node = isMinutes ? 'Minutes' : 'noon_fbn'
         const warehouse_name = whCode
 
@@ -161,19 +161,21 @@ serve(async (req: Request) => {
       }
     })
 
-    // Before upserting, we should clear OLD snapshots for THIS node/date to avoid orphans?
-    // Actually, upsert with onConflict handles it. 
-    // But wait! If a SKU was in WH1 and now it's only in WH2, WH1 will still have a row from today if we uploaded twice.
-    // Usually, we should delete all noon_fbn/Minutes rows for today before upserting fresh ones.
-    const { error: deleteError } = await supabase
-      .from('inventory_snapshot')
-      .delete()
-      .in('node', ['noon_fbn', 'Minutes'])
-      .eq('snapshot_date', today)
+    // Before upserting, we should clear OLD snapshots for THIS node/date to avoid orphans
+    // We ONLY delete nodes that are actually present in the uploaded file.
+    const presentNodes = Array.from(new Set(upsertRows.map(r => r.node)))
+    if (presentNodes.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('inventory_snapshot')
+        .delete()
+        .in('node', presentNodes)
+        .eq('snapshot_date', today)
 
-    if (deleteError) {
-      console.error('upload-noon-inventory: delete error', deleteError)
+      if (deleteError) {
+        console.error('upload-noon-inventory: delete error', deleteError)
+      }
     }
+
 
     // Use chunks to avoid request size limits
     const CHUNK_SIZE = 1000

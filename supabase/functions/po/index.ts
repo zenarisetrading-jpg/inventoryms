@@ -100,6 +100,7 @@ async function handleCreate(req: Request): Promise<Response> {
       po_name: po_name ?? null,
       supplier: supplier.trim(),
       country: body.country || 'UAE',
+      saddl_id: body.saddl_id || null,
       order_date,
       eta,
       status: 'ordered', // default for new PO
@@ -146,11 +147,13 @@ async function handleList(req: Request, url: URL): Promise<Response> {
   const statusParam = url.searchParams.get('status')
   const supplierParam = url.searchParams.get('supplier')
   const countryParam = url.searchParams.get('country')
+  const accountIdParam = url.searchParams.get('account_id')
 
   let query = supabase.from('fact_purchase').select('*')
   if (statusParam) query = query.ilike('status', `%${statusParam.trim()}%`)
   if (supplierParam) query = query.ilike('supplier', `%${supplierParam}%`)
   if (countryParam) query = query.eq('country', countryParam)
+  if (accountIdParam) query = query.eq('saddl_id', accountIdParam)
 
   const { data, error } = await query.order('po_number', { ascending: false })
 
@@ -314,6 +317,7 @@ async function handleUpdate(id: string, req: Request): Promise<Response> {
         po_name: rest.po_name !== undefined ? rest.po_name : header.po_name,
         supplier: rest.supplier !== undefined ? rest.supplier : header.supplier,
         country: rest.country !== undefined ? rest.country : header.country || 'UAE',
+        saddl_id: rest.saddl_id !== undefined ? rest.saddl_id : header.saddl_id,
         order_date: rest.order_date !== undefined ? rest.order_date : header.order_date,
         eta: rest.eta !== undefined ? rest.eta : header.eta,
         status: rest.status !== undefined ? rest.status : header.status,

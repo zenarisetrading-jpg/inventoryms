@@ -15,8 +15,8 @@ export function SKUBulkUploadModal({ onClose, onSuccess }: SKUBulkUploadModalPro
   const bulkInputRef = useRef<HTMLInputElement>(null)
 
   const downloadTemplate = () => {
-    const header = 'sku,asin,fnsku,name,category,sub_category,moq,lead_time_days,cogs,units_per_box,dimensions,weight_kg,cbm,is_active,amazon_active,noon_active,country,saddl_id'
-    const example = 'SKU-001,B00EXAMP1,X00EXAMP2,Sample Item,A,Sample Sub,50,30,12.5,10,10x10x10,1.5,0.01,true,true,true,UAE,SD-001'
+    const header = 'sku,asin,fnsku,name,category,sub_category,moq,lead_time_days,cogs,units_per_box,dimensions,weight_kg,cbm,is_active,amazon_active,noon_active,minutes_active,country,saddl_id'
+    const example = 'SKU-001,B00EXAMP1,X00EXAMP2,Sample Item,A,Sample Sub,50,30,12.5,10,10x10x10,1.5,0.01,true,true,true,true,UAE,SD-001'
     const blob = new Blob([header + '\n' + example], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -68,7 +68,7 @@ export function SKUBulkUploadModal({ onClose, onSuccess }: SKUBulkUploadModalPro
           {/* Instructions */}
           <div className="bg-zinc-50 border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 space-y-1">
             <p className="font-medium text-zinc-800">CSV/XLSX Format:</p>
-            <p className="overflow-x-auto whitespace-nowrap pb-1 font-mono text-zinc-500">sku, asin, fnsku, name, category, sub_category, moq, lead_time_days, cogs, units_per_box, dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, country, saddl_id</p>
+            <p className="overflow-x-auto whitespace-nowrap pb-1 font-mono text-zinc-500">sku, asin, fnsku, name, category, sub_category, moq, lead_time_days, cogs, units_per_box, dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, minutes_active, country, saddl_id</p>
             <ul className="mt-1.5 space-y-0.5 list-disc list-inside text-zinc-500">
               <li><span className="font-mono text-zinc-700">sku</span> and <span className="font-mono text-zinc-700">country</span> are the unique identifiers.</li>
               <li>Existing SKUs will be updated with the new values.</li>

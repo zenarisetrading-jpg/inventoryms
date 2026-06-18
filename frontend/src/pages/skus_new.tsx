@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Save, Package, ShieldCheck, Truck, Coins } from 'lucide-react'
 import { api } from '../lib/api'
 import { navigate } from '../lib/router'
@@ -9,6 +9,7 @@ interface NewSKUForm {
   name: string
   asin: string
   fnsku: string
+  saddl_id: string
   category: SKUCategory
   sub_category: string
   units_per_box: number
@@ -24,6 +25,7 @@ function emptyForm(): NewSKUForm {
     name: '',
     asin: '',
     fnsku: '',
+    saddl_id: localStorage.getItem('selected_account') || '',
     category: 'C',
     sub_category: '',
     units_per_box: 1,
@@ -40,6 +42,16 @@ export default function SKUNewPage() {
   const [form, setForm] = useState<NewSKUForm>(emptyForm())
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [locations, setLocations] = useState<{ country: string, saddl_account_id: string, display_name: string }[]>([])
+
+  useEffect(() => {
+    api.getLocations().then(locs => {
+      setLocations(locs)
+      if (locs.length > 0 && !form.saddl_id) {
+        setForm(prev => ({ ...prev, saddl_id: locs[0].saddl_account_id }))
+      }
+    }).catch(console.error)
+  }, [])
 
   const handleFormChange = (field: keyof NewSKUForm, value: string | number) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -110,7 +122,24 @@ export default function SKUNewPage() {
           <div className="grid grid-cols-1 gap-6">
             <div className="space-y-2.5">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Internal SKU Code <span className="text-rose-500">*</span></label>
-              <input required value={form.sku} onChange={e => handleFormChange('sku', e.target.value)} placeholder="E.G. S2C-PRO-001" className={inputCls} />
+              <input required value={form.sku} onChange={e => handleFormChange('sku', e.target.value)} placeholder="E.G. PRO-001" className={inputCls} />
+            </div>
+            <div className="space-y-2.5">
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">SADDL Account ID <span className="text-rose-500">*</span></label>
+              <select 
+                required 
+                value={form.saddl_id} 
+                onChange={e => handleFormChange('saddl_id', e.target.value)} 
+                className={`${inputCls} border-brand-blue/40 shadow-[0_0_15px_rgba(59,130,246,0.1)] appearance-none cursor-pointer`}
+                style={{ backgroundColor: 'rgba(59, 130, 246, 0.08)' }}
+              >
+                <option value="" disabled style={{ backgroundColor: '#18181b', color: 'white' }}>Select an Account...</option>
+                {locations.map(loc => (
+                  <option key={`${loc.country}-${loc.saddl_account_id}`} value={loc.saddl_account_id} style={{ backgroundColor: '#18181b', color: 'white' }}>
+                    {loc.saddl_account_id} ({loc.display_name})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2.5">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Official Product Name <span className="text-rose-500">*</span></label>

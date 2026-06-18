@@ -27,6 +27,7 @@ interface ParsedRow {
   is_active: boolean
   amazon_active: boolean
   noon_active: boolean
+  minutes_active: boolean
   country: string
   saddl_id: string
 }
@@ -48,6 +49,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   is_active: ['is_active', 'active', 'status'],
   amazon_active: ['amazon_active', 'amazon active'],
   noon_active: ['noon_active', 'noon active'],
+  minutes_active: ['minutes_active', 'minutes active'],
   country: ['country', 'region'],
   saddl_id: ['saddl_id', 'saddl id'],
 }
@@ -120,6 +122,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     is_active: findColumnIndex(headerKeys, 'is_active'),
     amazon_active: findColumnIndex(headerKeys, 'amazon_active'),
     noon_active: findColumnIndex(headerKeys, 'noon_active'),
+    minutes_active: findColumnIndex(headerKeys, 'minutes_active'),
     country: findColumnIndex(headerKeys, 'country'),
     saddl_id: findColumnIndex(headerKeys, 'saddl_id'),
   }
@@ -178,12 +181,15 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const isNoonActiveRaw = get('noon_active').toLowerCase()
     const noon_active = isNoonActiveRaw === 'false' || isNoonActiveRaw === '0' || isNoonActiveRaw === 'no' ? false : true
 
+    const isMinutesActiveRaw = get('minutes_active').toLowerCase()
+    const minutes_active = isMinutesActiveRaw === 'false' || isMinutesActiveRaw === '0' || isMinutesActiveRaw === 'no' ? false : true
+
     const country = get('country') || 'UAE'
     const saddl_id = get('saddl_id')
 
     rows.push({
       sku, name, asin, fnsku, category, sub_category, moq, lead_time_days, cogs, units_per_box, 
-      dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, country, saddl_id
+      dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, minutes_active, country, saddl_id
     })
   }
 
@@ -225,8 +231,9 @@ serve(async (req: Request) => {
     const file = formData.get('file') as File | null
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
     
-    // Default country from request, if not specified in file
+    // Default country and saddl_id from request, if not specified in file
     const defaultCountry = formData.get('country') as string || 'UAE'
+    const defaultSaddlId = formData.get('saddl_id') as string | null
 
     const fileName = file.name?.toLowerCase() ?? ''
     const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet')
@@ -267,8 +274,9 @@ serve(async (req: Request) => {
       is_active: r.is_active,
       amazon_active: r.amazon_active,
       noon_active: r.noon_active,
+      minutes_active: r.minutes_active,
       country: r.country || defaultCountry,
-      saddl_id: r.saddl_id || null,
+      saddl_id: r.saddl_id || defaultSaddlId,
     }))
 
     // Upsert the SKUs
@@ -279,6 +287,12 @@ serve(async (req: Request) => {
 
     if (upsertError) {
       return jsonResponse({ error: `Upsert failed: ${upsertError.message}` }, 500)
+    }
+
+    // Auto-refresh the inventory fact table so new SKUs appear instantly on the Inventory page
+    const { error: refreshError } = await supabase.rpc('refresh_fact_inventory_planning')
+    if (refreshError) {
+      console.warn('upload-sku-master: failed to auto-refresh fact_inventory_planning', refreshError)
     }
 
     return jsonResponse({

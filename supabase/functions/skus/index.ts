@@ -74,6 +74,7 @@ interface SKUDetailResponse {
   is_active: boolean
   amazon_active: boolean
   noon_active: boolean
+  minutes_active: boolean
   demand: {
     sv_7: number
     sv_90: number
@@ -266,6 +267,7 @@ async function handleList(req: Request, url: URL): Promise<Response> {
       cbm: (r.cbm as number | null) ?? null,
       amazon_active: (r.amazon_active as boolean) ?? true,
       noon_active: (r.noon_active as boolean) ?? true,
+      minutes_active: (r.minutes_active as boolean) ?? true,
       is_active: r.is_active as boolean,
       is_live: liveSkuSet.has(r.sku as string),
       demand: metric ? {
@@ -457,6 +459,7 @@ async function handleDetail(req: Request, skuId: string): Promise<Response> {
     is_active: skuRow.is_active as boolean,
     amazon_active: (skuRow.amazon_active as boolean) ?? true,
     noon_active: (skuRow.noon_active as boolean) ?? true,
+    minutes_active: (skuRow.minutes_active as boolean) ?? true,
 
     demand: demandRow
       ? {
@@ -529,7 +532,9 @@ async function handleCreate(req: Request): Promise<Response> {
     is_active: body.is_active !== undefined ? body.is_active : true,
     amazon_active: body.amazon_active !== undefined ? body.amazon_active : true,
     noon_active: body.noon_active !== undefined ? body.noon_active : true,
-    country: body.country || 'UAE'
+    minutes_active: body.minutes_active !== undefined ? body.minutes_active : true,
+    country: body.country || 'UAE',
+    saddl_id: body.saddl_id || null
   })
 
   if (error) {
@@ -537,6 +542,12 @@ async function handleCreate(req: Request): Promise<Response> {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+  }
+
+  // Auto-refresh the inventory fact table so new SKUs appear instantly on the Inventory page
+  const { error: refreshError } = await supabase.rpc('refresh_fact_inventory_planning')
+  if (refreshError) {
+    console.warn('skus: failed to auto-refresh fact_inventory_planning', refreshError)
   }
 
   return new Response(JSON.stringify({ ok: true, message: 'SKU created' }), {
@@ -562,7 +573,7 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
   }
 
   // Only allow updating specific fields
-  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm', 'is_active', 'amazon_active', 'noon_active']
+  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm', 'is_active', 'amazon_active', 'noon_active', 'minutes_active']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) {
@@ -584,6 +595,12 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
+  }
+
+  // Auto-refresh the inventory fact table
+  const { error: refreshError } = await supabase.rpc('refresh_fact_inventory_planning')
+  if (refreshError) {
+    console.warn('skus: failed to auto-refresh fact_inventory_planning', refreshError)
   }
 
   return new Response(JSON.stringify({ ok: true, sku: skuId, updated: update }), {

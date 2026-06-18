@@ -15,9 +15,9 @@ export function useInvoiceData(user?: any) {
     }
   }, [user])
 
-  const allowedEmails = ['irfaan.a@zenarise.org', 'thasbihak@zenarise.org', 'siraj.kamaluddin@zenarise.org']
+  const allowedEmails: string[] = [] // Access restrictions removed
   const userEmail = currentUser?.email?.toLowerCase() || ''
-  const hasAccess = allowedEmails.includes(userEmail)
+  const hasAccess = !!currentUser // Allow all authenticated users
 
   // Form Fields
   const [invoiceTitle, setInvoiceTitle] = useState(() => localStorage.getItem('s2c_inv_title') || 'TAX INVOICE')
@@ -48,7 +48,7 @@ export function useInvoiceData(user?: any) {
   })
 
   // Seller Details
-  const [sellerName, setSellerName] = useState(() => localStorage.getItem('s2c_inv_seller_name') || 'Zenarise Trading L.L.C-FZ')
+  const [sellerName, setSellerName] = useState(() => localStorage.getItem('s2c_inv_seller_name') || 'Your Company L.L.C-FZ')
   const [sellerAddress, setSellerAddress] = useState(() => localStorage.getItem('s2c_inv_seller_address') || 'Meydan Grandstand, 6th floor, Meydan Road,\nNad Al Sheba, Dubai, U.A.E.')
   const [sellerTrn, setSellerTrn] = useState(() => localStorage.getItem('s2c_inv_seller_trn') || '104554276600003')
 
@@ -81,7 +81,7 @@ export function useInvoiceData(user?: any) {
   const [bankIban, setBankIban] = useState(() => localStorage.getItem('s2c_inv_bank_iban') || 'AE460860000009854848878')
   const [bankSwift, setBankSwift] = useState(() => localStorage.getItem('s2c_inv_bank_swift') || 'WIOBAEADXXX')
   const [bankType, setBankType] = useState(() => localStorage.getItem('s2c_inv_bank_type') || 'Current Account')
-  const [beneficiaryName, setBeneficiaryName] = useState(() => localStorage.getItem('s2c_inv_beneficiary_name') || 'Zenarise Trading L.L.C-FZ')
+  const [beneficiaryName, setBeneficiaryName] = useState(() => localStorage.getItem('s2c_inv_beneficiary_name') || 'Your Company L.L.C-FZ')
   
   const [remarks, setRemarks] = useState(() => localStorage.getItem('s2c_inv_remarks') || 'Kindly send proof of payments to accounts@saddl.io with email subject "INV# - Proof of Payment"')
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -222,15 +222,15 @@ export function useInvoiceData(user?: any) {
   const handleNewInvoice = () => {
     if (window.confirm('Start a new invoice? This will clear the canvas.')) {
       setCurrentInvoiceId(null); setInvoiceTitle('TAX INVOICE'); setTitleFontSize(72)
-      setInvoiceNo(`SADL-INV-26-${String(invoicesList.length + 1).padStart(3, '0')}`)
+      setInvoiceNo(`INV-26-${String(invoicesList.length + 1).padStart(3, '0')}`)
       setInvoiceDate(formatDateToDDMMYYYY(new Date())); setTerms(5)
-      setSellerName('Zenarise Trading L.L.C-FZ'); setSellerAddress('Meydan Grandstand, 6th floor, Meydan Road,\nNad Al Sheba, Dubai, U.A.E.')
+      setSellerName('Your Company L.L.C-FZ'); setSellerAddress('Building Name, Floor, Street,\nCity, Country')
       setSellerTrn('104554276600003')
       setBuyerName(''); setBuyerAddress(''); setBuyerEmail(''); setBuyerPhone(''); setBuyerTrn('')
       setLineItems(createDefaultLineItems()); setMaxItemsPage1(5)
       setBankName('WIO Bank PJSC (UAE)'); setBankAccount('9854848878'); setBankIban('AE460860000009854848878')
-      setBankSwift('WIOBAEADXXX'); setBankType('Current Account'); setBeneficiaryName('Zenarise Trading L.L.C-FZ')
-      setRemarks('Kindly send proof of payments to accounts@saddl.io with email subject "INV# - Proof of Payment"')
+      setBankSwift('BANKXXXXX'); setBankType('Current Account'); setBeneficiaryName('Your Company L.L.C-FZ')
+      setRemarks('Kindly send proof of payments to accounts@example.com with email subject "INV# - Proof of Payment"')
     }
   }
 

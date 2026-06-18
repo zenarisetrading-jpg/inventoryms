@@ -146,7 +146,7 @@ export const api = {
     fetch(`${BASE}/po`, {
       method: 'POST',
       headers: await getHeaders(),
-      body: JSON.stringify({ ...data, country: data.country || getCountry() }),
+      body: JSON.stringify({ country: data.country || getCountry(), saddl_id: data.saddl_id || getAccountId(), ...data }),
     })
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
@@ -183,12 +183,12 @@ export const api = {
     fetch(`${BASE}/skus`, {
       method: 'POST',
       headers: await getHeaders(),
-      body: JSON.stringify({ ...data, country: getCountry() }),
+      body: JSON.stringify({ country: getCountry(), saddl_id: getAccountId(), ...data }),
     })
       .then(r => handleResponse<{ ok: true }>(r))
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
-  updateSKU: async (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean; amazon_active?: boolean; noon_active?: boolean }): Promise<{ ok: true }> =>
+  updateSKU: async (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean; amazon_active?: boolean; noon_active?: boolean; minutes_active?: boolean }): Promise<{ ok: true }> =>
     fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, {
       method: 'PATCH',
       headers: await getHeaders(),
@@ -326,6 +326,7 @@ export const api = {
   uploadSKUMasterCSV: async (file: File): Promise<{ rows_processed?: number; errors?: any[]; error?: string }> => {
     const form = new FormData()
     form.append('country', getCountry())
+    form.append('saddl_id', getAccountId())
     form.append('file', file)
     const headers = await getHeaders()
     delete (headers as any)['Content-Type']

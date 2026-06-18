@@ -141,7 +141,7 @@ export default function SKUCatalog() {
 
             {isAnyFilterActive && (
               <button
-                onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [] })}
+                onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [], minutes_active: [] })}
                 className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/20 transition-all"
                 title="Clear Filters"
               >

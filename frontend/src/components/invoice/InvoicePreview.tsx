@@ -166,7 +166,7 @@ export function InvoicePreview({
           ) : (
             <div className="flex justify-between items-center text-[28px] font-bold text-zinc-400 border-t-[3px] border-zinc-300 pt-[20px]">
               <div>Page 1 of 2</div>
-              <div className="uppercase tracking-[0.1em]">Zenarise Trading L.L.C-FZ</div>
+              <div className="uppercase tracking-[0.1em]">Your Company L.L.C-FZ</div>
             </div>
           )}
         </div>
@@ -288,7 +288,7 @@ export function InvoicePreview({
               </div>
               <div className="flex justify-between items-center text-[28px] font-bold text-zinc-400 border-t-[3px] border-zinc-300 pt-[20px]">
                 <div>Page 2 of 2</div>
-                <div className="uppercase tracking-[0.1em]">Zenarise Trading L.L.C-FZ</div>
+                <div className="uppercase tracking-[0.1em]">Your Company L.L.C-FZ</div>
               </div>
             </div>
           </div>

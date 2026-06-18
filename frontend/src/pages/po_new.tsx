@@ -22,6 +22,7 @@ interface NewPOForm {
   po_name: string
   supplier: string
   country?: string
+  saddl_id: string
   order_date: string
   eta: string
   tracking_number: string
@@ -35,6 +36,7 @@ function emptyForm(): NewPOForm {
     po_name: '',
     supplier: '',
     country: '',
+    saddl_id: localStorage.getItem('selected_account') || '',
     order_date: new Date().toISOString().slice(0, 10),
     eta: '',
     tracking_number: '',
@@ -60,7 +62,7 @@ export default function PONewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [allSuppliers, setAllSuppliers] = useState<string[]>([])
-  const [locations, setLocations] = useState<{country: string}[]>([])
+  const [locations, setLocations] = useState<{ country: string, saddl_account_id: string, display_name: string }[]>([])
   const [allSkus, setAllSkus] = useState<any[]>([])
   const [skuSuggestions, setSkuSuggestions] = useState<string[]>([])
 
@@ -236,6 +238,7 @@ export default function PONewPage() {
       po_name: form.po_name,
       supplier: form.supplier,
       country: form.country || undefined,
+      saddl_id: form.saddl_id || undefined,
       order_date: form.order_date,
       eta: form.eta,
       tracking_number: form.tracking_number,
@@ -320,6 +323,22 @@ export default function PONewPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-zinc-500 uppercase">Tracking Number</label>
               <input value={form.tracking_number} onChange={e => handleFormChange('tracking_number', e.target.value)} placeholder="Carrier tracking info..." className={inputCls} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-500 uppercase">SADDL Account ID <span className="text-red-500">*</span></label>
+              <select 
+                required 
+                value={form.saddl_id} 
+                onChange={e => handleFormChange('saddl_id', e.target.value)} 
+                className={`${inputCls} appearance-none cursor-pointer`}
+              >
+                <option value="" disabled>Select an Account...</option>
+                {locations.map(loc => (
+                  <option key={`${loc.country}-${loc.saddl_account_id}`} value={loc.saddl_account_id}>
+                    {loc.saddl_account_id} ({loc.display_name})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="md:col-span-2 space-y-1.5">
               <label className="text-xs font-bold text-zinc-500 uppercase">Notes</label>

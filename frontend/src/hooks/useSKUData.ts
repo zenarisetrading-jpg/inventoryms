@@ -19,7 +19,8 @@ export function useSKUData() {
     sub_categories: [] as string[],
     is_active: [] as string[],
     amazon_active: [] as string[],
-    noon_active: [] as string[]
+    noon_active: [] as string[],
+    minutes_active: [] as string[]
   })
 
   const [updating, setUpdating] = useState<string | null>(null)
@@ -123,6 +124,10 @@ export function useSKUData() {
         const rowStatus = row.noon_active === true ? 'TRUE' : 'FALSE'
         if (!filters.noon_active.includes(rowStatus)) return false
       }
+      if (filters.minutes_active.length > 0) {
+        const rowStatus = row.minutes_active === true ? 'TRUE' : 'FALSE'
+        if (!filters.minutes_active.includes(rowStatus)) return false
+      }
 
       // 2. Search Query
       if (searchQuery) {
@@ -164,7 +169,7 @@ export function useSKUData() {
   const columns = [
     'sku', 'asin', 'fnsku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days',
     'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
-    'is_active', 'amazon_active', 'noon_active'
+    'is_active', 'amazon_active', 'noon_active', 'minutes_active'
   ]
 
   const handleExport = () => {
