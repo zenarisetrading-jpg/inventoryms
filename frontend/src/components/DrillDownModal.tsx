@@ -176,7 +176,11 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
             </thead>
             <tbody className="divide-y divide-white/5">
               {safeData.map((item, i) => (
-                <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5 transition-all duration-150" key={i}>
+                <tr 
+                  className="group hover:bg-white/10 transition-colors hover:bg-white/5 transition-all duration-150 relative hover:z-[60]" 
+                  key={i}
+                  style={{ zIndex: safeData.length - i }}
+                >
                   <td className="py-3 px-2"><button
                       onClick={() => {
                         navigate('/sku/' + item.sku)
@@ -217,8 +221,9 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.suggested_boxes_minutes ?? 0}</span></td>
                       <td className="py-3 px-2 text-[10px] text-muted font-bold uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.allocation_logic}</span></td>
                       <td className="py-3 px-2"><ActionDropdown 
-                          currentStatus={rowStatuses[`${item.sku}-${i}`] || 'shipped'} 
+                          currentStatus={rowStatuses[`${item.sku}-${i}`] || 'Shipment planning'} 
                           onStatusChange={(status) => setRowStatuses(prev => ({ ...prev, [`${item.sku}-${i}`]: status }))}
+                          isMulti={true}
                         /></td>
                     </>
                   )}

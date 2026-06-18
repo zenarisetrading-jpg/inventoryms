@@ -108,18 +108,22 @@ export function usePOData(itemsPerPage = 20) {
     if (!updatedAny.error) setPOs(prev => prev.map(p => (p.id === po.id ? { ...p, status: next } : p)))
   }
 
-  const handleExport = async () => {
+  const handleExport = async (selectedIds?: Set<string>) => {
     setLoading(true)
     try {
       const res = await api.getPOs({})
       const resAny = res as unknown as { error?: string; pos?: PO[] }
       if (resAny.error) throw new Error(resAny.error)
       
-      const allPOs = ((resAny.pos ?? []) as Array<PO & { po_line_items?: PO['line_items'] }>).map((po) => ({
+      let allPOs = ((resAny.pos ?? []) as Array<PO & { po_line_items?: PO['line_items'] }>).map((po) => ({
         ...po,
         line_items: po.line_items ?? po.po_line_items ?? [],
       }))
       
+      if (selectedIds && selectedIds.size > 0) {
+        allPOs = allPOs.filter(po => selectedIds.has(po.id))
+      }
+
       if (!allPOs.length) return
 
       const headers = [

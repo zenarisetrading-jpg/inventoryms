@@ -92,7 +92,7 @@ export default function POPage() {
               REFRESH
             </button>
             <button
-              onClick={handleExport}
+              onClick={() => handleExport()}
               className="flex items-center gap-2 px-5 py-3.5 bg-transparent hover:bg-white/5 text-zinc-300 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
             >
               <Download className="w-4 h-4" />
@@ -260,6 +260,17 @@ export default function POPage() {
               }}
             />
           </div>
+
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Download Selected */}
+          <button
+            onClick={() => handleExport(selectedIds)}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-blue/10 border border-brand-blue/20 text-brand-blue hover:bg-brand-blue hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download Selected
+          </button>
 
           <div className="h-4 w-px bg-white/10" />
 

@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { api } from '../lib/api'
 import { supabase } from '../lib/supabase'
+import { useRegion } from '../lib/RegionContext'
 
 export function useSKUData() {
+  const { region } = useRegion()
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -43,7 +45,7 @@ export function useSKUData() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [region])
 
   const handleUpdateField = async (sku: string, field: string, value: any) => {
     setUpdating(`${sku}-${field}`)

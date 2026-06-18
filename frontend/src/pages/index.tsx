@@ -820,7 +820,11 @@ export default function CommandCenter() {
                     const sugAmz = toSafeNumber(row.suggested_boxes_amazon, 0)
                     const sugNoon = toSafeNumber(row.suggested_boxes_noon, 0)
                     return (
-                      <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={`${sku}-${idx}`}>
+                      <tr 
+                        className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-[60] relative hover:shadow-xl" 
+                        key={`${sku}-${idx}`}
+                        style={{ zIndex: shipNowRows.length - idx }}
+                      >
                         <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                             <SKULink sku={sku} />
                             <span className="text-[12px] font-medium text-white mt-0.5 truncate max-w-[150px] group-hover:text-white text-center transition-all duration-200">{String(row.name)}</span>
@@ -832,6 +836,7 @@ export default function CommandCenter() {
                             <ActionDropdown 
                               currentStatus={rowStatuses[`${sku}-${idx}`] || 'Shipment planning'} 
                               onStatusChange={(newStatus) => setRowStatuses(prev => ({ ...prev, [`${sku}-${idx}`]: newStatus }))}
+                              isMulti={true}
                             />
                           </div></td>
                       </tr>

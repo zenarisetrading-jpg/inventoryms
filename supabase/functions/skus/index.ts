@@ -187,7 +187,7 @@ async function handleList(req: Request, url: URL): Promise<Response> {
     .eq('country', country)
 
   if (accountId) {
-    query = query.eq('saddl_id', accountId)
+    query = query.or(`saddl_id.eq.${accountId},saddl_id.is.null`)
     salesQuery = salesQuery.eq('saddl_id', accountId)
     demandQuery = demandQuery.eq('saddl_id', accountId)
   }

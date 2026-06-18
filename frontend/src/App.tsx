@@ -79,6 +79,12 @@ export default function App() {
       // De-duplicate by saddl_account_id
       const unique = Array.from(new Map(locs.map(l => [l.saddl_account_id, l])).values())
       setLocations(unique)
+      
+      const currentSelectedAccount = localStorage.getItem('selected_account')
+      const validLocation = unique.find(l => l.saddl_account_id === currentSelectedAccount)
+      if (validLocation) {
+        localStorage.setItem('selected_country', validLocation.country)
+      }
     } else {
       setLocations([{ country: 'UAE', saddl_account_id: 's2c_uae_test', display_name: 'UAE' }, { country: 'KSA', saddl_account_id: 's2c_test', display_name: 'KSA' }])
     }
@@ -295,10 +301,10 @@ export default function App() {
                       <div key={loc.saddl_account_id} className="flex items-center w-full relative group">
                         <button 
                           onClick={() => { setRegion(loc.saddl_account_id, loc.country); setIsRegionDropdownOpen(false) }}
-                          className={`flex-1 flex items-center gap-2 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors ${region === loc.saddl_account_id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                          className={`flex-1 flex items-center gap-2 pl-3 pr-2 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors overflow-hidden ${region === loc.saddl_account_id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
                         >
-                          <span className="uppercase">{loc.display_name || loc.country}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-500 ml-auto uppercase">{loc.country}</span>
+                          <span className="uppercase truncate">{loc.display_name || loc.country}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-500 ml-auto uppercase shrink-0 group-hover:opacity-0 transition-opacity">{loc.country}</span>
                         </button>
                         <button 
                           onMouseDown={(e) => { 
@@ -614,13 +620,23 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
         <div className="p-5 space-y-4">
           {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Name (e.g., USA, UK)</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Country Code (e.g., UAE, KSA)</label>
             <input 
               type="text" 
               value={country}
               onChange={(e) => setCountry(e.target.value)}
               className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
-              placeholder="Enter account name"
+              placeholder="Enter country code"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Display Name (e.g., Oneshot UAE)</label>
+            <input 
+              type="text" 
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full bg-slate-950 border border-white/5 rounded-xl py-2.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-medium text-sm"
+              placeholder="Enter display name"
             />
           </div>
           <div className="space-y-2">
@@ -644,9 +660,9 @@ function AddAccountModal({ onClose, onSuccess }: { onClose: () => void; onSucces
             <button 
               onClick={handleSave}
               disabled={loading}
-              className="flex-1 py-2.5 text-[10px] font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow-lg shadow-blue-900/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+              className="flex-[2] py-2.5 text-[10px] font-black text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-colors uppercase tracking-widest disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Add Account'}
+              {loading ? 'Saving...' : 'Add Account'}
             </button>
           </div>
         </div>
