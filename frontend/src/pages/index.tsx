@@ -594,7 +594,7 @@ export default function CommandCenter() {
       {/* ── KPI TILES ─────────────────────────────────────────────────────── */}
       {!loading && data && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
             <KPITile
               label="Critical Stocks"
               value={criticalCount}
@@ -673,6 +673,19 @@ export default function CommandCenter() {
                 title: 'Noon OOS Catalog',
                 type: 'oos_noon',
                 data: data?.oos_skus_noon ?? []
+              })}
+            />
+            <KPITile
+              label="Minutes OOS Rate"
+              value={`${(data.oos_pct_minutes ?? 0).toFixed(1)}%`}
+              sub={`${data.oos_count_minutes ?? 0} OOS / ${data.live_skus_minutes ?? 0} Active SKUs`}
+              accentColor="border-l-slate-400"
+              icon={TrendingUp}
+              onDoubleClick={() => setDrillModal({
+                isOpen: true,
+                title: 'Minutes OOS Catalog',
+                type: 'oos_minutes',
+                data: data?.oos_skus_minutes ?? []
               })}
             />
             <KPITile

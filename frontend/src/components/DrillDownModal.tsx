@@ -10,7 +10,7 @@ interface DrillDownProps {
   isOpen: boolean
   onClose: () => void
   data: any[]
-  type: 'alerts' | 'ship_now' | 'reorder_now' | 'inbound' | 'excess' | 'oos_amazon' | 'oos_noon' | 'oos_total' | 'oos_fleet_risk'
+  type: 'alerts' | 'ship_now' | 'reorder_now' | 'inbound' | 'excess' | 'oos_amazon' | 'oos_noon' | 'oos_minutes' | 'oos_total' | 'oos_fleet_risk'
 }
 
 export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDownProps) {
@@ -153,7 +153,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     <HeaderCell>ETA</HeaderCell>
                   </>
                 )}
-                {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_total') && (
+                {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_minutes' || type === 'oos_total') && (
                   <>
                     <HeaderCell right>Velocity</HeaderCell>
                     <HeaderCell right>Current Stock</HeaderCell>
@@ -255,11 +255,12 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
                     </>
                   )}
 
-                  {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_total') && (
+                  {(type === 'oos_amazon' || type === 'oos_noon' || type === 'oos_minutes' || type === 'oos_total') && (
                     <>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{Number(item.blended_sv || 0).toFixed(2)}</span></td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{type === 'oos_amazon' ? (item.fba_units || 0) : 
-                         type === 'oos_noon' ? ((item.fbn_units || 0) + (item.minutes_units || 0)) : 
+                         type === 'oos_noon' ? (item.fbn_units || 0) : 
+                         type === 'oos_minutes' ? (item.minutes_units || 0) : 
                          ((item.fba_units || 0) + (item.fbn_units || 0) + (item.minutes_units || 0))}</span></td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_amazon)}</span></td>
                       <td className="py-3 px-2 text-right font-data text-[11px] text-white font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{formatCov(item.coverage_noon)}</span></td>

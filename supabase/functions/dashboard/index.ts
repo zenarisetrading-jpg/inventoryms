@@ -97,18 +97,23 @@ interface CommandCenterResponse {
   live_selling_skus: number
   live_skus_amazon: number
   live_skus_noon: number
+  live_skus_minutes: number
   oos_pct_amazon: number
   oos_pct_noon: number
+  oos_pct_minutes: number
   oos_pct_total: number
   oos_count_amazon: number
   oos_count_noon: number
+  oos_count_minutes: number
   oos_count_total: number
   oos_skus_amazon: any[]
   oos_skus_noon: any[]
+  oos_skus_minutes: any[]
   oos_skus_total_risk: any[]
   last_synced: string | null
   latest_snapshot_amazon: string | null
   latest_snapshot_noon: string | null
+  latest_snapshot_minutes: string | null
   latest_snapshot_locad: string | null
   generated_at: string
 }
@@ -150,7 +155,7 @@ serve(async (req: Request) => {
 
     // 1. Fetch data from fact_inventory_planning and sku_master separately to avoid relationship issues
     let factQuery = supabase.from('fact_inventory_planning').select('*').eq('country', country)
-    let masterQuery = supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active').eq('country', country)
+    let masterQuery = supabase.from('sku_master').select('sku, name, category, lead_time_days, cogs, is_active, amazon_active, noon_active, minutes_active').eq('country', country)
     
     if (accountId) {
       factQuery = factQuery.eq('saddl_id', accountId)
@@ -175,6 +180,7 @@ serve(async (req: Request) => {
       is_active: boolean;
       amazon_active: boolean;
       noon_active: boolean;
+      minutes_active: boolean;
     }
     const masterMap = new Map<string, SKUInfo>(
       (masterRes.data as SKUInfo[] || []).filter(m => m.is_active).map(m => [m.sku.trim().toUpperCase(), m])
@@ -226,9 +232,11 @@ serve(async (req: Request) => {
     // Summary counters for KPI Cards
     let amzLiveCount = 0; let amzOOSCount = 0
     let noonLiveCount = 0; let noonOOSCount = 0
+    let minutesLiveCount = 0; let minutesOOSCount = 0
     let totalLiveCount = 0; let totalOOSCount = 0
     const oos_skus_amazon: any[] = []
     const oos_skus_noon: any[] = []
+    const oos_skus_minutes: any[] = []
     const oos_skus_total_risk: any[] = []
 
     for (const r of factRows || []) {
@@ -245,6 +253,7 @@ serve(async (req: Request) => {
       const fba_boxes = Number(r.fba_boxes || 0)
       const fbn_boxes = Number(r.fbn_boxes || 0)
       const minutes_sv = Number(r.minutes_sv || 0)
+      const minutes_units = Number(r.minutes_units || 0)
       const minutes_boxes = Number(r.minutes_boxes || 0)
       const reorder_qty = Number(r.suggested_reorder_qty || 0)
 
@@ -344,10 +353,27 @@ serve(async (req: Request) => {
         }
       }
 
+      if (skuMeta.minutes_active) {
+        minutesLiveCount++
+        if (minutes_units <= 0) {
+          minutesOOSCount++
+          oos_skus_minutes.push({
+            sku: r.sku,
+            name: skuMeta.name,
+            blended_sv,
+            coverage_amazon: amz_cov,
+            coverage_noon: noon_cov,
+            fba_units,
+            fbn_units,
+            minutes_units: 0
+          })
+        }
+      }
+
       // Total Global Status (if active on ANY channel)
-      if (skuMeta.amazon_active || skuMeta.noon_active) {
+      if (skuMeta.amazon_active || skuMeta.noon_active || skuMeta.minutes_active) {
         totalLiveCount++
-        const totalUnits = (skuMeta.amazon_active ? fba_units : 0) + (skuMeta.noon_active ? fbn_units : 0)
+        const totalUnits = (skuMeta.amazon_active ? fba_units : 0) + (skuMeta.noon_active ? fbn_units : 0) + (skuMeta.minutes_active ? minutes_units : 0)
         if (totalUnits <= 0) {
           totalOOSCount++
         }
@@ -408,17 +434,22 @@ serve(async (req: Request) => {
         live_selling_skus: totalLiveCount,
         live_skus_amazon: amzLiveCount,
         live_skus_noon: noonLiveCount,
+        live_skus_minutes: minutesLiveCount,
         oos_pct_amazon: pct(amzOOSCount, amzLiveCount),
         oos_pct_noon: pct(noonOOSCount, noonLiveCount),
+        oos_pct_minutes: pct(minutesOOSCount, minutesLiveCount),
         oos_pct_total: pct(totalOOSCount, totalLiveCount),
         oos_count_amazon: amzOOSCount,
         oos_count_noon: noonOOSCount,
+        oos_count_minutes: minutesOOSCount,
         oos_count_total: totalOOSCount,
         oos_skus_amazon: oos_skus_amazon.sort((a,b) => b.blended_sv - a.blended_sv),
         oos_skus_noon: oos_skus_noon.sort((a,b) => b.blended_sv - a.blended_sv),
+        oos_skus_minutes: oos_skus_minutes.sort((a,b) => b.blended_sv - a.blended_sv),
         oos_skus_total_risk: oos_skus_total_risk.sort((a,b) => b.blended_sv - a.blended_sv),
         latest_snapshot_amazon: latestDateByNode['amazon_fba'] ? formatDate(latestDateByNode['amazon_fba']) : '—',
         latest_snapshot_noon: latestDateByNode['noon_fbn'] ? formatDate(latestDateByNode['noon_fbn']) : '—',
+        latest_snapshot_minutes: latestDateByNode['Minutes'] ? formatDate(latestDateByNode['Minutes']) : '—',
         latest_snapshot_locad: latestDateByNode['locad_warehouse'] ? formatDate(latestDateByNode['locad_warehouse']) : '—',
         last_synced: latestSnapshot.data?.synced_at || new Date().toISOString(),
         generated_at: new Date().toISOString(),

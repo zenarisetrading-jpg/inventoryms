@@ -93,16 +93,21 @@ export interface CommandCenterResponse {
   live_selling_skus?: number
   live_skus_amazon?: number
   live_skus_noon?: number
+  live_skus_minutes?: number
   oos_pct_amazon?: number
   oos_pct_noon?: number
+  oos_pct_minutes?: number
   oos_pct_total?: number
   oos_count_amazon?: number
   oos_count_noon?: number
+  oos_count_minutes?: number
   oos_count_total?: number
   oos_skus_amazon?: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number }[]
   oos_skus_noon?: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number }[]
+  oos_skus_minutes?: { sku: string; name: string; blended_sv: number; coverage_amazon: number; coverage_noon: number }[]
   latest_snapshot_amazon?: string | null
   latest_snapshot_noon?: string | null
+  latest_snapshot_minutes?: string | null
   latest_snapshot_locad?: string | null
   last_synced: string
   total_oos_risk?: {

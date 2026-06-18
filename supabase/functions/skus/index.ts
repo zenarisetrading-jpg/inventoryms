@@ -561,6 +561,9 @@ async function handleCreate(req: Request): Promise<Response> {
 // ---------------------------------------------------------------------------
 async function handleUpdate(skuId: string, req: Request): Promise<Response> {
   const supabase = getSupabaseClient(req)
+  const url = new URL(req.url)
+  const country = url.searchParams.get('country') || 'UAE'
+  const accountId = url.searchParams.get('account_id')
 
   let body: Record<string, unknown>
   try {
@@ -589,7 +592,15 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
     })
   }
 
-  const { error } = await supabase.from('sku_master').update(update).eq('sku', skuId)
+  let query = supabase.from('sku_master').update(update).eq('sku', skuId).eq('country', country)
+  
+  if (accountId) {
+    query = query.eq('saddl_id', accountId)
+  } else {
+    query = query.is('saddl_id', null)
+  }
+
+  const { error } = await query
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

@@ -21,8 +21,8 @@ export default function LoginPage() {
     setSuccess(null)
 
     // Domain Validation
-    if (!email.toLowerCase().endsWith('@example.com')) {
-      setError('Registration is restricted to @example.com email addresses only.')
+    if (!email.toLowerCase().endsWith('@zenarise.org')) {
+      setError('Registration is restricted to @zenarise.org email addresses only.')
       setLoading(false)
       return
     }
@@ -35,7 +35,7 @@ export default function LoginPage() {
         })
         if (error) throw error
       } else {
-        const isAdmin = ['admin@example.com', 'manager@example.com'].includes(email.toLowerCase())
+        const isAdmin = ['admin@zenarise.org', 'manager@zenarise.org'].includes(email.toLowerCase())
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -100,7 +100,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder="name@zenarise.org"
                   className="w-full bg-slate-950/50 border border-white/5 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all font-medium"
                   required
                 />
@@ -197,7 +197,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center mt-8 text-[10px] font-black text-slate-600 uppercase tracking-widest">
-          Secure access via Supabase Auth • @example.com only
+          Secure access via Supabase Auth • @zenarise.org only
         </p>
       </div>
     </div>

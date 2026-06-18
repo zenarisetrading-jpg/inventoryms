@@ -189,7 +189,7 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
   updateSKU: async (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean; amazon_active?: boolean; noon_active?: boolean; minutes_active?: boolean }): Promise<{ ok: true }> =>
-    fetch(`${BASE}/skus/${encodeURIComponent(sku)}`, {
+    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}&account_id=${getAccountId()}`, {
       method: 'PATCH',
       headers: await getHeaders(),
       body: JSON.stringify(data),
