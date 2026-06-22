@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - OmniSync</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <div class="wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-brand">
+                    <i class="fa-solid fa-layer-group text-primary"></i> OmniSync
+                </a>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item">
+                    <a href="dashboard.html" class="nav-link active">
+                        <i class="fa-solid fa-chart-pie"></i> Dashboard
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="executive.html" class="nav-link">
+                        <i class="fa-solid fa-user-tie"></i> Executive Overview
+                    </a>
+                </div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">Operations</div>
+                <div class="nav-item">
+                    <a href="inventory.html" class="nav-link">
+                        <i class="fa-solid fa-boxes-stacked"></i> Inventory
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="purchase-orders.html" class="nav-link">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Purchase Orders
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="demand-planning.html" class="nav-link">
+                        <i class="fa-solid fa-chart-line"></i> Demand Planning
+                    </a>
+                </div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">Channels</div>
+                <div class="nav-item">
+                    <a href="multi-channel.html" class="nav-link">
+                        <i class="fa-solid fa-store"></i> Multi-Channel Sales
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="product-mapping.html" class="nav-link">
+                        <i class="fa-solid fa-diagram-project"></i> Product Mapping
+                    </a>
+                </div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem; letter-spacing: 1px;">Insights</div>
+                <div class="nav-item">
+                    <a href="analytics.html" class="nav-link">
+                        <i class="fa-solid fa-chart-bar"></i> Analytics
+                    </a>
+                </div>
+                <div class="nav-item">
+                    <a href="warehouse.html" class="nav-link">
+                        <i class="fa-solid fa-warehouse"></i> Warehouse
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="mobile-toggle" id="sidebarToggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">Dashboard Overview</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-icon">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notification-dot"></span>
+                    </button>
+                    <div class="user-profile">
+                        <div class="avatar">SJ</div>
+                        <div class="d-none d-md-block text-start" style="line-height: 1.2;">
+                            <div class="fw-semibold text-main" style="font-size: 0.875rem;">Siraj</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">Admin</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content-area">
+                
+                <!-- KPI Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="saas-card kpi-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="kpi-title">Total Gross Sales (MTD)</div>
+                                    <div class="kpi-value">$248,590</div>
+                                </div>
+                                <div class="kpi-icon-wrapper kpi-icon-primary">
+                                    <i class="fa-solid fa-dollar-sign"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-change positive mt-auto">
+                                <i class="fa-solid fa-arrow-trend-up"></i> +12.5% vs last month
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="saas-card kpi-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="kpi-title">Active SKUs</div>
+                                    <div class="kpi-value">1,248</div>
+                                </div>
+                                <div class="kpi-icon-wrapper kpi-icon-success">
+                                    <i class="fa-solid fa-box-open"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-change positive mt-auto">
+                                <i class="fa-solid fa-plus"></i> 24 new this week
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="saas-card kpi-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="kpi-title">Pending PO Value</div>
+                                    <div class="kpi-value">$45,200</div>
+                                </div>
+                                <div class="kpi-icon-wrapper kpi-icon-warning">
+                                    <i class="fa-solid fa-truck-fast"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-change text-muted mt-auto">
+                                <i class="fa-solid fa-clock"></i> 12 shipments incoming
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-3 col-md-6">
+                        <div class="saas-card kpi-card">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="kpi-title">Stockout Risk</div>
+                                    <div class="kpi-value text-danger">14 Items</div>
+                                </div>
+                                <div class="kpi-icon-wrapper kpi-icon-danger">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-change negative mt-auto">
+                                <i class="fa-solid fa-arrow-trend-down"></i> Less than 5 days coverage
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-8">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">Revenue Overview (Last 7 Days)</h3>
+                                <select class="form-select form-select-sm w-auto">
+                                    <option>Last 7 Days</option>
+                                    <option>Last 30 Days</option>
+                                </select>
+                            </div>
+                            <div style="height: 300px;">
+                                <canvas id="revenueChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">Sales by Channel</h3>
+                            </div>
+                            <div style="height: 300px;">
+                                <canvas id="channelChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity & Alerts -->
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">System Alerts</h3>
+                                <a href="#" class="text-primary small text-decoration-none">View All</a>
+                            </div>
+                            <div class="list-group list-group-flush border-0">
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex align-items-start gap-3">
+                                    <div class="kpi-icon-wrapper kpi-icon-danger" style="width: 32px; height: 32px; font-size: 1rem;">
+                                        <i class="fa-solid fa-bolt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">Amazon API Sync Delayed</div>
+                                        <div class="text-muted small">Inventory sync for Amazon UAE is currently running 5 minutes behind.</div>
+                                    </div>
+                                </div>
+                                <div class="list-group-item px-0 py-3 border-bottom d-flex align-items-start gap-3">
+                                    <div class="kpi-icon-wrapper kpi-icon-warning" style="width: 32px; height: 32px; font-size: 1rem;">
+                                        <i class="fa-solid fa-boxes-stacked"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">Low Stock: Wireless Earbuds X1</div>
+                                        <div class="text-muted small">Only 12 units remaining across all warehouses. Recommend reorder.</div>
+                                    </div>
+                                </div>
+                                <div class="list-group-item px-0 py-3 d-flex align-items-start gap-3">
+                                    <div class="kpi-icon-wrapper kpi-icon-success" style="width: 32px; height: 32px; font-size: 1rem;">
+                                        <i class="fa-solid fa-check"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold">PO-2026-089 Received</div>
+                                        <div class="text-muted small">Shipment from Shenzen Electronics has been checked into Dubai Main WH.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">Pending Purchase Orders</h3>
+                                <a href="purchase-orders.html" class="text-primary small text-decoration-none">Manage POs</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="saas-table">
+                                    <thead>
+                                        <tr>
+                                            <th>PO Number</th>
+                                            <th>Supplier</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-medium">#PO-0892</td>
+                                            <td>TechSupplier Co.</td>
+                                            <td>$12,450</td>
+                                            <td><span class="saas-badge badge-warning">In Transit</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-medium">#PO-0893</td>
+                                            <td>Global Brands LLC</td>
+                                            <td>$8,200</td>
+                                            <td><span class="saas-badge badge-primary">Processing</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-medium">#PO-0894</td>
+                                            <td>Shenzen Electronics</td>
+                                            <td>$24,500</td>
+                                            <td><span class="saas-badge badge-neutral">Draft</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Revenue Chart
+            renderLineChart(
+                'revenueChart', 
+                ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], 
+                [12000, 19000, 15000, 22000, 18000, 28000, 25000],
+                'Revenue ($)',
+                '#4f46e5'
+            );
+
+            // Channel Chart
+            renderDoughnutChart(
+                'channelChart',
+                ['Amazon', 'Noon', 'Shopify'],
+                [55, 30, 15],
+                ['#ff9900', '#fce000', '#95bf47']
+            );
+        });
+    </script>
+</body>
+</html>

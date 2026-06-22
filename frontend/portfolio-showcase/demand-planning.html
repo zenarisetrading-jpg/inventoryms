@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demand Planning - OmniSync</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+    <div class="wrapper">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="index.html" class="sidebar-brand"><i class="fa-solid fa-layer-group text-primary"></i> OmniSync</a>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-item"><a href="dashboard.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Dashboard</a></div>
+                <div class="nav-item"><a href="executive.html" class="nav-link"><i class="fa-solid fa-user-tie"></i> Executive Overview</a></div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem;">Operations</div>
+                <div class="nav-item"><a href="inventory.html" class="nav-link"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a></div>
+                <div class="nav-item"><a href="purchase-orders.html" class="nav-link"><i class="fa-solid fa-file-invoice-dollar"></i> Purchase Orders</a></div>
+                <div class="nav-item"><a href="demand-planning.html" class="nav-link active"><i class="fa-solid fa-chart-line"></i> Demand Planning</a></div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem;">Channels</div>
+                <div class="nav-item"><a href="multi-channel.html" class="nav-link"><i class="fa-solid fa-store"></i> Multi-Channel Sales</a></div>
+                <div class="nav-item"><a href="product-mapping.html" class="nav-link"><i class="fa-solid fa-diagram-project"></i> Product Mapping</a></div>
+                <div class="nav-item mt-3 mb-1 px-4 text-uppercase small fw-bold text-muted" style="font-size: 0.7rem;">Insights</div>
+                <div class="nav-item"><a href="analytics.html" class="nav-link"><i class="fa-solid fa-chart-bar"></i> Analytics</a></div>
+                <div class="nav-item"><a href="warehouse.html" class="nav-link"><i class="fa-solid fa-warehouse"></i> Warehouse</a></div>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="d-flex align-items-center gap-3">
+                    <button class="mobile-toggle" id="sidebarToggle"><i class="fa-solid fa-bars"></i></button>
+                    <h1 class="page-title">Demand Planning & AI Forecast</h1>
+                </div>
+                <div class="topbar-actions">
+                    <button class="btn-icon"><i class="fa-solid fa-bell"></i></button>
+                    <div class="user-profile"><div class="avatar">SJ</div></div>
+                </div>
+            </header>
+
+            <div class="content-area">
+                
+                <div class="saas-card mb-4">
+                    <div class="card-header-flex">
+                        <h3 class="card-title"><i class="fa-solid fa-wand-magic-sparkles text-primary me-2"></i> AI 90-Day Forecast</h3>
+                        <div class="d-flex gap-2">
+                            <select class="form-select form-select-sm">
+                                <option>All Categories</option>
+                                <option>Electronics</option>
+                            </select>
+                            <button class="btn-saas btn-outline"><i class="fa-solid fa-download"></i> Export</button>
+                        </div>
+                    </div>
+                    <div style="height: 350px;">
+                        <canvas id="forecastChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-6">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">Restock Recommendations</h3>
+                                <span class="saas-badge badge-danger">3 Urgent</span>
+                            </div>
+                            <div class="list-group list-group-flush border-0">
+                                <div class="list-group-item px-0 py-3 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="fw-semibold">Laptop Stand Aluminum</div>
+                                        <span class="text-danger fw-bold">Stockout in 3 days</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="text-muted small">Current: 12 units • Rec. Order: 500 units</div>
+                                        <button class="btn-saas btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Create PO</button>
+                                    </div>
+                                </div>
+                                <div class="list-group-item px-0 py-3 border-bottom">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div class="fw-semibold">Mechanical Keyboard RGB</div>
+                                        <span class="text-warning fw-bold">Stockout in 14 days</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="text-muted small">Current: 85 units • Rec. Order: 250 units</div>
+                                        <button class="btn-saas btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Create PO</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="saas-card">
+                            <div class="card-header-flex">
+                                <h3 class="card-title">Velocity Analysis</h3>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="saas-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Product</th>
+                                            <th>7D Velocity</th>
+                                            <th>Trend</th>
+                                            <th>Coverage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td class="fw-medium">Wireless Earbuds Pro</td>
+                                            <td>24 units/day</td>
+                                            <td class="text-success"><i class="fa-solid fa-arrow-up"></i> 12%</td>
+                                            <td>45 Days</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-medium">Smart Watch Series 5</td>
+                                            <td>18 units/day</td>
+                                            <td class="text-muted"><i class="fa-solid fa-minus"></i> 0%</td>
+                                            <td>60 Days</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="fw-medium">Laptop Stand Aluminum</td>
+                                            <td>4 units/day</td>
+                                            <td class="text-danger"><i class="fa-solid fa-arrow-down"></i> 5%</td>
+                                            <td class="text-danger fw-bold">3 Days</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = document.getElementById('forecastChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jun 1', 'Jun 15', 'Jul 1', 'Jul 15', 'Aug 1', 'Aug 15', 'Sep 1'],
+                        datasets: [
+                            {
+                                label: 'Historical Sales',
+                                data: [1200, 1350, 1250, null, null, null, null],
+                                borderColor: '#0f172a',
+                                borderWidth: 2,
+                                tension: 0.4
+                            },
+                            {
+                                label: 'AI Forecast',
+                                data: [null, null, 1250, 1400, 1600, 1550, 1800],
+                                borderColor: '#4f46e5',
+                                borderDash: [5, 5],
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true,
+                                backgroundColor: 'rgba(79, 70, 229, 0.1)'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, grid: { borderDash: [5, 5] } }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

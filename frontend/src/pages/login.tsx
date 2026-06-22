@@ -20,9 +20,9 @@ export default function LoginPage() {
     setError(null)
     setSuccess(null)
 
-    // Domain Validation
-    if (!email.toLowerCase().endsWith('@zenarise.org')) {
-      setError('Registration is restricted to @zenarise.org email addresses only.')
+    // Domain Validation (allow any zenarise domain)
+    if (!email.toLowerCase().includes('@zenarise')) {
+      setError('Access is restricted to Zenarise email addresses only.')
       setLoading(false)
       return
     }
@@ -197,7 +197,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-center mt-8 text-[10px] font-black text-slate-600 uppercase tracking-widest">
-          Secure access via Supabase Auth • @zenarise.org only
+          Secure access via Supabase Auth • Zenarise Employees Only
         </p>
       </div>
     </div>

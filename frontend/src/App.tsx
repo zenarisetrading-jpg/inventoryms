@@ -207,7 +207,7 @@ export default function App() {
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
-          {['Administrator'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') && (
+          {['Administrator', 'Finance', 'finance'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') && (
             <SidebarLink icon={Receipt} label="Invoice Billing" path="/invoice" current={route.name === 'invoice'} collapsed={isSidebarCollapsed} />
           )}
         </nav>

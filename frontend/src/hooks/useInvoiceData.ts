@@ -15,9 +15,10 @@ export function useInvoiceData(user?: any) {
     }
   }, [user])
 
-  const allowedEmails: string[] = [] // Access restrictions removed
+  const allowedEmails: string[] = ['irfaan.a@zenarise.org']
   const userEmail = currentUser?.email?.toLowerCase() || ''
-  const hasAccess = !!currentUser // Allow all authenticated users
+  const userRole = currentUser?.user_metadata?.role || currentUser?.app_metadata?.role || ''
+  const hasAccess = ['Administrator', 'Finance', 'finance'].includes(userRole) || allowedEmails.includes(userEmail)
 
   // Form Fields
   const [invoiceTitle, setInvoiceTitle] = useState(() => localStorage.getItem('s2c_inv_title') || 'TAX INVOICE')
