@@ -1,5 +1,8 @@
 import React from 'react'
-import { ListFilter, ChevronUp, ChevronDown } from 'lucide-react'
+import { ListFilter, ChevronUp, ChevronDown, Edit2 } from 'lucide-react'
+import { useState } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useRegion } from '../../lib/RegionContext'
 
 interface DetailedPerformanceTableProps {
   filteredAndSortedSales: any[]
@@ -9,9 +12,49 @@ interface DetailedPerformanceTableProps {
 }
 
 export function DetailedPerformanceTable({ filteredAndSortedSales, sortField, sortOrder, toggleSort }: DetailedPerformanceTableProps) {
+  const { region } = useRegion()
+  const [editingSku, setEditingSku] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+
   const SortIcon = ({ field }: { field: string }) => {
     if (sortField !== field) return null
     return sortOrder === 'asc' ? <ChevronUp className="w-4 h-4 ml-2 inline" /> : <ChevronDown className="w-4 h-4 ml-2 inline" />
+  }
+
+  const handleEdit = (sku: string, currentValue: string) => {
+    setEditingSku(sku)
+    setEditValue(currentValue || '')
+  }
+
+  const handleSave = async (sku: string) => {
+    if (!editingSku) return
+    setIsSaving(true)
+    try {
+      const { error } = await supabase
+        .from('sku_master')
+        .update({ sub_category: editValue })
+        .eq('sku', sku)
+        // If your region maps exactly to country, you can add .eq('country', 'UAE') etc.
+        // For now, we update it by sku. If region is tied to country, you could use region.
+      
+      if (error) throw error
+      
+      // Optimistically update the local row
+      const row = filteredAndSortedSales.find(r => r.sku === sku)
+      if (row) row.sub_category = editValue
+    } catch (err) {
+      console.error('Failed to update sub category:', err)
+      alert('Failed to update sub category')
+    } finally {
+      setIsSaving(false)
+      setEditingSku(null)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent, sku: string) => {
+    if (e.key === 'Enter') handleSave(sku)
+    if (e.key === 'Escape') setEditingSku(null)
   }
 
   return (
@@ -70,7 +113,24 @@ export function DetailedPerformanceTable({ filteredAndSortedSales, sortField, so
                 <td className="px-6 py-5 text-center text-[11px] font-black text-white"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{i + 1}</span></td>
                 <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.category}</span></td>
                 <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.product_category}</span></td>
-                <td className="px-8 py-5 text-[12px] font-black text-white uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.sub_category}</span></td>
+                <td className="px-8 py-5 text-[12px] font-black text-white uppercase group/cell relative" onDoubleClick={() => handleEdit(row.sku, row.sub_category)}>
+                  {editingSku === row.sku ? (
+                    <input
+                      autoFocus
+                      disabled={isSaving}
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={() => handleSave(row.sku)}
+                      onKeyDown={e => handleKeyDown(e, row.sku)}
+                      className="bg-zinc-800 text-white px-2 py-1 rounded border border-brand-blue outline-none w-full uppercase"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleEdit(row.sku, row.sub_category)}>
+                      <span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.sub_category}</span>
+                      <Edit2 className="w-3 h-3 text-zinc-500 opacity-0 group-hover/cell:opacity-100 transition-opacity" />
+                    </div>
+                  )}
+                </td>
                 <td className="px-8 py-5 text-[12px] font-black text-white font-data uppercase"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.sku}</span></td>
                 <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-amber"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.amazon_units?.toLocaleString()}</span></td>
                 <td className="px-8 py-5 text-right font-data text-[13px] font-black text-brand-blue"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.noon_units?.toLocaleString()}</span></td>

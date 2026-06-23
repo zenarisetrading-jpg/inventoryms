@@ -94,11 +94,19 @@ export default function InventoryPage() {
       finalKeys = finalKeys.filter(k => !['fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 'send_to_fbn_units', 'fbn_boxes', 'noon_coverage'].includes(k))
     }
 
-    return finalKeys.map(key => ({
-      key,
-      label: key === 'required_30d' ? 'REQUIRED STOCK' : key.replace(/_/g, ' ').toUpperCase(),
-      width: key === 'sku' ? '240px' : key === 'name' ? '350px' : '160px'
-    }))
+    return finalKeys.map(key => {
+      let widthClasses = 'w-[120px] min-w-[120px] md:w-[160px] md:min-w-[160px] max-w-[120px] md:max-w-[160px]'
+      if (key === 'sku') {
+        widthClasses = 'w-[140px] min-w-[140px] lg:w-[240px] lg:min-w-[240px] max-w-[140px] lg:max-w-[240px]'
+      } else if (key === 'name') {
+        widthClasses = 'w-[200px] min-w-[200px] lg:w-[350px] lg:min-w-[350px] max-w-[200px] lg:max-w-[350px]'
+      }
+      return {
+        key,
+        label: key === 'required_30d' ? 'REQUIRED STOCK' : key.replace(/_/g, ' ').toUpperCase(),
+        widthClasses
+      }
+    })
   }, [data])
 
   const processedData = useMemo(() => {
@@ -355,13 +363,12 @@ export default function InventoryPage() {
                   {columns.map((col, i) => (
                     <th
                       key={col.key}
-                      style={{ width: col.width, minWidth: col.width }}
                       onClick={() => {
                         if (sortKey === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
                         else { setSortKey(col.key); setSortDir('desc') }
                       }}
                       className={`
-                        px-4 py-3 text-left cursor-pointer transition-all border-b border-white/10 group
+                        px-4 py-3 text-left cursor-pointer transition-all border-b border-white/10 group ${col.widthClasses}
                         ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] hover:bg-[#171B25] border-r border-white/10' : 'hover:bg-white/10'}
                       `}
                     >
@@ -381,9 +388,8 @@ export default function InventoryPage() {
                     {columns.map((col, i) => (
                       <td
                         key={col.key}
-                        style={{ width: col.width, minWidth: col.width }}
                         className={`
-                          px-4 py-2 border-white/5 h-[48px]
+                          px-4 py-2 border-white/5 h-[48px] ${col.widthClasses}
                           ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
                         `}
                       ><span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
@@ -401,9 +407,8 @@ export default function InventoryPage() {
                   {columns.map((col, i) => (
                     <td
                       key={col.key}
-                      style={{ width: col.width, minWidth: col.width }}
                       className={`
-                        px-4 py-2 bg-zinc-900 border-zinc-800
+                        px-4 py-2 bg-zinc-900 border-zinc-800 ${col.widthClasses}
                         ${i === 0 ? 'sticky left-0 z-40 border-r border-zinc-800 shadow-[2px_0_10px_rgba(0,0,0,0.3)]' : ''}
                       `}
                     ><span className={`text-[13px] font-black uppercase truncate block ${

@@ -45,8 +45,8 @@ export function SKUTable({
   return (
     <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
       <table className="w-fit min-w-full border-collapse">
-        <thead className="sticky top-0 z-30 bg-card">
-          <tr className="bg-white/5 group">
+        <thead className="sticky top-0 z-30 bg-[#0B0F1A]">
+          <tr className="group border-b border-white/10">
             {columns.map((col, i) => (
               <th
                 key={col}
