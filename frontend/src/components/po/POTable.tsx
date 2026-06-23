@@ -1,5 +1,5 @@
 import React, { Fragment } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Copy } from 'lucide-react'
 import { PO } from '../../types'
 import { InlineEdit } from './InlineEdit'
 import { StatusBadge } from '../shared/StatusBadge'
@@ -291,34 +291,53 @@ export function POTable({
 
                                       return (
                                         <tr className="group hover:bg-white/10 transition-colors group/item" key={i}>
-                                          <td className="py-2 pr-4 text-sm text-white">
-                                            <InlineEdit 
-                                              value={li.sku} 
-                                              suggestions={skuSuggestions}
-                                              inputClassName="w-full text-sm text-white"
-                                              autoEdit={li.sku === '' && i === po.line_items.length - 1}
-                                              onSave={async (val) => {
-                                                const newItems = [...po.line_items]
-                                                const skuCode = val.trim()
-                                                const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase())
-                                                if (skuData) {
-                                                  const uo = li.units_ordered || 0
-                                                  const upb = skuData.units_per_box || 0
-                                                  const bc = upb > 0 && uo > 0 ? Math.ceil(uo / upb) : 0
-                                                  newItems[i] = {
-                                                    ...li,
-                                                    sku: skuData.sku,
-                                                    units_per_box: upb,
-                                                    cogs_per_unit: skuData.cogs || 0,
-                                                    dimensions: skuData.dimensions || '',
-                                                    box_count: bc
-                                                  }
-                                                } else {
-                                                  newItems[i] = { ...li, sku: val }
-                                                }
-                                                await saveItems(newItems)
-                                              }}
-                                            /></td>
+                                          <td className="py-2 pr-4 text-sm text-white group/sku">
+                                            <div className="flex items-center gap-2">
+                                              {li.sku ? (
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    navigator.clipboard.writeText(li.sku)
+                                                  }}
+                                                  className="opacity-100 lg:opacity-0 lg:group-hover/sku:opacity-100 transition-all p-1.5 bg-[#171B25] border border-white/10 hover:bg-brand-blue/20 hover:border-brand-blue/30 rounded text-zinc-400 hover:text-brand-blue shrink-0 shadow-sm"
+                                                  title="Copy SKU"
+                                                >
+                                                  <Copy className="h-3.5 w-3.5" />
+                                                </button>
+                                              ) : (
+                                                <div className="w-[26px] shrink-0" />
+                                              )}
+                                              <div className="flex-1 min-w-0">
+                                                <InlineEdit 
+                                                  value={li.sku} 
+                                                  suggestions={skuSuggestions}
+                                                  inputClassName="w-full text-sm text-white"
+                                                  autoEdit={li.sku === '' && i === po.line_items.length - 1}
+                                                  onSave={async (val) => {
+                                                    const newItems = [...po.line_items]
+                                                    const skuCode = val.trim()
+                                                    const skuData = allSkus.find(s => s.sku && s.sku.toLowerCase() === skuCode.toLowerCase())
+                                                    if (skuData) {
+                                                      const uo = li.units_ordered || 0
+                                                      const upb = skuData.units_per_box || 0
+                                                      const bc = upb > 0 && uo > 0 ? Math.ceil(uo / upb) : 0
+                                                      newItems[i] = {
+                                                        ...li,
+                                                        sku: skuData.sku,
+                                                        units_per_box: upb,
+                                                        cogs_per_unit: skuData.cogs || 0,
+                                                        dimensions: skuData.dimensions || '',
+                                                        box_count: bc
+                                                      }
+                                                    } else {
+                                                      newItems[i] = { ...li, sku: val }
+                                                    }
+                                                    await saveItems(newItems)
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                          </td>
                                           <td className="py-2 pr-4 text-right font-data text-sm text-white"><InlineEdit 
                                               type="number"
                                               value={li.units_ordered} 
