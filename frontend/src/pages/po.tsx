@@ -6,7 +6,7 @@ import { STATUS_TABS } from '../components/po/utils'
 import { usePOData } from '../hooks/usePOData'
 import { POBulkUploadModal } from '../components/po/POBulkUploadModal'
 import { POTable } from '../components/po/POTable'
-import { ActionDropdown } from '../components/ActionDropdown'
+import { ActionDropdown } from '../components/shared/ActionDropdown'
 
 export default function POPage() {
   const [showBulkModal, setShowBulkModal] = useState(false)

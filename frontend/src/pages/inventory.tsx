@@ -1,10 +1,11 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Search, Download, RefreshCw, AlertTriangle, ArrowUpDown, ChevronDown, Filter, Layers, Archive, Box, ShoppingCart, Send } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PlanningResponse } from '../types'
 import { MultiSelect } from '../components/shared/MultiSelect'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { useRegion } from '../lib/RegionContext'
+import { ColumnVisibilitySelector } from '../components/shared/ColumnVisibilitySelector'
 
 export default function InventoryPage() {
   const { region } = useRegion()
@@ -20,6 +21,47 @@ export default function InventoryPage() {
   const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([])
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
+
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('inventory_column_order');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem('inventory_visible_columns');
+    return saved ? JSON.parse(saved) : [
+      'sku', 'category', 'sub_category', 'fba_units', 'amazon_sv', 
+      'fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 
+      'locad_boxes', 'blended_sv', 'cogs', 'suggested_reorder_qty', 
+      'already_ordered', 'pending_qty_to_reorder', 'fba_boxes', 
+      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name'
+    ];
+  });
+
+  const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setExportDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (columnOrder.length > 0) {
+      localStorage.setItem('inventory_column_order', JSON.stringify(columnOrder));
+    } else {
+      localStorage.removeItem('inventory_column_order');
+    }
+  }, [columnOrder]);
+
+  useEffect(() => {
+    localStorage.setItem('inventory_visible_columns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
 
   const fetchData = async () => {
     setLoading(true)
@@ -54,11 +96,12 @@ export default function InventoryPage() {
     }
   }
 
-  const handleExport = () => {
+  const handleExport = (exportAll: boolean) => {
     if (!data?.raw_data?.length) return
-    const headers = Object.keys(data.raw_data[0]).join(',')
-    const rows = data.raw_data.map(row =>
-      Object.values(row).map(v => `"${v ?? ''}"`).join(',')
+    const exportKeys = exportAll ? baseColumns.map(c => c.key) : activeColumns.map(c => c.key);
+    const headers = exportKeys.map(k => k.replace(/_/g, ' ').toUpperCase()).join(',')
+    const rows = processedData.map(row =>
+      exportKeys.map(k => `"${(row as any)[k] ?? ''}"`).join(',')
     ).join('\n')
     const blob = new Blob([headers + '\n' + rows], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
@@ -66,9 +109,10 @@ export default function InventoryPage() {
     a.href = url
     a.download = `inventory_plan_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
+    setExportDropdownOpen(false)
   }
 
-  const columns = useMemo(() => {
+  const baseColumns = useMemo(() => {
     if (!data?.raw_data?.length) return []
     
     // Explicit order as requested by user
@@ -81,7 +125,7 @@ export default function InventoryPage() {
       'amazon_coverage', 'noon_coverage', 'total_coverage', 'cogs',
       'suggested_reorder_qty', 'already_ordered', 'pending_qty_to_reorder', 'total_reorder_cost',
       'send_to_fba_units', 'send_to_fbn_units', 'send_to_minutes_units', 'fba_boxes', 'fbn_boxes', 'minutes_boxes',
-      'priority_rank', 'allocation_reason'
+      'priority_rank', 'allocation_reason', 'loaded_at', 'country', 'product_category', 'saddl_id', 'sales_yesterday', 'name'
     ]
 
     const existingKeys = Object.keys(data.raw_data[0])
@@ -94,7 +138,16 @@ export default function InventoryPage() {
       finalKeys = finalKeys.filter(k => !['fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 'send_to_fbn_units', 'fbn_boxes', 'noon_coverage'].includes(k))
     }
 
-    return finalKeys.map(key => {
+    let orderedKeys = finalKeys;
+    if (columnOrder.length > 0) {
+      const orderSet = new Set(columnOrder);
+      orderedKeys = [
+        ...columnOrder.filter(k => finalKeys.includes(k)),
+        ...finalKeys.filter(k => !orderSet.has(k))
+      ];
+    }
+
+    return orderedKeys.map(key => {
       let widthClasses = 'w-[120px] min-w-[120px] md:w-[160px] md:min-w-[160px] max-w-[120px] md:max-w-[160px]'
       if (key === 'sku') {
         widthClasses = 'w-[140px] min-w-[140px] lg:w-[240px] lg:min-w-[240px] max-w-[140px] lg:max-w-[240px]'
@@ -107,7 +160,44 @@ export default function InventoryPage() {
         widthClasses
       }
     })
-  }, [data])
+  }, [data, isKSA, columnOrder])
+
+  const activeColumns = useMemo(() => {
+    return baseColumns.filter(c => visibleColumns.includes(c.key));
+  }, [baseColumns, visibleColumns]);
+
+  const handleColumnToggle = (key: string) => {
+    setVisibleColumns(prev => {
+      if (prev.includes(key)) {
+        if (prev.length <= 1) return prev;
+        return prev.filter(k => k !== key);
+      }
+      return [...prev, key];
+    });
+  };
+
+  const handleColumnReorder = (newColumns: {key: string}[]) => {
+    setColumnOrder(newColumns.map(c => c.key));
+  };
+
+  const handleSelectAllColumns = () => {
+    setVisibleColumns(baseColumns.map(c => c.key));
+  };
+
+  const handleClearAllColumns = () => {
+    if (baseColumns.length > 0) setVisibleColumns([baseColumns[0].key]);
+  };
+
+  const handleResetColumns = () => {
+    setColumnOrder([]);
+    setVisibleColumns([
+      'sku', 'category', 'sub_category', 'fba_units', 'amazon_sv', 
+      'fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 
+      'locad_boxes', 'blended_sv', 'cogs', 'suggested_reorder_qty', 
+      'already_ordered', 'pending_qty_to_reorder', 'fba_boxes', 
+      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name'
+    ]);
+  };
 
   const processedData = useMemo(() => {
     if (!data?.raw_data) return []
@@ -259,13 +349,44 @@ export default function InventoryPage() {
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               SYNC
             </button>
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"
-            >
-              <Download className="w-3.5 h-3.5" />
-              DOWNLOAD ALL
-            </button>
+            
+            <ColumnVisibilitySelector
+              columns={baseColumns}
+              visibleColumns={visibleColumns}
+              onToggle={handleColumnToggle}
+              onReorder={handleColumnReorder}
+              onSelectAll={handleSelectAllColumns}
+              onClearAll={handleClearAllColumns}
+              onReset={handleResetColumns}
+            />
+
+            <div className="relative" ref={exportDropdownRef}>
+              <button
+                onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-white/5 text-zinc-400 hover:text-white rounded-md text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 h-[32px] sm:h-[34px]"
+              >
+                <Download className="w-3.5 h-3.5" />
+                EXPORT
+                <ChevronDown className={`w-3 h-3 transition-transform ${exportDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {exportDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-card border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                  <button
+                    onClick={() => handleExport(false)}
+                    className="w-full text-left px-4 py-3 text-[11px] font-bold text-zinc-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 uppercase"
+                  >
+                    Export Visible
+                  </button>
+                  <button
+                    onClick={() => handleExport(true)}
+                    className="w-full text-left px-4 py-3 text-[11px] font-bold text-zinc-300 hover:bg-white/5 hover:text-white transition-colors uppercase"
+                  >
+                    Export All
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -360,7 +481,7 @@ export default function InventoryPage() {
             <table className="w-fit min-w-full border-collapse">
               <thead className="sticky top-0 z-30 bg-card">
                 <tr className="bg-white/5 group">
-                  {columns.map((col, i) => (
+                  {activeColumns.map((col, i) => (
                     <th
                       key={col.key}
                       onClick={() => {
@@ -385,7 +506,7 @@ export default function InventoryPage() {
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {processedData.map((row: any, idx) => (
                   <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5" key={idx}>
-                    {columns.map((col, i) => (
+                    {activeColumns.map((col, i) => (
                       <td
                         key={col.key}
                         className={`
@@ -404,7 +525,7 @@ export default function InventoryPage() {
               </tbody>
               <tfoot className="sticky bottom-0 z-30 bg-zinc-900 border-t-2 border-brand-amber">
                 <tr className="h-[48px] group">
-                  {columns.map((col, i) => (
+                  {activeColumns.map((col, i) => (
                     <td
                       key={col.key}
                       className={`

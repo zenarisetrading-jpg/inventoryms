@@ -1,7 +1,7 @@
 import React from 'react'
 import { AlertTriangle, Package } from 'lucide-react'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
-import { SalesPerformanceCard } from '../components/SalesPerformanceCard'
+import { SalesPerformanceCard } from '../components/performance/SalesPerformanceCard'
 import { usePerformanceData } from '../hooks/usePerformanceData'
 import { useRegion } from '../lib/RegionContext'
 

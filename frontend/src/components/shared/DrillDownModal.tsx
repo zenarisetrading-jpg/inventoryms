@@ -2,8 +2,8 @@ import { X, Download, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ActionDropdown } from './ActionDropdown'
-import type { ActionFlag, InventoryNode } from '../types'
-import { navigate } from '../lib/router'
+import type { ActionFlag, InventoryNode } from '../../types'
+import { navigate } from '../../lib/router'
 
 interface DrillDownProps {
   title: string
