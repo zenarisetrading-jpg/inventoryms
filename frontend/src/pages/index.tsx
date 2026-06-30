@@ -460,9 +460,11 @@ export default function CommandCenter() {
           minutes_sv: row.minutes_sv ?? null,
           current_fba_stock_units: row.current_fba_stock_units ?? null,
           current_fbn_stock_units: row.current_fbn_stock_units ?? null,
+          current_minutes_stock_units: row.current_minutes_stock_units ?? null,
           boxes_in_hand: row.boxes_in_hand ?? null,
           boxes_required_30d_amz: row.boxes_required_30d_amz ?? null,
           boxes_required_30d_noon: row.boxes_required_30d_noon ?? null,
+          boxes_required_30d_minutes: row.boxes_required_30d_minutes ?? null,
           suggested_boxes_amazon: incomingAmazonBoxes,
           suggested_boxes_noon: incomingNoonBoxes,
           suggested_boxes_minutes: incomingMinutesBoxes,
@@ -490,12 +492,18 @@ export default function CommandCenter() {
       if (existing.current_fbn_stock_units == null && row.current_fbn_stock_units != null) {
         existing.current_fbn_stock_units = row.current_fbn_stock_units
       }
+      if (existing.current_minutes_stock_units == null && row.current_minutes_stock_units != null) {
+        existing.current_minutes_stock_units = row.current_minutes_stock_units
+      }
       if (existing.boxes_in_hand == null && row.boxes_in_hand != null) existing.boxes_in_hand = row.boxes_in_hand
       if (existing.boxes_required_30d_amz == null && row.boxes_required_30d_amz != null) {
         existing.boxes_required_30d_amz = row.boxes_required_30d_amz
       }
       if (existing.boxes_required_30d_noon == null && row.boxes_required_30d_noon != null) {
         existing.boxes_required_30d_noon = row.boxes_required_30d_noon
+      }
+      if (existing.boxes_required_30d_minutes == null && row.boxes_required_30d_minutes != null) {
+        existing.boxes_required_30d_minutes = row.boxes_required_30d_minutes
       }
     }
 

@@ -82,36 +82,27 @@
 }
 
 @layer components {
-  /* Smooth row content magnification for tables */
-  tbody tr.group:hover td > span,
-  tbody tr.group:hover td > div,
-  tbody tr.group:hover td > button,
-  tbody tr.group:hover td > a {
-    transform: scale(1.15);
-    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-    transform-origin: left center;
-    display: inline-block;
-    will-change: transform;
+  /* ── Table cell containment ─────────────────────────────────── */
+  /* Enforce that cell content never overflows into adjacent cells */
+  table[style*="table-layout"] td,
+  table[style*="table-layout"] th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  tbody tr.group:hover td.text-center > span,
-  tbody tr.group:hover td.text-center > div,
-  tbody tr.group:hover td.text-center > button {
-    transform-origin: center;
+
+  /* Subtle highlight on row hover instead of scale (prevents overflow) */
+  tbody tr:hover td > span,
+  tbody tr:hover td > div,
+  tbody tr:hover td > button,
+  tbody tr:hover td > a {
+    color: #F8FAFC;
+    transition: color 0.15s ease-out;
   }
-  tbody tr.group:hover td.text-right > span,
-  tbody tr.group:hover td.text-right > div,
-  tbody tr.group:hover td.text-right > button {
-    transform-origin: right center;
-  }
-  tbody tr td > span,
-  tbody tr td > div,
-  tbody tr td > button,
-  tbody tr td > a {
-    transition: transform 0.2s ease-out;
-    will-change: transform;
-    display: inline-block;
-  }
+
+  /* Keep flex layouts intact inside cells */
   tbody tr td > .flex {
     display: flex !important;
+    overflow: hidden;
   }
 }

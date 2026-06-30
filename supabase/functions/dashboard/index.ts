@@ -32,9 +32,11 @@ interface ShipNowItem {
   minutes_sv: number
   current_fba_stock_units: number
   current_fbn_stock_units: number
+  current_minutes_stock_units: number
   boxes_in_hand: number
   boxes_required_30d_amz: number
   boxes_required_30d_noon: number
+  boxes_required_30d_minutes: number
   suggested_boxes_amazon: number
   suggested_boxes_noon: number
   suggested_boxes_minutes: number
@@ -286,9 +288,11 @@ serve(async (req: Request) => {
           minutes_sv,
           current_fba_stock_units: fba_units,
           current_fbn_stock_units: fbn_units,
+          current_minutes_stock_units: minutes_units,
           boxes_in_hand: Number(r.locad_boxes || 0),
           boxes_required_30d_amz: Math.ceil(Number(r.amazon_sv * 30) / Math.max(1, r.units_per_box)),
           boxes_required_30d_noon: Math.ceil(Number(r.noon_sv * 30) / Math.max(1, r.units_per_box)),
+          boxes_required_30d_minutes: Math.ceil(Number(r.minutes_sv * 30) / Math.max(1, r.units_per_box)),
           suggested_boxes_amazon: fba_boxes,
           suggested_boxes_noon: fbn_boxes,
           suggested_boxes_minutes: minutes_boxes,

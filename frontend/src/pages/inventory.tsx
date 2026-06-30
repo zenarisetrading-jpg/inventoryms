@@ -34,7 +34,8 @@ export default function InventoryPage() {
       'fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 
       'locad_boxes', 'blended_sv', 'cogs', 'suggested_reorder_qty', 
       'already_ordered', 'pending_qty_to_reorder', 'fba_boxes', 
-      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name'
+      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name',
+      'age_0_60_days', 'age_61_90_days', 'age_91_180_days', 'age_181_plus_days'
     ];
   });
 
@@ -123,6 +124,7 @@ export default function InventoryPage() {
       'locad_units', 'locad_boxes', 'units_per_box', 'blended_sv',
       'required_30d', 'stock_in_hand', 'shortfall', 'moq',
       'amazon_coverage', 'noon_coverage', 'total_coverage', 'cogs',
+      'age_0_60_days', 'age_61_90_days', 'age_91_180_days', 'age_181_plus_days',
       'suggested_reorder_qty', 'already_ordered', 'pending_qty_to_reorder', 'total_reorder_cost',
       'send_to_fba_units', 'send_to_fbn_units', 'send_to_minutes_units', 'fba_boxes', 'fbn_boxes', 'minutes_boxes',
       'priority_rank', 'allocation_reason', 'loaded_at', 'country', 'product_category', 'saddl_id', 'sales_yesterday', 'name'
@@ -148,16 +150,21 @@ export default function InventoryPage() {
     }
 
     return orderedKeys.map(key => {
-      let widthClasses = 'w-[120px] min-w-[120px] md:w-[160px] md:min-w-[160px] max-w-[120px] md:max-w-[160px]'
-      if (key === 'sku') {
-        widthClasses = 'w-[140px] min-w-[140px] lg:w-[240px] lg:min-w-[240px] max-w-[140px] lg:max-w-[240px]'
-      } else if (key === 'name') {
-        widthClasses = 'w-[200px] min-w-[200px] lg:w-[350px] lg:min-w-[350px] max-w-[200px] lg:max-w-[350px]'
-      }
+      // Column width assignments by semantic type
+      let width = 130 // default for numeric/short columns
+      if (key === 'sku') width = 180
+      else if (key === 'name') width = 260
+      else if (key === 'category' || key === 'sub_category' || key === 'product_category') width = 150
+      else if (key === 'action_flag' || key === 'allocation_reason' || key === 'priority_rank') width = 160
+      else if (key === 'saddl_id') width = 140
+      else if (key === 'loaded_at') width = 170
+      else if (key === 'country') width = 90
+      else if (key === 'is_active') width = 90
+
       return {
         key,
         label: key === 'required_30d' ? 'REQUIRED STOCK' : key.replace(/_/g, ' ').toUpperCase(),
-        widthClasses
+        width
       }
     })
   }, [data, isKSA, columnOrder])
@@ -195,7 +202,8 @@ export default function InventoryPage() {
       'fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 
       'locad_boxes', 'blended_sv', 'cogs', 'suggested_reorder_qty', 
       'already_ordered', 'pending_qty_to_reorder', 'fba_boxes', 
-      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name'
+      'fbn_boxes', 'minutes_boxes', 'priority_rank', 'allocation_reason', 'name',
+      'age_0_60_days', 'age_61_90_days', 'age_91_180_days', 'age_181_plus_days'
     ]);
   };
 
@@ -478,7 +486,7 @@ export default function InventoryPage() {
 
         {!error && processedData.length > 0 && (
           <div className="overflow-auto custom-scrollbar flex-1 relative bg-transparent">
-            <table className="w-fit min-w-full border-collapse">
+            <table className="border-collapse" style={{ tableLayout: 'fixed', width: activeColumns.reduce((sum, c) => sum + c.width, 0) }}>
               <thead className="sticky top-0 z-30 bg-card">
                 <tr className="bg-white/5 group">
                   {activeColumns.map((col, i) => (
@@ -488,16 +496,17 @@ export default function InventoryPage() {
                         if (sortKey === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
                         else { setSortKey(col.key); setSortDir('desc') }
                       }}
+                      style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                       className={`
-                        px-4 py-3 text-left cursor-pointer transition-all border-b border-white/10 group ${col.widthClasses}
+                        px-3 py-3 text-left cursor-pointer transition-all border-b border-white/10 group
                         ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] hover:bg-[#171B25] border-r border-white/10' : 'hover:bg-white/10'}
                       `}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-black text-zinc-400 uppercase tracking-[0.1em] group-hover:text-white transition-colors">
+                      <div className="flex items-center gap-1 overflow-hidden">
+                        <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.05em] group-hover:text-white transition-colors truncate">
                           {col.label}
                         </span>
-                        <ArrowUpDown className={`h-4 w-4 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-400 opacity-0 group-hover:opacity-100'}`} />
+                        <ArrowUpDown className={`h-3.5 w-3.5 shrink-0 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-400 opacity-0 group-hover:opacity-100'}`} />
                       </div>
                     </th>
                   ))}
@@ -505,38 +514,50 @@ export default function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {processedData.map((row: any, idx) => (
-                  <tr className="group hover:bg-white/10 transition-colors hover:bg-white/5" key={idx}>
-                    {activeColumns.map((col, i) => (
-                      <td
-                        key={col.key}
-                        className={`
-                          px-4 py-2 border-white/5 h-[48px] ${col.widthClasses}
-                          ${i === 0 ? 'sticky left-0 z-20 bg-[#0B0F1A] group-hover:bg-[#171B25] border-r border-white/10' : ''}
-                        `}
-                      ><span className={`text-[13px] uppercase truncate block ${col.key === 'sku' ? 'font-black text-brand-blue' :
-                            (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-primary' :
-                              'font-semibold text-zinc-300'
-                          } ${row.is_active === false ? 'opacity-40' : ''}`}>
-                          {renderCell(col.key, row[col.key])}
-                        </span></td>
-                    ))}
+                  <tr className={`group transition-colors h-[48px] ${idx % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'} hover:bg-white/[0.06]`} key={idx}>
+                    {activeColumns.map((col, i) => {
+                      const cellValue = renderCell(col.key, row[col.key])
+                      const titleText = row[col.key] != null ? String(row[col.key]) : ''
+                      return (
+                        <td
+                          key={col.key}
+                          title={titleText}
+                          style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
+                          className={`
+                            px-3 py-2 h-[48px] align-middle overflow-hidden
+                            ${i === 0 ? 'sticky left-0 z-20 border-r border-white/10' : ''}
+                            ${i === 0 ? (idx % 2 === 0 ? 'bg-[#0B0F1A] group-hover:bg-[#171B25]' : 'bg-[#0d1120] group-hover:bg-[#171B25]') : ''}
+                          `}
+                        >
+                          <span className={`text-[12px] uppercase block whitespace-nowrap overflow-hidden text-overflow-ellipsis truncate ${col.key === 'sku' ? 'font-black text-brand-blue' :
+                              (col.label.includes('SV') || col.label.includes('UNIT') || col.label.includes('COGS')) ? 'font-black text-primary' :
+                                'font-semibold text-zinc-300'
+                            } ${row.is_active === false ? 'opacity-40' : ''}`}>
+                            {cellValue}
+                          </span>
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
               <tfoot className="sticky bottom-0 z-30 bg-zinc-900 border-t-2 border-brand-amber">
-                <tr className="h-[48px] group">
+                <tr className="h-[48px]">
                   {activeColumns.map((col, i) => (
                     <td
                       key={col.key}
+                      style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                       className={`
-                        px-4 py-2 bg-zinc-900 border-zinc-800 ${col.widthClasses}
+                        px-3 py-2 bg-zinc-900 overflow-hidden align-middle
                         ${i === 0 ? 'sticky left-0 z-40 border-r border-zinc-800 shadow-[2px_0_10px_rgba(0,0,0,0.3)]' : ''}
                       `}
-                    ><span className={`text-[13px] font-black uppercase truncate block ${
+                    >
+                      <span className={`text-[12px] font-black uppercase truncate block whitespace-nowrap overflow-hidden ${
                         i === 0 ? 'text-brand-amber' : 'text-white'
                       }`}>
                         {i === 0 ? 'TOTALS' : (totals[col.key] != null ? renderCell(col.key, totals[col.key]) : '')}
-                      </span></td>
+                      </span>
+                    </td>
                   ))}
                 </tr>
               </tfoot>

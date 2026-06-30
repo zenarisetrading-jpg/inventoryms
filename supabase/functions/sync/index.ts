@@ -429,6 +429,15 @@ async function handleRefreshFact(req: Request): Promise<Response> {
   console.log('[sync] Refreshing fact tables...')
   
   try {
+    // 0. Trigger sync-inventory-age
+    console.log('[sync] Triggering sync-inventory-age...')
+    const { error: syncAgeErr } = await supabase.functions.invoke('sync-inventory-age', {
+      method: 'POST'
+    })
+    if (syncAgeErr) {
+      console.error('[sync] sync-inventory-age error (non-fatal):', syncAgeErr)
+    }
+
     // 1. Refresh Inventory Planning Fact
     const { error: err1 } = await supabase.rpc('refresh_fact_inventory_planning')
     if (err1) {

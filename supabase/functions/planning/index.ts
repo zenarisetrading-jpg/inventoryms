@@ -20,44 +20,24 @@ serve(async (req: Request) => {
     const country = url.searchParams.get('country') || 'UAE'
     const accountId = url.searchParams.get('account_id')
 
-    let factQuery = supabase.from('fact_inventory_planning').select('*').eq('country', country)
-    let masterQuery = supabase.from('sku_master').select('sku, name, is_active').eq('country', country)
+    let factQuery = supabase.from('v_fact_inventory_with_age').select('*').eq('country', country)
 
     if (accountId) {
       factQuery = factQuery.eq('saddl_id', accountId)
-      masterQuery = masterQuery.eq('saddl_id', accountId)
     }
 
-    // 1. Fetch data from fact_inventory_planning and sku_master separately
-    const [factRes, masterRes] = await Promise.all([
-      factQuery,
-      masterQuery
-    ])
+    // Fetch data from v_fact_inventory_with_age
+    const factRes = await factQuery
 
     if (factRes.error) throw factRes.error
-    if (masterRes.error) throw masterRes.error
 
     const factRows = factRes.data || []
-    const masterRows = masterRes.data || []
-    
-    const masterMap = new Map()
-    masterRows.forEach(m => masterMap.set(String(m.sku).trim().toUpperCase(), m))
-
-    const rawData = factRows.map(row => {
-      const meta = masterMap.get(String(row.sku).trim().toUpperCase())
-      return {
-        ...row,
-        name: meta?.name || row.sku,
-        category: meta?.category || row.category,
-        sub_category: meta?.sub_category || row.sub_category,
-        is_active: meta?.is_active ?? true
-      }
-    })
+    const rawData = factRows // view now contains all necessary data
 
     const response = {
       raw_data: rawData,
       fact_count: factRows.length,
-      master_count: masterRows.length,
+      master_count: factRows.length,
       generated_at: new Date().toISOString()
     }
 

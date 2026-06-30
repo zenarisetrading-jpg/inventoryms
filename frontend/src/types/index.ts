@@ -42,17 +42,24 @@ export interface CommandCenterResponse {
     name: string
     allocation_logic: string
     blended_sv: number
+    amazon_sv?: number
+    noon_sv?: number
+    minutes_sv?: number
     current_fba_stock_units: number
     current_fbn_stock_units: number
+    current_minutes_stock_units: number
     boxes_in_hand: number
     boxes_required_30d_amz: number
     boxes_required_30d_noon: number
+    boxes_required_30d_minutes: number
     suggested_boxes_amazon: number
     suggested_boxes_noon: number
+    suggested_boxes_minutes?: number
     total_boxes_to_ship: number
     total_units_to_ship: number
     send_to_fba_units?: number
     send_to_fbn_units?: number
+    send_to_minutes_units?: number
     plan_date: string | null
   }[]
   reorder_now: {

@@ -42,7 +42,7 @@ export function DrillDownModal({ title, isOpen, onClose, data, type }: DrillDown
       
       const firstItem = safeData[0]
       const headers = Object.keys(firstItem).filter(k => 
-        typeof firstItem[k] !== 'object' && 
+        (firstItem[k] === null || typeof firstItem[k] !== 'object') && 
         k !== 'sku_master' // Explicitly ignore nested objects
       )
       
