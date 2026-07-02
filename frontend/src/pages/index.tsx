@@ -319,8 +319,15 @@ export default function CommandCenter() {
 
   const load = useCallback(() => {
     setLoading(true)
+    console.debug('[CommandCenter] Fetching fresh data...', { region, ts: new Date().toISOString() })
     api.getCommandCenter().then(res => {
       const resp = res as any
+      console.debug('[CommandCenter] Data received', {
+        generated_at: resp.generated_at,
+        ship_now_count: resp.ship_now?.length,
+        alerts_count: resp.alerts?.length,
+        last_synced: resp.last_synced,
+      })
       if (resp.error) {
         resp.alerts = []
         resp.ship_now = []

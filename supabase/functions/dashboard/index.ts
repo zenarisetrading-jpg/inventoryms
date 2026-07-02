@@ -134,6 +134,17 @@ function formatDate(iso: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
+// Response headers — prevent browser/CDN caching of live inventory data
+// ---------------------------------------------------------------------------
+const noCacheHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+}
+
+// ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
 serve(async (req: Request) => {
@@ -461,7 +472,7 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: noCacheHeaders,
     })
   } catch (err) {
     console.error('dashboard: unhandled error', err)
@@ -471,7 +482,7 @@ serve(async (req: Request) => {
       JSON.stringify({ error: 'Internal server error', detail: errorDetail }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: noCacheHeaders,
       }
     )
   }

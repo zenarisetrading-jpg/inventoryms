@@ -64,7 +64,7 @@ function getAccountId(): string {
 }
 
 function buildQuery(params: Record<string, string | undefined>): string {
-  const allParams = { ...params, country: getCountry(), account_id: getAccountId() }
+  const allParams = { ...params, country: getCountry(), account_id: getAccountId(), _t: String(Date.now()) }
   const entries = Object.entries(allParams).filter(([, v]) => v !== undefined && v !== '')
   if (entries.length === 0) return ''
   return '?' + entries.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v as string)}`).join('&')
@@ -118,27 +118,27 @@ export const api = {
     return { success: true }
   },
   getCommandCenter: async (): Promise<CommandCenterResponse> =>
-    fetch(`${BASE}/dashboard?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/dashboard?country=${getCountry()}&account_id=${getAccountId()}&_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<CommandCenterResponse>(r))
       .catch(err => ({ error: err.message } as unknown as CommandCenterResponse)),
 
   getSKUs: async (params?: { search?: string; category?: string; flag?: string }): Promise<SKUListResponse> =>
-    fetch(`${BASE}/skus${buildQuery(params ?? {})}`, { headers: await getHeaders() })
+    fetch(`${BASE}/skus${buildQuery(params ?? {})}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<SKUListResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUListResponse)),
 
   getSKU: async (sku: string): Promise<SKUDetailResponse> =>
-    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}&account_id=${getAccountId()}&_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<SKUDetailResponse>(r))
       .catch(err => ({ error: err.message } as unknown as SKUDetailResponse)),
 
   getPOs: async (params?: { status?: string; sku?: string; supplier?: string; country?: string }): Promise<{ pos: PO[] }> =>
-    fetch(`${BASE}/po${buildQuery({ country: getCountry(), ...(params ?? {}) })}`, { headers: await getHeaders() })
+    fetch(`${BASE}/po${buildQuery({ country: getCountry(), ...(params ?? {}) })}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<{ pos: PO[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { pos: PO[] })),
 
   getSuppliers: async (): Promise<{ suppliers: string[] }> =>
-    fetch(`${BASE}/po/suppliers`, { headers: await getHeaders() })
+    fetch(`${BASE}/po/suppliers?_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<{ suppliers: string[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { suppliers: string[] })),
 
@@ -162,7 +162,7 @@ export const api = {
   },
 
   getPO: async (idOrPo: string): Promise<PO> =>
-    fetch(`${BASE}/po/${encodeURIComponent(idOrPo)}`, { headers: await getHeaders() })
+    fetch(`${BASE}/po/${encodeURIComponent(idOrPo)}?_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<PO>(r))
       .catch(err => ({ error: err.message } as unknown as PO)),
 
@@ -266,7 +266,7 @@ export const api = {
   },
 
   getLocadUnmatched: async (): Promise<{ unmatched: { locad_sku: string; product_name: string }[] }> =>
-    fetch(`${BASE}/upload-locad-report/unmatched`, { headers: await getHeaders() })
+    fetch(`${BASE}/upload-locad-report/unmatched?_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<{ unmatched: { locad_sku: string; product_name: string }[] }>(r))
       .catch(err => ({ error: err.message } as unknown as { unmatched: { locad_sku: string; product_name: string }[] })),
 
@@ -280,7 +280,7 @@ export const api = {
       .catch(err => ({ error: err.message } as unknown as { ok: true })),
 
   getSyncStatus: async (): Promise<SyncStatus> =>
-    fetch(`${BASE}/sync/status`, { headers: await getHeaders() })
+    fetch(`${BASE}/sync/status?_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<SyncStatus>(r))
       .catch(err => ({ error: err.message } as unknown as SyncStatus)),
 
@@ -340,12 +340,12 @@ export const api = {
   },
 
   getPlanning: async (): Promise<PlanningResponse> =>
-    fetch(`${BASE}/planning?country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/planning?country=${getCountry()}&account_id=${getAccountId()}&_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<PlanningResponse>(r))
       .catch(err => ({ error: err.message } as unknown as PlanningResponse)),
 
   getAnalytics: async (days: 7 | 30 | 90 = 30): Promise<AnalyticsResponse> =>
-    fetch(`${BASE}/analytics?days=${days}&country=${getCountry()}&account_id=${getAccountId()}`, { headers: await getHeaders() })
+    fetch(`${BASE}/analytics?days=${days}&country=${getCountry()}&account_id=${getAccountId()}&_t=${Date.now()}`, { headers: await getHeaders(), cache: 'no-store' })
       .then(r => handleResponse<AnalyticsResponse>(r))
       .catch(err => ({ error: err.message } as unknown as AnalyticsResponse)),
 

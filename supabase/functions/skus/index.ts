@@ -292,6 +292,9 @@ async function handleList(req: Request, url: URL): Promise<Response> {
 // ---------------------------------------------------------------------------
 async function handleDetail(req: Request, skuId: string): Promise<Response> {
   const supabase = getSupabaseClient(req)
+  const url = new URL(req.url)
+  const country = url.searchParams.get('country') || 'UAE'
+  const accountId = url.searchParams.get('account_id') || 's2c_uae_test'
 
   // Run queries in parallel
   const [skuResult, demandResult, snapshotResult, poResult] = await Promise.all([
@@ -300,6 +303,8 @@ async function handleDetail(req: Request, skuId: string): Promise<Response> {
       .from('sku_master')
       .select('*')
       .eq('sku', skuId)
+      .eq('country', country)
+      .eq('saddl_id', accountId)
       .maybeSingle(),
 
     // Demand metrics
@@ -307,6 +312,8 @@ async function handleDetail(req: Request, skuId: string): Promise<Response> {
       .from('demand_metrics')
       .select('sv_7, sv_90, blended_sv, action_flag, should_reorder, suggested_reorder_units, updated_at')
       .eq('sku', skuId)
+      .eq('country', country)
+      .eq('saddl_id', accountId)
       .maybeSingle(),
 
     // Latest inventory snapshot — all nodes, all warehouse names
@@ -314,15 +321,19 @@ async function handleDetail(req: Request, skuId: string): Promise<Response> {
       .from('inventory_snapshot')
       .select('node, warehouse_name, available, inbound, reserved, snapshot_date')
       .eq('sku', skuId)
+      .eq('country', country)
+      .eq('saddl_id', accountId)
       .order('snapshot_date', { ascending: false }),
 
     // Pending POs: po_line_items + po_register where status is incoming
     supabase
       .from('po_line_items')
       .select(
-        'units_ordered, units_received, po_register!inner(po_number, supplier, eta, status)'
+        'units_ordered, units_received, po_register!inner(po_number, supplier, eta, status, country, saddl_id)'
       )
       .eq('sku', skuId)
+      .eq('po_register.country', country)
+      .eq('po_register.saddl_id', accountId)
       .in('po_register.status', INCOMING_PO_STATUSES),
   ])
 
