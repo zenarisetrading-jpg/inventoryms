@@ -4,13 +4,13 @@ import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, Ba
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
 import SKUCatalog from './pages/skus'
+import SKUNewPage from './pages/skus_new'
 import POPage from './pages/po'
+import PONewPage from './pages/po_new'
 import UploadPage from './pages/upload'
 import HealthPage from './pages/health'
 import InventoryPage from './pages/inventory'
 import PerformancePage from './pages/performance'
-import PONewPage from './pages/po_new'
-import SKUNewPage from './pages/skus_new'
 import InvoicePage from './pages/invoice'
 import { navigate } from './lib/router'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
@@ -27,27 +27,27 @@ type Route =
   | { name: 'dashboard' }
   | { name: 'sku'; sku: string }
   | { name: 'skus' }
+  | { name: 'skus_new' }
   | { name: 'po' }
   | { name: 'po_new' }
   | { name: 'upload' }
   | { name: 'health' }
   | { name: 'inventory' }
   | { name: 'performance' }
-  | { name: 'skus_new' }
   | { name: 'invoice' }
 
 function parseRoute(): Route {
   const path = window.location.pathname
   if (path === '/' || path === '') return { name: 'dashboard' }
   if (path.startsWith('/sku/')) return { name: 'sku', sku: path.slice(5) }
+  if (path === '/skus/new') return { name: 'skus_new' }
   if (path === '/skus') return { name: 'skus' }
-  if (path === '/po') return { name: 'po' }
   if (path === '/po/new') return { name: 'po_new' }
+  if (path === '/po') return { name: 'po' }
   if (path === '/upload') return { name: 'upload' }
   if (path === '/health') return { name: 'health' }
   if (path === '/inventory') return { name: 'inventory' }
   if (path === '/performance') return { name: 'performance' }
-  if (path === '/skus/new') return { name: 'skus_new' }
   if (path === '/invoice') return { name: 'invoice' }
   return { name: 'dashboard' }
 }
@@ -65,7 +65,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [sessionLoading, setSessionLoading] = useState(true)
-  const isAdminRoute = ['skus', 'sku', 'po', 'po_new', 'upload', 'health', 'skus_new'].includes(route.name)
+  const isAdminRoute = ['skus', 'sku', 'po', 'upload', 'health'].includes(route.name)
   const [isAdminExpanded, setIsAdminExpanded] = useState(isAdminRoute)
   const { region, setRegion } = useRegion()
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false)
@@ -115,7 +115,7 @@ export default function App() {
       setIsSidebarOpen(false) // Close sidebar on navigation
       
       // Auto-expand if navigating to an admin route
-      if (['skus', 'sku', 'po', 'po_new', 'upload', 'health', 'skus_new'].includes(newRoute.name)) {
+      if (['skus', 'sku', 'po', 'upload', 'health'].includes(newRoute.name)) {
         setIsAdminExpanded(true)
       }
     }
@@ -359,9 +359,9 @@ export default function App() {
               {route.name === 'dashboard' && <CommandCenter />}
               {route.name === 'sku' && <SKUDetail sku={route.sku} />}
               {route.name === 'skus' && <SKUCatalog />}
+              {route.name === 'skus_new' && <SKUNewPage />}
               {route.name === 'po' && <POPage />}
               {route.name === 'po_new' && <PONewPage />}
-              {route.name === 'skus_new' && <SKUNewPage />}
               {route.name === 'upload' && <UploadPage />}
               {route.name === 'health' && <HealthPage />}
               {route.name === 'inventory' && <InventoryPage />}

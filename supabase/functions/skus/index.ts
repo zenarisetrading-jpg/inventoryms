@@ -155,49 +155,19 @@ async function handleList(req: Request, url: URL): Promise<Response> {
   console.log('GET /skus called with params:', url.search)
   const supabase = getSupabaseClient(req)
 
-  const search = url.searchParams.get('search')?.trim() ?? null
-  const category = url.searchParams.get('category')?.toUpperCase() ?? null
-  const flag = url.searchParams.get('flag')?.toUpperCase() ?? null
+  const search = url.searchParams.get('search')?.trim() || null
+  const category = url.searchParams.get('category')?.toUpperCase() || null
+  const flag = url.searchParams.get('flag')?.toUpperCase() || null
   const country = url.searchParams.get('country') || 'UAE'
-  const accountId = url.searchParams.get('account_id')
+  const accountId = url.searchParams.get('account_id') || null
 
-  const cutoff60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-  // Base query: join sku_master with demand_metrics (left join via foreign key)
-  let query = supabase
-    .from('sku_master')
-    .select('*')
-    .eq('country', country)
-    .order('sku', { ascending: true })
-
-  // Apply category filter
-  if (category && ['A', 'B', 'C'].includes(category)) {
-    query = query.eq('category', category)
-  }
-
-  let salesQuery = supabase
-    .from('sales_snapshot')
-    .select('sku')
-    .eq('country', country)
-    .gte('date', cutoff60)
-    .gt('units_sold', 0)
-
-  let demandQuery = supabase
-    .from('demand_metrics')
-    .select('sku, blended_sv, total_coverage, projected_coverage, action_flag, should_reorder, suggested_reorder_units')
-    .eq('country', country)
-
-  if (accountId) {
-    query = query.or(`saddl_id.eq.${accountId},saddl_id.is.null`)
-    salesQuery = salesQuery.eq('saddl_id', accountId)
-    demandQuery = demandQuery.eq('saddl_id', accountId)
-  }
-
-  const [{ data, error }, liveSalesResult, demandResult] = await Promise.all([
-    query,
-    salesQuery,
-    demandQuery
-  ])
+  const { data, error } = await supabase.rpc('get_skus_list', {
+    p_country: country,
+    p_account_id: accountId,
+    p_search: search,
+    p_category: category,
+    p_flag: flag
+  })
 
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), {
@@ -206,82 +176,7 @@ async function handleList(req: Request, url: URL): Promise<Response> {
     })
   }
 
-  let rows = (data ?? []) as Record<string, unknown>[]
-
-  // Apply search filter (in-memory, case-insensitive on sku or name)
-  if (search) {
-    const lower = search.toLowerCase()
-    rows = rows.filter(
-      (r) =>
-        (r.sku as string).toLowerCase().includes(lower) ||
-        (r.name as string).toLowerCase().includes(lower)
-    )
-  }
-
-  // Create demand lookup map
-  const demandMap = new Map<string, any>()
-  if (demandResult.data) {
-    demandResult.data.forEach((d: any) => {
-      demandMap.set(d.sku, d)
-    })
-  }
-
-  // Attach demand metrics
-  rows = rows.map((r: any) => ({
-    ...r,
-    demand_metrics: demandMap.has(r.sku) ? [demandMap.get(r.sku)] : []
-  }))
-
-  // Apply action_flag filter
-  if (flag) {
-    rows = rows.filter((r) => {
-      const dm = r.demand_metrics as Record<string, unknown>[] | null
-      const metric = Array.isArray(dm) ? dm[0] : null
-      return metric && (metric.action_flag as string) === flag
-    })
-  }
-
-  const liveSkuSet = new Set<string>(
-    ((liveSalesResult.data ?? []) as { sku: string }[]).map((r) => r.sku)
-  )
-
-  // Build response with demand nested and is_live flag
-  const result: SKUListItem[] = rows.map((r) => {
-    const dm = r.demand_metrics as Record<string, unknown>[] | null
-    const metric = Array.isArray(dm) && dm.length > 0 ? dm[0] : null
-
-    return {
-      sku: r.sku as string,
-      name: r.name as string,
-      asin: r.asin as string,
-      fnsku: (r.fnsku as string | null) ?? null,
-      category: r.category as SKUCategory,
-      product_category: (r.product_category as string | null) ?? null,
-      sub_category: (r.sub_category as string | null) ?? null,
-      units_per_box: r.units_per_box as number,
-      moq: r.moq as number,
-      lead_time_days: r.lead_time_days as number,
-      cogs: r.cogs as number,
-      dimensions: ((r.dimensions || r.dimension) as string | null) ?? null,
-      weight_kg: (r.weight_kg as number | null) ?? null,
-      cbm: (r.cbm as number | null) ?? null,
-      amazon_active: (r.amazon_active as boolean) ?? true,
-      noon_active: (r.noon_active as boolean) ?? true,
-      minutes_active: (r.minutes_active as boolean) ?? true,
-      is_active: r.is_active as boolean,
-      is_live: liveSkuSet.has(r.sku as string),
-      demand: metric ? {
-        blended_sv: metric.blended_sv as number,
-        total_coverage: metric.total_coverage as number,
-        projected_coverage: metric.projected_coverage as number,
-        should_reorder: metric.should_reorder as boolean,
-        suggested_reorder_units: metric.suggested_reorder_units as number,
-      } : null,
-      action_flag: metric ? (metric.action_flag as ActionFlag) : null,
-    }
-  })
-
-  return new Response(JSON.stringify({ skus: result, count: result.length }), {
+  return new Response(JSON.stringify(data), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
