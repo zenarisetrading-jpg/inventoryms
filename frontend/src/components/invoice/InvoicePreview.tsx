@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import saddlLogo from '../../assets/saddl_main_both.png'
 import { renderVal } from './utils'
 import type { LineItem } from './utils'
@@ -23,16 +23,16 @@ export function InvoicePreview({
   remarks, beneficiaryName, bankName, bankAccount, bankIban, bankSwift, bankType
 }: InvoicePreviewProps) {
   return (
-    <div id="invoice-preview-column" className="lg:col-span-7 flex flex-col items-center bg-zinc-950 p-4 lg:p-6 rounded-2xl border border-white/5 overflow-hidden shadow-2xl print:bg-white print:border-none print:p-0 print:shadow-none print:rounded-none w-full">
+    <div id="invoice-preview-column" className="lg:col-span-7 flex flex-col items-center bg-zinc-950 p-4 lg:p-6 rounded-2xl border border-white/5 overflow-hidden shadow-2xl print:bg-white print:border-none print:p-0 print:shadow-none print:rounded-none w-full print:!overflow-visible print:!block">
       <div 
         id="invoice-preview-container" 
-        className="w-full relative overflow-hidden select-text bg-[#C5C5C5] border border-zinc-600 rounded-lg print:bg-white print:border-none print:rounded-none"
-        style={{ height: isMultiPage ? `${containerWidth * (3508 / 2480) * 2 + 20}px` : `${containerWidth * (3508 / 2480)}px` }}
+        className="w-full relative overflow-hidden select-text bg-[#C5C5C5] border border-zinc-600 rounded-lg print:bg-transparent print:border-none print:rounded-none print:!h-auto print:!overflow-visible"
+        style={{ height: `var(--print-height, ${isMultiPage ? `${containerWidth * (3508 / 2480) * 2 + 20}px` : `${containerWidth * (3508 / 2480)}px`})` }}
       >
         <div 
           id="invoice-page-1"
-          className="invoice-sheet bg-white text-zinc-900 font-sans p-[100px] border border-zinc-400 shadow-md flex flex-col justify-between absolute top-0 left-0 origin-top-left print:border-none print:p-[60px]"
-          style={{ width: '2480px', height: '3508px', transform: `scale(${scale})`, WebkitTransform: `scale(${scale})` }}
+          className="invoice-sheet bg-white text-zinc-900 font-sans p-[100px] border border-zinc-400 shadow-md flex flex-col justify-between absolute top-0 left-0 origin-top-left print:border-none print:p-[100px] print:!relative print:!transform-none print:!top-auto print:!left-auto print:!shadow-none print:break-after-page"
+          style={{ width: '2480px', height: '3508px', transform: `var(--print-transform, scale(${scale}))`, WebkitTransform: `var(--print-transform, scale(${scale}))` }}
         >
           <div>
             <div className="flex justify-between items-center border-b-[6px] border-zinc-800 pb-[40px] mb-[60px]">
@@ -166,7 +166,7 @@ export function InvoicePreview({
           ) : (
             <div className="flex justify-between items-center text-[28px] font-bold text-zinc-400 border-t-[3px] border-zinc-300 pt-[20px]">
               <div>Page 1 of 2</div>
-              <div className="uppercase tracking-[0.1em]">Your Company L.L.C-FZ</div>
+              <div className="uppercase tracking-[0.1em]">{renderVal(sellerName)}</div>
             </div>
           )}
         </div>
@@ -174,8 +174,8 @@ export function InvoicePreview({
         {isMultiPage && (
           <div 
             id="invoice-page-2"
-            className="invoice-sheet bg-white text-zinc-900 font-sans p-[100px] border border-zinc-400 shadow-md flex flex-col justify-between absolute left-0 origin-top-left print:border-none print:p-[60px]"
-            style={{ width: '2480px', height: '3508px', transform: `scale(${scale})`, WebkitTransform: `scale(${scale})`, top: `${3508 * scale + 20}px` }}
+            className="invoice-sheet bg-white text-zinc-900 font-sans p-[100px] border border-zinc-400 shadow-md flex flex-col justify-between absolute left-0 origin-top-left print:border-none print:p-[100px] print:!relative print:!transform-none print:!top-auto print:!left-auto print:!shadow-none print:break-before-page"
+            style={{ width: '2480px', height: '3508px', transform: `var(--print-transform, scale(${scale}))`, WebkitTransform: `var(--print-transform, scale(${scale}))`, top: `var(--print-top, ${3508 * scale + 20}px)` }}
           >
             <div>
               <div className="flex justify-between items-center border-b-[6px] border-zinc-800 pb-[40px] mb-[60px]">
@@ -288,7 +288,7 @@ export function InvoicePreview({
               </div>
               <div className="flex justify-between items-center text-[28px] font-bold text-zinc-400 border-t-[3px] border-zinc-300 pt-[20px]">
                 <div>Page 2 of 2</div>
-                <div className="uppercase tracking-[0.1em]">Your Company L.L.C-FZ</div>
+                <div className="uppercase tracking-[0.1em]">{renderVal(sellerName)}</div>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Save, Printer, ArrowLeft, RefreshCw, FileText } from 'lucide-react'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
+import { Plus, Save, Printer, ArrowLeft, RefreshCw, FileText, Eye, Download, X } from 'lucide-react'
 
 import { navigate } from '../lib/router'
 import { useInvoiceData } from '../hooks/useInvoiceData'
@@ -23,6 +25,52 @@ export default function Invoice({ user }: { user?: any }) {
     invoicesList, isLoadingList, subTotal, vat, total, amountInWords,
     handleSaveToDatabase, handleReset, handleLoadInvoice, handleDeleteInvoice, handleNewInvoice, clearItem, handleAddItem, handleItemChange, fetchInvoices
   } = invoiceData
+
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+
+  const handleDownloadPDF = async () => {
+    setIsExporting(true)
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4')
+      const page1 = document.getElementById('invoice-page-1')
+      const page2 = document.getElementById('invoice-page-2')
+
+      const capturePage = async (el) => {
+        const originalTransform = el.style.transform
+        const originalWebkit = (el.style as any).webkitTransform
+        
+        el.style.transform = 'none'
+        ;(el.style as any).webkitTransform = 'none'
+
+        const canvas = await html2canvas(el, { scale: 2, useCORS: true, logging: false })
+        
+        el.style.transform = originalTransform
+        ;(el.style as any).webkitTransform = originalWebkit
+
+        return canvas.toDataURL('image/jpeg', 1.0)
+      }
+
+      if (page1) {
+        const imgData = await capturePage(page1)
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297)
+      }
+      
+      const isMultiPage = lineItems.length > maxItemsPage1
+      if (isMultiPage && page2) {
+        pdf.addPage()
+        const imgData = await capturePage(page2)
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297)
+      }
+      
+      pdf.save(`Saddl-Invoice-${invoiceNo || 'Draft'}.pdf`)
+    } catch (error) {
+      console.error('Error exporting PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // Responsive scale logic for preview
   const [scale, setScale] = useState(1)
@@ -124,8 +172,14 @@ export default function Invoice({ user }: { user?: any }) {
               <><Save className="w-3.5 h-3.5" /> {currentInvoiceId ? 'Update Invoice' : 'Save Invoice'}</>
             )}
           </button>
+          <button onClick={() => setIsPreviewModalOpen(true)} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-lg transition-all active:scale-95">
+            <Eye className="w-3.5 h-3.5" /> Preview
+          </button>
           <button onClick={() => window.print()} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-brand-blue hover:bg-brand-blue/90 text-white rounded-lg shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
-            <Printer className="w-3.5 h-3.5" /> Print / PDF
+            <Printer className="w-3.5 h-3.5" /> Print
+          </button>
+          <button onClick={handleDownloadPDF} disabled={isExporting} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-brand-blue border border-brand-blue/30 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+            {isExporting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {isExporting ? 'Exporting...' : 'PDF'}
           </button>
         </div>
       </div>
@@ -186,21 +240,7 @@ export default function Invoice({ user }: { user?: any }) {
         handleDeleteInvoice={handleDeleteInvoice}
       />
 
-      {/* Global CSS Inject to customize printable output */}
-      <style>{`
-        .invoice-sheet, .invoice-sheet * { font-family: Arial, Helvetica, sans-serif !important; color: #000000 !important; border-color: #000000 !important; }
-        @page { size: A4 portrait; margin: 0; }
-        @media print {
-          body, html { background-color: white !important; color: black !important; padding: 0 !important; margin: 0 !important; width: 210mm !important; height: ${isMultiPage ? '594mm' : '297mm'} !important; overflow: hidden !important; }
-          header, aside, .print\\:hidden, button, input, select, label { display: none !important; }
-          main { padding: 0 !important; margin: 0 !important; background: white !important; }
-          #invoice-preview-column { padding: 0 !important; margin: 0 !important; border: none !important; background: white !important; width: 100% !important; }
-          #invoice-preview-container { width: 210mm !important; height: ${isMultiPage ? '594mm' : '297mm'} !important; background-color: white !important; padding: 0 !important; margin: 0 !important; border: none !important; box-shadow: none !important; overflow: hidden !important; position: relative !important; }
-          .invoice-sheet { width: 2480px !important; height: 3508px !important; transform: scale(0.318) !important; transform-origin: top left !important; border: none !important; box-shadow: none !important; position: absolute !important; left: 0 !important; padding: 100px !important; box-sizing: border-box !important; background: white !important; }
-          #invoice-page-1 { top: 0 !important; }
-          #invoice-page-2 { top: 3508px !important; }
-        }
-      `}</style>
+      
     </div>
   )
 }
