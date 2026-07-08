@@ -172,9 +172,7 @@ export default function Invoice({ user }: { user?: any }) {
               <><Save className="w-3.5 h-3.5" /> {currentInvoiceId ? 'Update Invoice' : 'Save Invoice'}</>
             )}
           </button>
-          <button onClick={() => setIsPreviewModalOpen(true)} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-white border border-white/10 rounded-lg transition-all active:scale-95">
-            <Eye className="w-3.5 h-3.5" /> Preview
-          </button>
+
 
           <button onClick={handleDownloadPDF} disabled={isExporting} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-brand-blue border border-brand-blue/30 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             {isExporting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {isExporting ? 'Exporting...' : 'PDF'}
