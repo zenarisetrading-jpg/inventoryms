@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 interface ActionDropdownProps {
@@ -32,6 +33,20 @@ export function ActionDropdown({
 }: ActionDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const updateRect = () => setRect(buttonRef.current!.getBoundingClientRect());
+      updateRect();
+      window.addEventListener('scroll', updateRect, true);
+      window.addEventListener('resize', updateRect);
+      return () => {
+        window.removeEventListener('scroll', updateRect, true);
+        window.removeEventListener('resize', updateRect);
+      };
+    }
+  }, [isOpen]);
   
   const selectedStatuses = isMulti 
     ? (currentStatus ? currentStatus.split(',').map(s => s.trim()).filter(Boolean) : [])
@@ -55,7 +70,13 @@ export function ActionDropdown({
     <div className={`relative inline-block ${isOpen ? 'z-50' : ''}`}>
       <button 
         ref={buttonRef}
-        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          if (!isOpen && buttonRef.current) {
+            setRect(buttonRef.current.getBoundingClientRect());
+          }
+          setIsOpen(!isOpen); 
+        }}
         className={`flex items-center justify-between gap-1.5 px-3 py-1.5 w-36 rounded-md text-[10px] font-black border uppercase tracking-wider transition-all hover:shadow-sm ${activeColor}`}
       >
         <div className="flex items-center gap-1.5 truncate mr-1">
@@ -65,14 +86,21 @@ export function ActionDropdown({
         <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className={`absolute right-0 w-36 bg-white border border-slate-200 rounded-lg shadow-2xl z-50 overflow-hidden animate-in fade-in duration-100 ${
-            direction === 'up' 
-              ? 'bottom-full mb-1 origin-bottom slide-in-from-bottom-2' 
-              : 'top-full mt-1 origin-top zoom-in'
-          }`}>
+      {isOpen && rect && createPortal(
+        <div className="relative z-[9999]">
+          <div className="fixed inset-0" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
+          <div 
+            className={`fixed w-36 bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in duration-100 ${
+              direction === 'up' 
+                ? 'origin-bottom slide-in-from-bottom-2' 
+                : 'origin-top zoom-in'
+            }`}
+            style={{
+              top: direction === 'down' ? rect.bottom + 4 : undefined,
+              bottom: direction === 'up' ? window.innerHeight - rect.top + 4 : undefined,
+              left: rect.right - 144,
+            }}
+          >
             {options.map(s => {
               const isSelected = selectedStatuses.includes(s);
               return (
@@ -108,7 +136,8 @@ export function ActionDropdown({
               );
             })}
           </div>
-        </>
+        </div>,
+        document.body
       )}
     </div>
   );
