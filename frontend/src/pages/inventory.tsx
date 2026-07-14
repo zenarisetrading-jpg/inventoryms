@@ -6,6 +6,7 @@ import { MultiSelect } from '../components/shared/MultiSelect'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { useRegion } from '../lib/RegionContext'
 import { ColumnVisibilitySelector } from '../components/shared/ColumnVisibilitySelector'
+import { SavedViewsSelector, type SavedView } from '../components/shared/SavedViewsSelector'
 
 export default function InventoryPage() {
   const { region } = useRegion()
@@ -207,6 +208,18 @@ export default function InventoryPage() {
     ]);
   };
 
+  const handleApplyView = (view: SavedView) => {
+    setSearchQuery(view.searchQuery);
+    setSortKey(view.sortKey);
+    setSortDir(view.sortDir);
+    setSelectedCategories(view.selectedCategories);
+    setSelectedProductCategories(view.selectedProductCategories);
+    setSelectedSubCategories(view.selectedSubCategories);
+    setSelectedStatus(view.selectedStatus);
+    setColumnOrder(view.columnOrder);
+    setVisibleColumns(view.visibleColumns);
+  };
+
   const processedData = useMemo(() => {
     if (!data?.raw_data) return []
     let list = [...data.raw_data]
@@ -366,6 +379,21 @@ export default function InventoryPage() {
               onSelectAll={handleSelectAllColumns}
               onClearAll={handleClearAllColumns}
               onReset={handleResetColumns}
+            />
+
+            <SavedViewsSelector 
+              currentView={{
+                searchQuery,
+                sortKey,
+                sortDir,
+                selectedCategories,
+                selectedProductCategories,
+                selectedSubCategories,
+                selectedStatus,
+                columnOrder,
+                visibleColumns
+              }}
+              onApplyView={handleApplyView}
             />
 
             <div className="relative" ref={exportDropdownRef}>
