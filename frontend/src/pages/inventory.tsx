@@ -40,6 +40,11 @@ export default function InventoryPage() {
     ];
   });
 
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem('inventory_column_widths');
+    return saved ? JSON.parse(saved) : {};
+  });
+
   const [exportDropdownOpen, setExportDropdownOpen] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +69,10 @@ export default function InventoryPage() {
   useEffect(() => {
     localStorage.setItem('inventory_visible_columns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('inventory_column_widths', JSON.stringify(columnWidths));
+  }, [columnWidths]);
 
   const fetchData = async () => {
     setLoading(true)
@@ -152,15 +161,17 @@ export default function InventoryPage() {
 
     return orderedKeys.map(key => {
       // Column width assignments by semantic type
-      let width = 130 // default for numeric/short columns
-      if (key === 'sku') width = 180
-      else if (key === 'name') width = 260
-      else if (key === 'category' || key === 'sub_category' || key === 'product_category') width = 150
-      else if (key === 'action_flag' || key === 'allocation_reason' || key === 'priority_rank') width = 160
-      else if (key === 'saddl_id') width = 140
-      else if (key === 'loaded_at') width = 170
-      else if (key === 'country') width = 90
-      else if (key === 'is_active') width = 90
+      let width = columnWidths[key] || 130 // default for numeric/short columns
+      if (!columnWidths[key]) {
+        if (key === 'sku') width = 180
+        else if (key === 'name') width = 260
+        else if (key === 'category' || key === 'sub_category' || key === 'product_category') width = 150
+        else if (key === 'action_flag' || key === 'allocation_reason' || key === 'priority_rank') width = 160
+        else if (key === 'saddl_id') width = 140
+        else if (key === 'loaded_at') width = 170
+        else if (key === 'country') width = 90
+        else if (key === 'is_active') width = 90
+      }
 
       return {
         key,
@@ -168,7 +179,7 @@ export default function InventoryPage() {
         width
       }
     })
-  }, [data, isKSA, columnOrder])
+  }, [data, isKSA, columnOrder, columnWidths])
 
   const activeColumns = useMemo(() => {
     return baseColumns.filter(c => visibleColumns.includes(c.key));
@@ -520,22 +531,45 @@ export default function InventoryPage() {
                   {activeColumns.map((col, i) => (
                     <th
                       key={col.key}
-                      onClick={() => {
-                        if (sortKey === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-                        else { setSortKey(col.key); setSortDir('desc') }
-                      }}
+                      title={col.label}
                       style={{ width: col.width, minWidth: col.width, maxWidth: col.width }}
                       className={`
-                        px-3 py-3 text-left cursor-pointer transition-all border-b border-white/10 group
+                        p-0 text-left transition-all border-b border-white/10 group/th relative align-middle
                         ${i === 0 ? 'sticky left-0 z-40 bg-[#0B0F1A] hover:bg-[#171B25] border-r border-white/10' : 'hover:bg-white/10'}
                       `}
                     >
-                      <div className="flex items-center gap-1 overflow-hidden">
-                        <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.05em] group-hover:text-white transition-colors truncate">
+                      <div 
+                        className="px-3 py-3 w-full h-full flex items-center gap-1 overflow-hidden cursor-pointer"
+                        onClick={() => {
+                          if (sortKey === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+                          else { setSortKey(col.key); setSortDir('desc') }
+                        }}
+                      >
+                        <span className="text-[11px] font-black text-zinc-400 uppercase tracking-[0.05em] group-hover/th:text-white transition-colors truncate">
                           {col.label}
                         </span>
-                        <ArrowUpDown className={`h-3.5 w-3.5 shrink-0 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-400 opacity-0 group-hover:opacity-100'}`} />
+                        <ArrowUpDown className={`h-3.5 w-3.5 shrink-0 transition-all ${sortKey === col.key ? 'text-amber-500 scale-110 opacity-100' : 'text-zinc-400 opacity-0 group-hover/th:opacity-100'}`} />
                       </div>
+                      
+                      <div
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const startX = e.pageX;
+                          const startWidth = col.width;
+                          const handleMouseMove = (moveEvent: MouseEvent) => {
+                            const newWidth = Math.max(50, startWidth + (moveEvent.pageX - startX));
+                            setColumnWidths(prev => ({ ...prev, [col.key]: newWidth }));
+                          };
+                          const handleMouseUp = () => {
+                            document.removeEventListener('mousemove', handleMouseMove);
+                            document.removeEventListener('mouseup', handleMouseUp);
+                          };
+                          document.addEventListener('mousemove', handleMouseMove);
+                          document.addEventListener('mouseup', handleMouseUp);
+                        }}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize bg-brand-blue/0 hover:bg-brand-blue/50 opacity-0 group-hover/th:opacity-100 transition-colors z-50 flex items-center justify-center"
+                      />
                     </th>
                   ))}
                 </tr>
