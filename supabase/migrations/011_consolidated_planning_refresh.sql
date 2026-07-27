@@ -338,7 +338,7 @@ BEGIN
                         locad_units
                     ),
                     0
-                ) < NULLIF(units_per_box, 0)
+                ) < COALESCE(NULLIF(units_per_box, 0), 1)
                 THEN 0
                 
                 -- Disable suggested reorder if SKU is inactive
@@ -364,8 +364,8 @@ BEGIN
                                 locad_units
                             ),
                             0
-                        ) / NULLIF(units_per_box, 0)
-                    ) * units_per_box
+                        ) / COALESCE(NULLIF(units_per_box, 0), 1)
+                    ) * COALESCE(NULLIF(units_per_box, 0), 1)
                 )
             END AS suggested_reorder_qty
 
@@ -381,21 +381,6 @@ BEGIN
                 WHEN fba_units <= 0
                      AND amazon_sv <= 0
                 THEN 1
-
-                WHEN fba_units < units_per_box
-                     AND amazon_sv > 0
-                THEN GREATEST(
-                    1,
-                    COALESCE(
-                        CEIL(
-                            GREATEST(
-                                0,
-                                amazon_required_30 - fba_units
-                            ) / NULLIF(units_per_box, 0)
-                        ),
-                        0
-                    )
-                )
 
                 ELSE COALESCE(
                     CEIL(
@@ -413,21 +398,6 @@ BEGIN
                 WHEN fbn_units <= 0
                      AND noon_sv <= 0
                 THEN 1
-
-                WHEN fbn_units < units_per_box
-                     AND noon_sv > 0
-                THEN GREATEST(
-                    1,
-                    COALESCE(
-                        CEIL(
-                            GREATEST(
-                                0,
-                                noon_required_30 - fbn_units
-                            ) / NULLIF(units_per_box, 0)
-                        ),
-                        0
-                    )
-                )
 
                 ELSE COALESCE(
                     CEIL(

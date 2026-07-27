@@ -158,7 +158,7 @@ BEGIN
             WHEN GREATEST(
               (blended_sv * CASE WHEN category = 'A' THEN 60 WHEN category = 'B' THEN 45 ELSE 30 END) -
               (fba_units + fbn_units + minutes_units + locad_units), 0
-            ) < NULLIF(units_per_box, 0) THEN 0
+            ) < COALESCE(NULLIF(units_per_box, 0), 1) THEN 0
             WHEN is_active = FALSE THEN 0
             ELSE GREATEST(
               moq,
@@ -166,8 +166,8 @@ BEGIN
                 GREATEST(
                   (blended_sv * CASE WHEN category = 'A' THEN 60 WHEN category = 'B' THEN 45 ELSE 30 END) -
                   (fba_units + fbn_units + minutes_units + locad_units), 0
-                ) / NULLIF(units_per_box, 0)
-              ) * units_per_box
+                ) / COALESCE(NULLIF(units_per_box, 0), 1)
+              ) * COALESCE(NULLIF(units_per_box, 0), 1)
             )
           END AS suggested_reorder_qty
         FROM base
@@ -178,22 +178,16 @@ BEGIN
           CASE
             WHEN amazon_active = false THEN 0
             WHEN fba_units <= 0 AND amazon_sv <= 0 THEN 1
-            WHEN fba_units < units_per_box AND amazon_sv > 0 THEN
-              GREATEST(1, COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0)
           END AS fba_need_boxes,
           CASE
             WHEN noon_active = false THEN 0
             WHEN fbn_units <= 0 AND noon_sv <= 0 THEN 1
-            WHEN fbn_units < units_per_box AND noon_sv > 0 THEN
-              GREATEST(1, COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0)
           END AS fbn_need_boxes,
           CASE
             WHEN minutes_active = false THEN 0
             WHEN minutes_units <= 0 AND minutes_sv <= 0 THEN 1
-            WHEN minutes_units < units_per_box AND minutes_sv > 0 THEN
-              GREATEST(1, COALESCE(CEIL(GREATEST(0, minutes_required_30 - minutes_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, minutes_required_30 - minutes_units) / NULLIF(units_per_box, 0)), 0)
           END AS minutes_need_boxes
         FROM final_calc
