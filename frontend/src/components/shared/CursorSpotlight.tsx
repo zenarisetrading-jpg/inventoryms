@@ -56,9 +56,6 @@ export function CursorSpotlight() {
         style={{
           // Spotlight gradient
           background: 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 50%, transparent 100%)',
-          // Micro-blur to simulate glass thickness without ruining readability
-          backdropFilter: 'blur(0.5px) contrast(1.05) brightness(1.2) saturate(1.2)',
-          WebkitBackdropFilter: 'blur(0.5px) contrast(1.05) brightness(1.2) saturate(1.2)',
         }}
       />
     </motion.div>

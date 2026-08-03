@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import saddlLogo from '../../assets/saddl_main_both.png'
 import { renderVal } from './utils'
 import type { LineItem } from './utils'
@@ -94,21 +94,21 @@ export function InvoicePreview({
                     const hasContent = item.description.trim() !== '' || item.qty > 0 || item.rate > 0
                     return (
                       <tr className="group hover:bg-white/10 transition-colors hover:bg-zinc-50/50 min-h-[90px]" key={item.id}>
-                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-600"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.sno}</span></td>
-                        <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-medium leading-relaxed text-zinc-800"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent ? renderVal(item.description) : '-'}</span></td>
-                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-800"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && item.qty > 0 ? item.qty : '-'}</span></td>
-                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-700 font-semibold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && item.rate > 0 ? item.rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
-                        <td className="px-[40px] py-[25px] text-right font-mono text-zinc-900 font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && (item.qty * item.rate) > 0 ? (item.qty * item.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
+                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-600"><span className="inline-block transition-transform duration-300 origin-center">{item.sno}</span></td>
+                        <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-medium leading-relaxed text-zinc-800"><span className="inline-block transition-transform duration-300 origin-center">{hasContent ? renderVal(item.description) : '-'}</span></td>
+                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-800"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && item.qty > 0 ? item.qty : '-'}</span></td>
+                        <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-700 font-semibold"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && item.rate > 0 ? item.rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
+                        <td className="px-[40px] py-[25px] text-right font-mono text-zinc-900 font-bold"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && (item.qty * item.rate) > 0 ? (item.qty * item.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
                       </tr>
                     )
                   })}
                   {isMultiPage && (
                     <tr className="min-h-[90px] group">
-                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-400"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">-</span></td>
-                      <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-black leading-relaxed text-zinc-400 italic text-center uppercase tracking-[0.2em] bg-zinc-50/40"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">--- Continued on Page 2 ---</span></td>
-                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-400"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">-</span></td>
-                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-400 font-semibold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">-</span></td>
-                      <td className="px-[40px] py-[25px] text-right font-mono text-zinc-400 font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">-</span></td>
+                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-400"><span className="inline-block transition-transform duration-300 origin-center">-</span></td>
+                      <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-black leading-relaxed text-zinc-400 italic text-center uppercase tracking-[0.2em] bg-zinc-50/40"><span className="inline-block transition-transform duration-300 origin-center">--- Continued on Page 2 ---</span></td>
+                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-400"><span className="inline-block transition-transform duration-300 origin-center">-</span></td>
+                      <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-400 font-semibold"><span className="inline-block transition-transform duration-300 origin-center">-</span></td>
+                      <td className="px-[40px] py-[25px] text-right font-mono text-zinc-400 font-bold"><span className="inline-block transition-transform duration-300 origin-center">-</span></td>
                     </tr>
                   )}
                 </tbody>
@@ -232,11 +232,11 @@ export function InvoicePreview({
                       const hasContent = item.description.trim() !== '' || item.qty > 0 || item.rate > 0
                       return (
                         <tr className="group hover:bg-white/10 transition-colors hover:bg-zinc-50/50 min-h-[90px]" key={item.id}>
-                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-600"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{item.sno}</span></td>
-                          <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-medium leading-relaxed text-zinc-800"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent ? renderVal(item.description) : '-'}</span></td>
-                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-800"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && item.qty > 0 ? item.qty : '-'}</span></td>
-                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-700 font-semibold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && item.rate > 0 ? item.rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
-                          <td className="px-[40px] py-[25px] text-right font-mono text-zinc-900 font-bold"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{hasContent && (item.qty * item.rate) > 0 ? (item.qty * item.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
+                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-bold text-zinc-600"><span className="inline-block transition-transform duration-300 origin-center">{item.sno}</span></td>
+                          <td className="px-[40px] py-[25px] border-r-[3px] border-zinc-400 font-medium leading-relaxed text-zinc-800"><span className="inline-block transition-transform duration-300 origin-center">{hasContent ? renderVal(item.description) : '-'}</span></td>
+                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-center font-semibold text-zinc-800"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && item.qty > 0 ? item.qty : '-'}</span></td>
+                          <td className="px-[30px] py-[25px] border-r-[3px] border-zinc-400 text-right font-mono text-zinc-700 font-semibold"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && item.rate > 0 ? item.rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
+                          <td className="px-[40px] py-[25px] text-right font-mono text-zinc-900 font-bold"><span className="inline-block transition-transform duration-300 origin-center">{hasContent && (item.qty * item.rate) > 0 ? (item.qty * item.rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}</span></td>
                         </tr>
                       )
                     })}

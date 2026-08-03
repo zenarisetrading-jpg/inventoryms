@@ -100,6 +100,14 @@
     transition: color 0.15s ease-out;
   }
 
+  /* Prevent the white hover highlight on the light-themed invoice page */
+  .invoice-sheet tbody tr:hover td > span,
+  .invoice-sheet tbody tr:hover td > div,
+  .invoice-sheet tbody tr:hover td > button,
+  .invoice-sheet tbody tr:hover td > a {
+    color: inherit;
+  }
+
   /* Keep flex layouts intact inside cells */
   tbody tr td > .flex {
     display: flex !important;
