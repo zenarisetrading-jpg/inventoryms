@@ -91,22 +91,9 @@
     white-space: nowrap;
   }
 
-  /* Subtle highlight on row hover instead of scale (prevents overflow) */
-  tbody tr:hover td > span,
-  tbody tr:hover td > div,
-  tbody tr:hover td > button,
-  tbody tr:hover td > a {
-    color: #F8FAFC;
-    transition: color 0.15s ease-out;
-  }
+  /* Table row hover highlight effect removed as it conflicts with custom colored pills and badges */
 
-  /* Prevent the white hover highlight on the light-themed invoice page */
-  .invoice-sheet tbody tr:hover td > span,
-  .invoice-sheet tbody tr:hover td > div,
-  .invoice-sheet tbody tr:hover td > button,
-  .invoice-sheet tbody tr:hover td > a {
-    color: inherit;
-  }
+
 
   /* Keep flex layouts intact inside cells */
   tbody tr td > .flex {
