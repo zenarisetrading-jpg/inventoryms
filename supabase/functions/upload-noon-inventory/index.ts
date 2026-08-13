@@ -127,6 +127,10 @@ serve(async (req: Request) => {
     const unmatchedSkus: string[] = []
 
     for (const row of rows) {
+      if (row.inventory_type && row.inventory_type.trim().toLowerCase() !== 'saleable') {
+        continue;
+      }
+
       const internal = noonToInternal.get(row.sku.trim().toUpperCase())
       if (internal) {
         // Logic: if warehouse code contains DS or ID -> Minutes, else -> noon_fbn
