@@ -24,6 +24,7 @@ interface ParsedRow {
   units_ordered: number
   units_received: number
   country?: string
+  saddl_id?: string
 }
 
 interface POGroup {
@@ -35,7 +36,7 @@ interface POGroup {
   status: string
   po_notes: string
   country?: string
-  line_items: { sku: string; units_ordered: number; units_received: number; notes: string }[]
+  line_items: { sku: string; units_ordered: number; units_received: number; notes: string; saddl_id?: string }[]
 }
 
 const VALID_STATUSES = new Set(['draft', 'ordered', 'shipped', 'in_transit', 'arrived', 'closed'])
@@ -53,6 +54,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   units_ordered: ['units_ordered', 'units ordered', 'qty ordered', 'quantity ordered', 'ordered qty'],
   units_received: ['units_received', 'units received', 'qty received', 'quantity received', 'received qty'],
   country: ['country', 'region'],
+  saddl_id: ['saddl_id', 'saddl id', 'saddlid'],
 }
 
 function normalizeHeader(v: string): string {
@@ -160,6 +162,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     units_ordered: findColumnIndex(headerKeys, 'units_ordered'),
     units_received: findColumnIndex(headerKeys, 'units_received'),
     country: findColumnIndex(headerKeys, 'country'),
+    saddl_id: findColumnIndex(headerKeys, 'saddl_id'),
   }
 
   const required = ['po_number', 'supplier', 'order_date', 'eta', 'sku', 'units_ordered']
@@ -191,6 +194,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const notes = get('notes')
     const status = normalizeStatus(get('status'))
     const country = get('country')
+    const saddl_id = get('saddl_id')
 
     if (!po_number) { errors.push({ row: i + 2, message: `Row ${i + 2}: po_number is required` }); continue }
     if (!supplier) { errors.push({ row: i + 2, message: `Row ${i + 2}: supplier is required` }); continue }
@@ -205,7 +209,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     }
 
     const units_received = parseInt(units_received_raw, 10)
-    rows.push({ po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received, country })
+    rows.push({ po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received: isNaN(units_received) ? 0 : units_received, country, saddl_id })
   }
 
   return { rows, errors }
@@ -264,11 +268,12 @@ function groupByPO(rows: ParsedRow[]): POGroup[] {
       units_ordered: row.units_ordered,
       units_received: row.units_received,
       notes: row.notes,
+      saddl_id: row.saddl_id,
     })
   }
   // Collapse duplicate SKU rows within the same PO into one line item for idempotent imports.
   return Array.from(map.values()).map((g) => {
-    const bySku = new Map<string, { sku: string; units_ordered: number; units_received: number; notes: string }>()
+    const bySku = new Map<string, { sku: string; units_ordered: number; units_received: number; notes: string; saddl_id?: string }>()
     for (const li of g.line_items) {
       const key = normalizeSkuKey(li.sku)
       const existing = bySku.get(key)
@@ -279,6 +284,9 @@ function groupByPO(rows: ParsedRow[]): POGroup[] {
           existing.notes = li.notes
         } else if (li.notes && existing.notes && !existing.notes.includes(li.notes)) {
           existing.notes = `${existing.notes}; ${li.notes}`
+        }
+        if (li.saddl_id && !existing.saddl_id) {
+          existing.saddl_id = li.saddl_id
         }
       } else {
         bySku.set(key, { ...li })
@@ -389,9 +397,10 @@ serve(async (req: Request) => {
             units_ordered: li.units_ordered,
             units_received: li.units_received,
             notes: li.notes,
+            saddl_id: li.saddl_id,
           }
         })
-        .filter((li): li is { sku: string; units_ordered: number; units_received: number; notes: string } => li !== null)
+        .filter((li) => li !== null) as { sku: string; units_ordered: number; units_received: number; notes: string; saddl_id?: string }[]
       const invalidSkus = group.line_items
         .filter((li) => !canonicalByNorm.has(normalizeSkuKey(li.sku)))
         .map((li) => li.sku)
@@ -425,6 +434,7 @@ serve(async (req: Request) => {
           dimensions: meta?.dimensions ?? null,
           cogs_per_unit: meta?.cogs ?? null,
           updated_by: userEmail,
+          saddl_id: li.saddl_id || null,
         }
       })
 
@@ -455,9 +465,10 @@ serve(async (req: Request) => {
             units_ordered: li.units_ordered,
             units_received: li.units_received,
             notes: li.notes,
+            saddl_id: li.saddl_id,
           }
         })
-        .filter((li): li is { sku: string; units_ordered: number; units_received: number; notes: string } => li !== null)
+        .filter((li) => li !== null) as { sku: string; units_ordered: number; units_received: number; notes: string; saddl_id?: string }[]
 
       if (mappedItems.length === 0) {
         failedPOs.push({ po_number: group.po_number, reason: 'No valid SKUs to merge' })
@@ -513,6 +524,7 @@ serve(async (req: Request) => {
           dimensions: meta?.dimensions ?? null,
           cogs_per_unit: meta?.cogs ?? null,
           updated_by: userEmail,
+          saddl_id: li.saddl_id || null,
         }
       })
 
