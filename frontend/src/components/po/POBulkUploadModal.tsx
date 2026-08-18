@@ -16,11 +16,11 @@ export function POBulkUploadModal({ onClose, onSuccess }: POBulkUploadModalProps
   const bulkInputRef = useRef<HTMLInputElement>(null)
 
   const downloadTemplate = () => {
-    const header = 'po_number,po_name,supplier,country,order_date,eta,status,po_notes,notes,sku,units_ordered,units_received'
+    const header = 'po_number,po_name,supplier,country,order_date,eta,status,po_notes,notes,sku,units_ordered,units_received,saddl_id'
     const example = [
-      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for straw lid,32OZSTRAWLIDBLACK,500,0',
-      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for water bottle,WB750MLBLACK,300,0',
-      'PO-002,Summer Refresh,Another Supplier,KSA,2026-03-10,2026-04-15,draft,Urgent shipment,Specific notes for navy blue,32OZWBNAVYBLUE,250,0',
+      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for straw lid,32OZSTRAWLIDBLACK,500,0,SDL-1001',
+      'PO-001,Spring Batch,Shenzhen Supplier,UAE,2026-03-01,2026-04-01,ordered,Main summer batch notes,Item notes for water bottle,WB750MLBLACK,300,0,SDL-1002',
+      'PO-002,Summer Refresh,Another Supplier,KSA,2026-03-10,2026-04-15,draft,Urgent shipment,Specific notes for navy blue,32OZWBNAVYBLUE,250,0,SDL-1003',
     ].join('\n')
     const blob = new Blob([header + '\n' + example], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -69,7 +69,7 @@ export function POBulkUploadModal({ onClose, onSuccess }: POBulkUploadModalProps
           {/* Instructions */}
           <div className="bg-zinc-50 border border-zinc-200 rounded-md p-3 text-xs text-zinc-600 space-y-1">
             <p className="font-medium text-zinc-800">CSV/XLSX Format — one row per line item:</p>
-            <p><span className="font-mono text-zinc-500">po_number, po_name, supplier, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received</span></p>
+            <p><span className="font-mono text-zinc-500">po_number, po_name, supplier, country, order_date, eta, status, po_notes, notes, sku, units_ordered, units_received, saddl_id</span></p>
             <ul className="mt-1.5 space-y-0.5 list-disc list-inside text-zinc-500">
               <li>Repeat <span className="font-mono text-zinc-700">po_number</span>, <span className="font-mono text-zinc-700">po_name</span> and <span className="font-mono text-zinc-700">po_notes</span> for each SKU in the same PO</li>
               <li><span className="font-mono text-zinc-700">po_notes</span>: General PO-level notes (applies to whole PO)</li>
