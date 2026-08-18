@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseClient } from '../_shared/supabase.ts'
+import { getSupabaseClient, getUserEmail } from '../_shared/supabase.ts'
 import { refreshAllMetrics } from '../_shared/velocity.ts'
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5'
 
