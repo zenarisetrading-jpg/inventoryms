@@ -20,7 +20,7 @@
  */
 
 import * as XLSX from 'https://esm.sh/xlsx@0.18.5'
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
 // ---------------------------------------------------------------------------
 // Constants

@@ -10,7 +10,7 @@
  *   C — otherwise (including zero-revenue SKUs)
  */
 
-import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { fetchAmazonSalesRevenue } from './saddl.ts'
 
 export type ABCClass = 'A' | 'B' | 'C'
