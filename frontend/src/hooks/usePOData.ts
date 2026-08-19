@@ -46,9 +46,12 @@ export function usePOData(itemsPerPage = 20) {
   }, [activeTab, region])
 
   useEffect(() => {
-    api.getSuppliers().then(res => setAllSuppliers(res.suppliers || []))
-    api.getSKUs().then(res => {
-      const skus = res.skus ?? []
+    Promise.all([
+      api.getSuppliers(),
+      api.getSKUs()
+    ]).then(([suppRes, skuRes]) => {
+      setAllSuppliers(suppRes.suppliers || [])
+      const skus = skuRes.skus ?? []
       setAllSkus(skus)
       setSkuSuggestions(skus.map(s => s.sku))
     })

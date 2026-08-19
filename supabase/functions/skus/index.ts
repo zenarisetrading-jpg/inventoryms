@@ -570,16 +570,16 @@ async function handleAutoClassify(req: Request): Promise<Response> {
     category: i < aCount ? 'A' : i < aCount + bCount ? 'B' : 'C',
   }))
 
-  // Bulk update in chunks
-  const CHUNK_SIZE = 50
-  for (let i = 0; i < assignments.length; i += CHUNK_SIZE) {
-    const chunk = assignments.slice(i, i + CHUNK_SIZE)
-    await Promise.all(
-      chunk.map(a =>
-        supabase.from('sku_master').update({ category: a.category }).eq('sku', a.sku)
-      )
-    )
-  }
+  // Bulk update by category (3 queries instead of N queries)
+  const skusA = assignments.filter(a => a.category === 'A').map(a => a.sku)
+  const skusB = assignments.filter(a => a.category === 'B').map(a => a.sku)
+  const skusC = assignments.filter(a => a.category === 'C').map(a => a.sku)
+
+  await Promise.all([
+    skusA.length > 0 ? supabase.from('sku_master').update({ category: 'A' }).in('sku', skusA) : Promise.resolve(),
+    skusB.length > 0 ? supabase.from('sku_master').update({ category: 'B' }).in('sku', skusB) : Promise.resolve(),
+    skusC.length > 0 ? supabase.from('sku_master').update({ category: 'C' }).in('sku', skusC) : Promise.resolve(),
+  ])
 
   const counts = { A: 0, B: 0, C: 0 }
   for (const a of assignments) counts[a.category as 'A' | 'B' | 'C']++

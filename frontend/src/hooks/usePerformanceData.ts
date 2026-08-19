@@ -1,7 +1,10 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useRegion } from '../lib/RegionContext'
 import { api } from '../lib/api'
+
+// Client-side cache for analytical performance queries (30-second TTL)
+const performanceCache = new Map<string, { data: any; expiry: number }>()
 
 export function usePerformanceData() {
   const { region } = useRegion()
@@ -29,87 +32,183 @@ export function usePerformanceData() {
   const [sortField, setSortField] = useState<string>('total_units')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
-  async function fetchData() {
-    setLoading(true)
-    try {
-      const { data: valResult } = await supabase.rpc('get_final_valuation', { p_saddl_id: region })
-      if (valResult) {
-        setValuationData([
-          { node: 'AMAZON FBA', value_aed: Math.round(valResult.fba || 0) },
-          { node: 'NOON FBN', value_aed: Math.round(valResult.fbn || 0) },
-          { node: 'NOON MINUTES', value_aed: Math.round(valResult.min || 0) },
-          { node: 'LOCAD WAREHOUSE', value_aed: Math.round(valResult.loc || 0) }
-        ])
-        setTotalValuation(Math.round((valResult.fba || 0) + (valResult.fbn || 0) + (valResult.min || 0) + (valResult.loc || 0)))
-      }
+  // Ref to track active request counter to prevent out-of-order responses
+  const activeRequestId = useRef(0)
 
-      const [subResult, trendResult, detailedResult, poResult, covResult] = await Promise.all([
+  const fetchData = useCallback(async (force = false) => {
+    const reqId = ++activeRequestId.current
+    const cacheKey = JSON.stringify({
+      region,
+      days,
+      selCategories: selCategories.slice().sort(),
+      selProductCategories: selProductCategories.slice().sort(),
+      selSubCategories: selSubCategories.slice().sort(),
+    })
+
+    // Check cache
+    if (!force) {
+      const cached = performanceCache.get(cacheKey)
+      if (cached && cached.expiry > Date.now()) {
+        const c = cached.data
+        setValuationData(c.valuationData)
+        setTotalValuation(c.totalValuation)
+        setSubcategoryData(c.subcategoryData)
+        setTrendData(c.trendData)
+        setDetailedSales(c.detailedSales)
+        setPoStatusData(c.poStatusData)
+        setCoverageData(c.coverageData)
+        setSummaryData(c.summaryData)
+        setMtdForecast(c.mtdForecast)
+        setLastMonthSales(c.lastMonthSales)
+        setLoading(false)
+        return
+      }
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const p_categories = selCategories.length > 0 ? selCategories : null
+      const p_product_categories = selProductCategories.length > 0 ? selProductCategories : null
+      const p_sub_categories = selSubCategories.length > 0 ? selSubCategories : null
+
+      // Execute all analytical RPCs in a single parallel batch
+      const [
+        valResult,
+        subResult,
+        trendResult,
+        detailedResult,
+        poResult,
+        covResult,
+        summaryResult,
+        forecastResult,
+        lastMonthResult
+      ] = await Promise.all([
+        supabase.rpc('get_final_valuation', { p_saddl_id: region }),
         supabase.rpc('get_subcategory_performance', {
           days_count: days,
-          p_categories: selCategories.length > 0 ? selCategories : null,
-          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
           p_saddl_id: region
         }),
         supabase.rpc('get_sales_velocity_trend', {
           days_count: days,
-          p_categories: selCategories.length > 0 ? selCategories : null,
-          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
           p_saddl_id: region
         }),
         supabase.rpc('get_detailed_sales_performance', { days_count: days, p_saddl_id: region }),
         supabase.rpc('get_po_status_distribution', { p_saddl_id: region }),
         supabase.rpc('get_coverage_health', {
-          p_categories: selCategories.length > 0 ? selCategories : null,
-          p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-          p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
+          p_saddl_id: region
+        }),
+        supabase.rpc('get_dashboard_sales_summary', {
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
+          p_saddl_id: region
+        }),
+        supabase.rpc('get_mtd_forecast', {
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
+          p_saddl_id: region
+        }),
+        supabase.rpc('get_last_month_sales', {
+          p_categories,
+          p_product_categories,
+          p_sub_categories,
           p_saddl_id: region
         })
       ])
 
-      if (subResult.data) setSubcategoryData(subResult.data)
-      if (trendResult.data) setTrendData(trendResult.data)
-      if (detailedResult.data) setDetailedSales(detailedResult.data)
-      if (poResult.data) setPoStatusData(poResult.data)
-      if (covResult.data) setCoverageData(covResult.data)
+      // If a newer request has already fired, abandon this stale response
+      if (reqId !== activeRequestId.current) return
 
-      const { data: summary } = await supabase.rpc('get_dashboard_sales_summary', {
-        p_categories: selCategories.length > 0 ? selCategories : null,
-        p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_saddl_id: region
+      let newValuationData: any[] = []
+      let newTotalValuation = 0
+      if (valResult.data) {
+        newValuationData = [
+          { node: 'AMAZON FBA', value_aed: Math.round(valResult.data.fba || 0) },
+          { node: 'NOON FBN', value_aed: Math.round(valResult.data.fbn || 0) },
+          { node: 'NOON MINUTES', value_aed: Math.round(valResult.data.min || 0) },
+          { node: 'LOCAD WAREHOUSE', value_aed: Math.round(valResult.data.loc || 0) }
+        ]
+        newTotalValuation = Math.round(
+          (valResult.data.fba || 0) +
+          (valResult.data.fbn || 0) +
+          (valResult.data.min || 0) +
+          (valResult.data.loc || 0)
+        )
+      }
+
+      setValuationData(newValuationData)
+      setTotalValuation(newTotalValuation)
+
+      const newSubData = subResult.data || []
+      const newTrendData = trendResult.data || []
+      const newDetailedSales = detailedResult.data || []
+      const newPoData = poResult.data || []
+      const newCoverageData = covResult.data || null
+      const newSummaryData = summaryResult.data || null
+      const newMtdForecast = forecastResult.data || null
+      const newLastMonthSales = lastMonthResult.data || null
+
+      setSubcategoryData(newSubData)
+      setTrendData(newTrendData)
+      setDetailedSales(newDetailedSales)
+      setPoStatusData(newPoData)
+      setCoverageData(newCoverageData)
+      setSummaryData(newSummaryData)
+      setMtdForecast(newMtdForecast)
+      setLastMonthSales(newLastMonthSales)
+
+      // Store in performance cache (30s TTL)
+      performanceCache.set(cacheKey, {
+        data: {
+          valuationData: newValuationData,
+          totalValuation: newTotalValuation,
+          subcategoryData: newSubData,
+          trendData: newTrendData,
+          detailedSales: newDetailedSales,
+          poStatusData: newPoData,
+          coverageData: newCoverageData,
+          summaryData: newSummaryData,
+          mtdForecast: newMtdForecast,
+          lastMonthSales: newLastMonthSales
+        },
+        expiry: Date.now() + 30000
       })
-      if (summary) setSummaryData(summary)
-
-      const { data: forecastResult } = await supabase.rpc('get_mtd_forecast', {
-        p_categories: selCategories.length > 0 ? selCategories : null,
-        p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_saddl_id: region
-      })
-      if (forecastResult) setMtdForecast(forecastResult)
-
-      const { data: lastMonthResult } = await supabase.rpc('get_last_month_sales', {
-        p_categories: selCategories.length > 0 ? selCategories : null,
-        p_product_categories: selProductCategories.length > 0 ? selProductCategories : null,
-        p_sub_categories: selSubCategories.length > 0 ? selSubCategories : null,
-        p_saddl_id: region
-      })
-      if (lastMonthResult) setLastMonthSales(lastMonthResult)
-
     } catch (err: any) {
-      console.error('Fetch error:', err)
-      setError(err.message || 'Failed to fetch performance data')
+      if (reqId === activeRequestId.current) {
+        console.error('Fetch error:', err)
+        setError(err.message || 'Failed to fetch performance data')
+      }
+    } finally {
+      if (reqId === activeRequestId.current) {
+        setLoading(false)
+      }
     }
-    finally { setLoading(false) }
-  }
+  }, [region, days, selCategories, selProductCategories, selSubCategories])
 
-  useEffect(() => { fetchData() }, [region, days, selCategories, selProductCategories, selSubCategories])
+  // Debounced effect for filter updates to prevent request flooding
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData()
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [fetchData])
 
   const handleConsolidatedRefresh = async () => {
     setRefreshingConsolidated(true)
     setError(null)
+    performanceCache.clear()
     try {
       setConsolidatedStep('amazon')
       const resSaddl = await api.triggerSync('amazon')
@@ -122,7 +221,7 @@ export function usePerformanceData() {
       const resFact = await api.refreshFactTable()
       if ((resFact as any).error) throw new Error((resFact as any).error)
 
-      await fetchData()
+      await fetchData(true)
     } catch (err: any) {
       console.error('Consolidated refresh error:', err)
       setError(err.message || 'Failed to complete consolidated sync')
@@ -146,17 +245,17 @@ export function usePerformanceData() {
     })
   }, [trendData])
 
-  const categories = useMemo(() => [...new Set(detailedSales.map(s => s.category))].sort(), [detailedSales])
+  const categories = useMemo(() => [...new Set(detailedSales.map(s => s.category))].filter(Boolean).sort(), [detailedSales])
   const productCategories = useMemo(() => {
     let list = detailedSales
     if (selCategories.length > 0) list = list.filter(s => selCategories.includes(s.category))
-    return [...new Set(list.map(s => s.product_category))].sort()
+    return [...new Set(list.map(s => s.product_category))].filter(Boolean).sort()
   }, [detailedSales, selCategories])
   const subCategories = useMemo(() => {
     let list = detailedSales
     if (selCategories.length > 0) list = list.filter(s => selCategories.includes(s.category))
     if (selProductCategories.length > 0) list = list.filter(s => selProductCategories.includes(s.product_category))
-    return [...new Set(list.map(s => s.sub_category))].sort()
+    return [...new Set(list.map(s => s.sub_category))].filter(Boolean).sort()
   }, [detailedSales, selCategories, selProductCategories])
 
   const filteredAndSortedSales = useMemo(() => {
@@ -164,10 +263,10 @@ export function usePerformanceData() {
     if (search) {
       const s = search.toLowerCase()
       result = result.filter(r =>
-        r.sku.toLowerCase().includes(s) ||
-        r.category.toLowerCase().includes(s) ||
-        r.product_category.toLowerCase().includes(s) ||
-        r.sub_category.toLowerCase().includes(s)
+        (r.sku && r.sku.toLowerCase().includes(s)) ||
+        (r.category && r.category.toLowerCase().includes(s)) ||
+        (r.product_category && r.product_category.toLowerCase().includes(s)) ||
+        (r.sub_category && r.sub_category.toLowerCase().includes(s))
       )
     }
     if (selCategories.length > 0) result = result.filter(r => selCategories.includes(r.category))
@@ -177,14 +276,14 @@ export function usePerformanceData() {
     result.sort((a, b) => {
       const valA = a[sortField], valB = b[sortField]
       if (typeof valA === 'string') return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
-      return sortOrder === 'asc' ? valA - valB : valB - valA
+      return sortOrder === 'asc' ? (valA ?? 0) - (valB ?? 0) : (valB ?? 0) - (valA ?? 0)
     })
     return result
   }, [detailedSales, search, selCategories, selProductCategories, selSubCategories, sortField, sortOrder])
 
   const toggleSort = (field: string) => {
     if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    else { setSortField(field); setSortOrder('desc'); }
+    else { setSortField(field); setSortOrder('desc') }
   }
 
   return {

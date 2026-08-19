@@ -317,10 +317,10 @@ export default function CommandCenter() {
 
   const { region } = useRegion()
 
-  const load = useCallback(() => {
+  const load = useCallback((forceRefresh = false) => {
     setLoading(true)
-    console.debug('[CommandCenter] Fetching fresh data...', { region, ts: new Date().toISOString() })
-    api.getCommandCenter().then(res => {
+    console.debug('[CommandCenter] Fetching data...', { region, forceRefresh, ts: new Date().toISOString() })
+    api.getCommandCenter(forceRefresh).then(res => {
       const resp = res as any
       console.debug('[CommandCenter] Data received', {
         generated_at: resp.generated_at,
@@ -598,7 +598,7 @@ export default function CommandCenter() {
             <h3 className="text-sm font-black text-red-700 uppercase tracking-wider">Channel Integration Error</h3>
             <p className="text-[13px] mt-1 text-red-600/80 font-medium leading-relaxed">System failed to establish handshake with Supabase Edge Functions. {(data as any).error} {(data as any).detail ? `- ${(data as any).detail}` : ''}</p>
             <div className="flex gap-4 mt-4">
-              <button onClick={load} className="px-4 py-2 bg-red-600 text-white rounded-lg text-[12px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
+              <button onClick={() => load(true)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-[12px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors">
                 Reconnect
               </button>
             </div>

@@ -98,7 +98,7 @@ export default function InventoryPage() {
     setError(null)
     try {
       await api.refreshFactTable()
-      const res = await api.getPlanning()
+      const res = await api.getPlanning(true)
       setData(res)
     } catch (e: any) {
       setError('Refresh failed: ' + (e.message || 'Unknown error'))

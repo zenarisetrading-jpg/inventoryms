@@ -1,6 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import type { SKU } from './types.ts'
-import { THRESHOLDS } from './types.ts'
+import { THRESHOLDS, INCOMING_PO_STATUSES } from './types.ts'
 import { computeCoverage } from './coverage.ts'
 import { computeAllocation } from './allocation.ts'
 import { computeReorder } from './reorder.ts'
@@ -96,13 +96,25 @@ export async function computeVelocity(
 // refreshAllMetrics
 // ---------------------------------------------------------------------------
 // Master refresh function called after every data ingestion cycle.
-// Iterates all active SKUs, recomputes all metrics, and upserts results.
+// BULK OPTIMIZED: Fetches all data in single batch queries per location,
+// calculates velocity, coverage, reorder, and allocation in-memory,
+// and bulk-upserts results in single operations.
 // ---------------------------------------------------------------------------
 export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void> {
   const today = new Date()
-  const date60dAgo = new Date(today)
-  date60dAgo.setDate(today.getDate() - 60)
+  const todayStr = today.toISOString().split('T')[0]
+  const date7dAgo = new Date(today)
+  date7dAgo.setDate(today.getDate() - 7)
+  const date30dAgo = new Date(today)
+  date30dAgo.setDate(today.getDate() - 30)
+  const date90dAgo = new Date(today)
+  date90dAgo.setDate(today.getDate() - 90)
   const fmt = (d: Date) => d.toISOString().split('T')[0]
+
+  const str7dAgo = fmt(date7dAgo)
+  const str30dAgo = fmt(date30dAgo)
+  const str90dAgo = fmt(date90dAgo)
+  const strToday = fmt(today)
 
   // Load active locations — process each country and account separately
   let locations: { country: string; saddl_account_id: string }[] = [{ country: 'UAE', saddl_account_id: 'none' }]
@@ -119,96 +131,328 @@ export async function refreshAllMetrics(supabase: SupabaseClient): Promise<void>
   }
 
   for (const loc of locations) {
-    console.log(`[velocity] refreshAllMetrics for country=${loc.country}, saddl_id=${loc.saddl_account_id}`)
+    console.log(`[velocity] Bulk refreshAllMetrics for country=${loc.country}, saddl_id=${loc.saddl_account_id}`)
 
-    // Fetch active SKUs for this country
-    const { data: skus, error: skuError } = await supabase
+    // 1. Fetch active SKUs for this country
+    const { data: skusData, error: skuError } = await supabase
       .from('sku_master')
       .select('*')
       .eq('is_active', true)
       .eq('country', loc.country)
-      // Note: If sku_master does not have saddl_id or it's not strictly 1-to-1,
-      // we just pull SKUs for the country and process them for this account.
-      // Assuming SKUs are scoped by country.
 
-    if (skuError || !skus || skus.length === 0) {
+    if (skuError || !skusData || skusData.length === 0) {
       console.error(`refreshAllMetrics: no active SKUs for country=${loc.country}`, skuError)
       continue
     }
 
-  const todayStr = new Date().toISOString().split('T')[0]
+    const skus = skusData as SKU[]
 
-  // Delete today's pending allocation plans upfront so we can insert fresh ones per-SKU
-  await supabase
-    .from('allocation_plans')
-    .delete()
-    .eq('status', 'pending')
-    .eq('plan_date', todayStr)
-    .eq('country', loc.country)
-    .eq('saddl_id', loc.saddl_account_id)
+    // 2. BULK FETCH: All 90d sales, inventory snapshots, PO lines, and in-transit allocations in parallel
+    const [salesRes, snapRes, poRes, allocRes] = await Promise.all([
+      // Sales snapshot for last 90 days
+      supabase
+        .from('sales_snapshot')
+        .select('sku, date, channel, units_sold')
+        .eq('country', loc.country)
+        .eq('saddl_id', loc.saddl_account_id)
+        .gte('date', str90dAgo)
+        .lte('date', strToday),
 
-    // Process SKUs in parallel batches of 10 to stay well within the 60s timeout
-    const BATCH_SIZE = 10
-    for (let i = 0; i < (skus as SKU[]).length; i += BATCH_SIZE) {
-      const batch = (skus as SKU[]).slice(i, i + BATCH_SIZE)
+      // Inventory snapshots for this location
+      supabase
+        .from('inventory_snapshot')
+        .select('sku, node, warehouse_name, available, inbound, snapshot_date')
+        .eq('country', loc.country)
+        .eq('saddl_id', loc.saddl_account_id)
+        .order('snapshot_date', { ascending: false }),
 
-      await Promise.all(batch.map(async (sku: SKU) => {
-        try {
-          // Velocity (country and saddl_id aware)
-          const { sv_7, sv_90, blended_sv, amazon_sv, noon_sv, minutes_sv } = await computeVelocity(sku.sku, supabase, loc.country, loc.saddl_account_id)
+      // Incoming PO line items
+      supabase
+        .from('po_line_items')
+        .select('sku, units_ordered, units_received, po_register!inner(status, country, saddl_id)')
+        .eq('po_register.country', loc.country)
+        .eq('po_register.saddl_id', loc.saddl_account_id)
+        .in('po_register.status', INCOMING_PO_STATUSES),
 
-          // Coverage
-          const coverage = await computeCoverage(sku, blended_sv, supabase, loc.country, loc.saddl_account_id)
+      // In-transit allocations
+      supabase
+        .from('allocation_plans')
+        .select('sku, units_to_ship')
+        .eq('country', loc.country)
+        .eq('saddl_id', loc.saddl_account_id)
+        .in('status', ['approved', 'shipped'])
+    ])
 
-        // Action flag
-        const action_flag = computeActionFlag(sku, blended_sv, coverage)
+    // 3. Index sales data by SKU in memory
+    type SalesRow = { sku: string; date: string; channel: string; units_sold: number }
+    const salesBySku = new Map<string, SalesRow[]>()
+    for (const r of (salesRes.data || []) as SalesRow[]) {
+      const list = salesBySku.get(r.sku) || []
+      list.push(r)
+      salesBySku.set(r.sku, list)
+    }
 
-        // Reorder recommendation
-        // stock_in_hand = all physical stock (any node) + supplier POs + internal transfers in-flight
-        const reorder = computeReorder(
-          sku,
-          blended_sv,
-          coverage.incoming_po_units + coverage.in_transit_allocation_units,
-          coverage.total_available
+    // 4. Index latest inventory snapshots by SKU and Node
+    type SnapRow = { sku: string; node: string; warehouse_name: string | null; available: number; inbound: number; snapshot_date: string }
+    const snapsBySku = new Map<string, SnapRow[]>()
+    for (const r of (snapRes.data || []) as SnapRow[]) {
+      const list = snapsBySku.get(r.sku) || []
+      list.push(r)
+      snapsBySku.set(r.sku, list)
+    }
+
+    // 5. Index incoming PO units by SKU
+    const poUnitsBySku = new Map<string, number>()
+    for (const r of (poRes.data || []) as { sku: string; units_ordered: number; units_received: number }[]) {
+      const remaining = Math.max(0, (r.units_ordered ?? 0) - (r.units_received ?? 0))
+      if (remaining > 0) {
+        poUnitsBySku.set(r.sku, (poUnitsBySku.get(r.sku) || 0) + remaining)
+      }
+    }
+
+    // 6. Index in-transit allocation units by SKU
+    const inTransitBySku = new Map<string, number>()
+    for (const r of (allocRes.data || []) as { sku: string; units_to_ship: number }[]) {
+      inTransitBySku.set(r.sku, (inTransitBySku.get(r.sku) || 0) + (r.units_to_ship || 0))
+    }
+
+    // Delete today's pending allocation plans upfront so we can insert fresh ones
+    await supabase
+      .from('allocation_plans')
+      .delete()
+      .eq('status', 'pending')
+      .eq('plan_date', todayStr)
+      .eq('country', loc.country)
+      .eq('saddl_id', loc.saddl_account_id)
+
+    const demandMetricsRows: any[] = []
+    const allocationPlansRows: any[] = []
+
+    // 7. IN-MEMORY COMPUTATION for all SKUs
+    for (const sku of skus) {
+      const skuSales = salesBySku.get(sku.sku) || []
+
+      // --- Velocity ---
+      let sv_7 = 0
+      let sv_90 = 0
+      let amazon_sv = 0
+      let noon_sv = 0
+      let minutes_sv = 0
+      let blended_sv = 0
+
+      if (skuSales.length > 0) {
+        let earliestDateStr = skuSales[0].date
+        let units7d = 0
+        let units90d = 0
+        let units30dAmazon = 0
+        let units30dNoon = 0
+        let units30dMinutes = 0
+
+        for (const s of skuSales) {
+          if (s.date < earliestDateStr) earliestDateStr = s.date
+          const u = s.units_sold ?? 0
+          units90d += u
+          if (s.date >= str7dAgo) units7d += u
+          if (s.date >= str30dAgo) {
+            if (s.channel === 'amazon') units30dAmazon += u
+            else if (s.channel === 'noon') units30dNoon += u
+            else if (s.channel === 'noon_minutes') units30dMinutes += u
+          }
+        }
+
+        const daysCovered = Math.floor(
+          (today.getTime() - new Date(earliestDateStr).getTime()) / (1000 * 60 * 60 * 24)
         )
 
-          // Upsert demand_metrics immediately (don't accumulate — avoids timeout data loss)
-          const { error: metricsErr } = await supabase
-            .from('demand_metrics')
-            .upsert({
-              sku: sku.sku,
-              country: loc.country,
-              saddl_id: loc.saddl_account_id,
-              sv_7,
-              sv_90,
-              blended_sv,
-              amazon_sv,
-              noon_sv,
-              minutes_sv,
-              coverage_amazon: coverage.by_node.amazon_fba.coverage_days,
-              coverage_noon: coverage.by_node.noon_fbn.coverage_days,
-              coverage_warehouse: coverage.by_node.locad_warehouse.coverage_days,
-              total_coverage: coverage.total_coverage,
-              projected_coverage: coverage.projected_coverage,
-              total_available: coverage.total_available,
-              incoming_po_units: coverage.incoming_po_units,
-              in_transit_allocation_units: coverage.in_transit_allocation_units,
-              action_flag,
-              should_reorder: reorder?.should_reorder ?? false,
-              suggested_reorder_units: reorder?.suggested_units ?? 0,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: 'sku,country,saddl_id' })
-          if (metricsErr) {
-            console.error(`refreshAllMetrics: demand_metrics upsert error for ${sku.sku} (${loc.country}, ${loc.saddl_account_id})`, metricsErr)
+        sv_7 = units7d / 7
+        sv_90 = units90d / 90
+        amazon_sv = daysCovered < 7 ? 0 : units30dAmazon / 30
+        noon_sv = daysCovered < 7 ? 0 : units30dNoon / 30
+        minutes_sv = daysCovered < 7 ? 0 : units30dMinutes / 30
+        blended_sv = amazon_sv + noon_sv + minutes_sv
+      }
+
+      // --- Coverage ---
+      const skuSnaps = snapsBySku.get(sku.sku) || []
+      const latestDateByNode: Record<string, string> = {}
+      for (const row of skuSnaps) {
+        if (!latestDateByNode[row.node] || row.snapshot_date > latestDateByNode[row.node]) {
+          latestDateByNode[row.node] = row.snapshot_date
+        }
+      }
+
+      const nodeAggregates = {
+        amazon_fba: { available: 0, inbound: 0 },
+        noon_fbn: { available: 0, inbound: 0 },
+        locad_warehouse: { available: 0, inbound: 0 },
+        Minutes: { available: 0, inbound: 0 },
+      }
+
+      for (const row of skuSnaps) {
+        if (row.snapshot_date !== latestDateByNode[row.node]) continue
+        const node = row.node as keyof typeof nodeAggregates
+        if (node in nodeAggregates) {
+          if (node === 'locad_warehouse') {
+            const p = sku.units_per_box ?? 1
+            nodeAggregates[node].available += (row.available ?? 0) * p
+            nodeAggregates[node].inbound += (row.inbound ?? 0) * p
+          } else {
+            nodeAggregates[node].available += row.available ?? 0
+            nodeAggregates[node].inbound += row.inbound ?? 0
+          }
+        }
+      }
+
+      const coverageDays = (available: number): number => {
+        if (blended_sv === 0) return Infinity
+        return available / blended_sv
+      }
+
+      const incoming_po_units = poUnitsBySku.get(sku.sku) || 0
+      const in_transit_allocation_units = inTransitBySku.get(sku.sku) || 0
+
+      const total_available =
+        nodeAggregates.amazon_fba.available +
+        nodeAggregates.noon_fbn.available +
+        nodeAggregates.locad_warehouse.available
+
+      const total_coverage = coverageDays(total_available)
+      const projected_coverage = coverageDays(
+        total_available + incoming_po_units + in_transit_allocation_units
+      )
+
+      const coverageObj = {
+        by_node: {
+          amazon_fba: { ...nodeAggregates.amazon_fba, coverage_days: coverageDays(nodeAggregates.amazon_fba.available) },
+          noon_fbn: { ...nodeAggregates.noon_fbn, coverage_days: coverageDays(nodeAggregates.noon_fbn.available) },
+          locad_warehouse: { ...nodeAggregates.locad_warehouse, coverage_days: coverageDays(nodeAggregates.locad_warehouse.available) },
+          Minutes: { ...nodeAggregates.Minutes, coverage_days: coverageDays(nodeAggregates.Minutes.available) },
+        },
+        total_available,
+        total_coverage,
+        incoming_po_units,
+        in_transit_allocation_units,
+        projected_coverage,
+      }
+
+      // --- Action Flag ---
+      const action_flag = computeActionFlag(sku, blended_sv, coverageObj)
+
+      // --- Reorder ---
+      const reorder = computeReorder(
+        sku,
+        blended_sv,
+        incoming_po_units + in_transit_allocation_units,
+        total_available
+      )
+
+      demandMetricsRows.push({
+        sku: sku.sku,
+        country: loc.country,
+        saddl_id: loc.saddl_account_id,
+        sv_7,
+        sv_90,
+        blended_sv,
+        amazon_sv,
+        noon_sv,
+        minutes_sv,
+        coverage_amazon: coverageObj.by_node.amazon_fba.coverage_days,
+        coverage_noon: coverageObj.by_node.noon_fbn.coverage_days,
+        coverage_warehouse: coverageObj.by_node.locad_warehouse.coverage_days,
+        total_coverage: isFinite(coverageObj.total_coverage) ? coverageObj.total_coverage : 9999,
+        projected_coverage: isFinite(coverageObj.projected_coverage) ? coverageObj.projected_coverage : 9999,
+        total_available: coverageObj.total_available,
+        incoming_po_units: coverageObj.incoming_po_units,
+        in_transit_allocation_units: coverageObj.in_transit_allocation_units,
+        action_flag,
+        should_reorder: reorder?.should_reorder ?? false,
+        suggested_reorder_units: reorder?.suggested_units ?? 0,
+        updated_at: new Date().toISOString(),
+      })
+
+      // --- Allocation Calculation ---
+      if (amazon_sv > 0 || noon_sv > 0) {
+        const warehouse_avail = coverageObj.by_node.locad_warehouse.available
+        const amazon_avail = coverageObj.by_node.amazon_fba.available
+        const noon_avail = coverageObj.by_node.noon_fbn.available
+        const upb = sku.units_per_box ?? 1
+
+        if (warehouse_avail > 0 && upb > 0) {
+          const boxes_in_hand = Math.floor(warehouse_avail / upb)
+          const amazon_deficit = Math.max(0, 30 * amazon_sv - amazon_avail)
+          const noon_deficit = Math.max(0, 30 * noon_sv - noon_avail)
+          const boxes_req_amz = Math.ceil(amazon_deficit / upb)
+          const boxes_req_noon = Math.ceil(noon_deficit / upb)
+
+          let boxes_for_amz = 0
+          let boxes_for_noon = 0
+
+          if (boxes_in_hand >= boxes_req_amz + boxes_req_noon) {
+            boxes_for_amz = boxes_req_amz
+            boxes_for_noon = boxes_req_noon
+          } else if (boxes_in_hand >= boxes_req_amz) {
+            boxes_for_amz = boxes_req_amz
+            boxes_for_noon = boxes_in_hand - boxes_req_amz
+          } else {
+            boxes_for_amz = boxes_in_hand
+            boxes_for_noon = 0
           }
 
-          // Allocation plans (insert fresh ones per-SKU)
-          await computeAllocation(sku, coverage, amazon_sv, noon_sv, supabase, loc.country, loc.saddl_account_id)
-        } catch (err) {
-          console.error(`refreshAllMetrics: error processing SKU ${sku.sku} (${loc.country}, ${loc.saddl_account_id})`, err)
+          if (boxes_for_amz > 0) {
+            allocationPlansRows.push({
+              sku: sku.sku,
+              node: 'amazon_fba',
+              boxes_to_ship: boxes_for_amz,
+              units_to_ship: boxes_for_amz * upb,
+              status: 'pending',
+              plan_date: todayStr,
+              country: loc.country,
+              saddl_id: loc.saddl_account_id,
+            })
+          }
+
+          if (boxes_for_noon > 0) {
+            allocationPlansRows.push({
+              sku: sku.sku,
+              node: 'noon_fbn',
+              boxes_to_ship: boxes_for_noon,
+              units_to_ship: boxes_for_noon * upb,
+              status: 'pending',
+              plan_date: todayStr,
+              country: loc.country,
+              saddl_id: loc.saddl_account_id,
+            })
+          }
         }
-      }))
+      }
     }
+
+    // 8. BATCH UPSERT: demand_metrics (chunks of 200)
+    const CHUNK_SIZE = 200
+    for (let i = 0; i < demandMetricsRows.length; i += CHUNK_SIZE) {
+      const chunk = demandMetricsRows.slice(i, i + CHUNK_SIZE)
+      const { error: dmErr } = await supabase
+        .from('demand_metrics')
+        .upsert(chunk, { onConflict: 'sku,country,saddl_id' })
+      if (dmErr) {
+        console.error(`[velocity] Error bulk upserting demand_metrics for ${loc.country}:`, dmErr)
+      }
+    }
+
+    // 9. BATCH UPSERT: allocation_plans
+    if (allocationPlansRows.length > 0) {
+      for (let i = 0; i < allocationPlansRows.length; i += CHUNK_SIZE) {
+        const chunk = allocationPlansRows.slice(i, i + CHUNK_SIZE)
+        const { error: apErr } = await supabase
+          .from('allocation_plans')
+          .upsert(chunk, { onConflict: 'sku,node,plan_date,country,saddl_id' })
+        if (apErr) {
+          console.error(`[velocity] Error bulk upserting allocation_plans for ${loc.country}:`, apErr)
+        }
+      }
+    }
+
+    console.log(`[velocity] Finished bulk refresh for ${loc.country}: processed ${skus.length} SKUs, ${demandMetricsRows.length} metrics, ${allocationPlansRows.length} allocation plans`)
   } // end for-each location
 
   // Reclassify all SKUs on every refresh (60-day rolling window)
