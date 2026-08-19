@@ -387,6 +387,8 @@ serve(async (req: Request) => {
     const mergedPOs: string[] = []
     const failedPOs: { po_number: string; reason: string }[] = []
 
+    const allRowsToInsert: any[] = []
+
     for (const group of toCreate) {
       const validItems = group.line_items
         .map((li) => {
@@ -410,13 +412,12 @@ serve(async (req: Request) => {
         continue
       }
 
-      // Insert multiple rows into fact_purchase
-      const rowsToInsert = validItems.map(li => {
+      for (const li of validItems) {
         const meta = skuMetadata.get(normalizeSkuKey(li.sku))
         const units_per_box = meta?.units_per_box ?? null
         const box_count = units_per_box && units_per_box > 0 ? (li.units_ordered / units_per_box) : null
-        
-        return {
+
+        allRowsToInsert.push({
           po_number: group.po_number,
           po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
           supplier: group.supplier,
@@ -435,16 +436,7 @@ serve(async (req: Request) => {
           cogs_per_unit: meta?.cogs ?? null,
           updated_by: userEmail,
           saddl_id: li.saddl_id || null,
-        }
-      })
-
-      const { error: insertErr } = await supabase
-        .from('fact_purchase')
-        .insert(rowsToInsert)
-
-      if (insertErr) {
-        failedPOs.push({ po_number: group.po_number, reason: insertErr.message })
-        continue
+        })
       }
 
       if (invalidSkus.length > 0) {
@@ -481,40 +473,20 @@ serve(async (req: Request) => {
         continue
       }
 
-      // Fetch metadata from one of the existing rows for this po_number
-      const { data: firstRow } = await supabase
-        .from('fact_purchase')
-        .select('*')
-        .eq('po_number', group.po_number)
-        .limit(1)
-        .maybeSingle()
-
-      const header = firstRow || {
-        po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
-        supplier: group.supplier,
-        order_date: group.order_date,
-        eta: group.eta,
-        status: group.status || 'ordered',
-        po_notes: group.po_notes || null,
-        country: group.country || defaultCountry,
-        tracking_number: null,
-      }
-
-      const rowsToInsert = toInsert.map((li) => {
+      for (const li of toInsert) {
         const meta = skuMetadata.get(normalizeSkuKey(li.sku))
         const units_per_box = meta?.units_per_box ?? null
         const box_count = units_per_box && units_per_box > 0 ? (li.units_ordered / units_per_box) : null
 
-        return {
+        allRowsToInsert.push({
           po_number: group.po_number,
-          po_name: header.po_name || group.po_name || '',
-          supplier: header.supplier,
-          country: header.country || group.country || defaultCountry,
-          order_date: header.order_date,
-          eta: header.eta,
-          status: header.status,
-          tracking_number: header.tracking_number,
-          po_notes: header.po_notes || group.po_notes || null,
+          po_name: group.po_name || (group.po_notes ? group.po_notes.substring(0, 100) : ''),
+          supplier: group.supplier,
+          country: group.country || defaultCountry,
+          order_date: group.order_date,
+          eta: group.eta,
+          status: group.status || 'ordered',
+          po_notes: group.po_notes || null,
           notes: li.notes || null,
           sku: li.sku,
           units_ordered: li.units_ordered,
@@ -525,19 +497,23 @@ serve(async (req: Request) => {
           cogs_per_unit: meta?.cogs ?? null,
           updated_by: userEmail,
           saddl_id: li.saddl_id || null,
-        }
-      })
-
-      const { error: mergeErr } = await supabase
-        .from('fact_purchase')
-        .insert(rowsToInsert)
-
-      if (mergeErr) {
-        failedPOs.push({ po_number: group.po_number, reason: `Merge failed: ${mergeErr.message}` })
-        continue
+        })
       }
 
       mergedPOs.push(group.po_number)
+    }
+
+    // Single batch insert in chunks of 500
+    if (allRowsToInsert.length > 0) {
+      const CHUNK_SIZE = 500
+      for (let i = 0; i < allRowsToInsert.length; i += CHUNK_SIZE) {
+        const chunk = allRowsToInsert.slice(i, i + CHUNK_SIZE)
+        const { error: insertErr } = await supabase.from('fact_purchase').insert(chunk)
+        if (insertErr) {
+          console.error('upload-pos: insert error', insertErr)
+          return jsonResponse({ error: `Database insert error: ${insertErr.message}` }, 500)
+        }
+      }
     }
 
     if (createdPOs.length > 0 || mergedPOs.length > 0) {
