@@ -1,18 +1,7 @@
+-- Migration 087: Update reorder suggestion trigger to trigger when Shortfall >= 50% of MOQ
 
--- 1. Add columns to table
-ALTER TABLE public.fact_inventory_planning 
-ADD COLUMN IF NOT EXISTS fba_age_0_60_days BIGINT DEFAULT 0,
-ADD COLUMN IF NOT EXISTS fba_age_61_90_days BIGINT DEFAULT 0,
-ADD COLUMN IF NOT EXISTS fba_age_91_180_days BIGINT DEFAULT 0,
-ADD COLUMN IF NOT EXISTS fba_age_181_plus_days BIGINT DEFAULT 0;
-
--- 2. Update the RPC
-CREATE OR REPLACE FUNCTION public.refresh_fact_inventory_planning()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-
+CREATE OR REPLACE FUNCTION refresh_fact_inventory_planning()
+RETURNS void AS $$
 DECLARE
   loc RECORD;
 BEGIN
@@ -178,16 +167,22 @@ BEGIN
           CASE
             WHEN amazon_active = false THEN 0
             WHEN fba_units <= 0 AND amazon_sv <= 0 THEN 1
+            WHEN fba_units < units_per_box AND amazon_sv > 0 THEN
+              GREATEST(1, COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, amazon_required_30 - fba_units) / NULLIF(units_per_box, 0)), 0)
           END AS fba_need_boxes,
           CASE
             WHEN noon_active = false THEN 0
             WHEN fbn_units <= 0 AND noon_sv <= 0 THEN 1
+            WHEN fbn_units < units_per_box AND noon_sv > 0 THEN
+              GREATEST(1, COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, noon_required_30 - fbn_units) / NULLIF(units_per_box, 0)), 0)
           END AS fbn_need_boxes,
           CASE
             WHEN minutes_active = false THEN 0
             WHEN minutes_units <= 0 AND minutes_sv <= 0 THEN 1
+            WHEN minutes_units < units_per_box AND minutes_sv > 0 THEN
+              GREATEST(1, COALESCE(CEIL(GREATEST(0, minutes_required_30 - minutes_units) / NULLIF(units_per_box, 0)), 0))
             ELSE COALESCE(CEIL(GREATEST(0, minutes_required_30 - minutes_units) / NULLIF(units_per_box, 0)), 0)
           END AS minutes_need_boxes
         FROM final_calc
@@ -272,10 +267,10 @@ BEGIN
         a.minutes_boxes_alloc * COALESCE(NULLIF(a.units_per_box, 0), 1) AS send_to_minutes_units,
         a.minutes_boxes_alloc AS minutes_boxes,
         a.sales_yesterday,
-        a.fba_age_0_60_days::bigint, a.fba_age_61_90_days::bigint, a.fba_age_91_180_days::bigint, a.fba_age_181_plus_days::bigint
+        a.fba_age_0_60_days, a.fba_age_61_90_days, a.fba_age_91_180_days, a.fba_age_181_plus_days
     FROM allocation_step2 a
     LEFT JOIN fact_purchase_agg p ON a.sku = p.sku;
 
   END LOOP;
 END;
-$$;
+$$ LANGUAGE plpgsql;
