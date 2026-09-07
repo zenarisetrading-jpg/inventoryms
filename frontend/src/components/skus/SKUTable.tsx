@@ -123,24 +123,32 @@ export function SKUTable({
                       <option value="B">B</option>
                       <option value="C">C</option>
                     </select>
-                  ) : (col === 'cogs' || col === 'asin' || col === 'fnsku') ? (
+                  ) : ['cogs', 'asin', 'fnsku', 'name', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'units_per_box', 'dimensions', 'weight_kg', 'cbm'].includes(col) ? (
                     <div className="flex items-center gap-2 min-w-[80px]" onClick={e => e.stopPropagation()}>
                       {editingCell && editingCell.sku === row.sku && editingCell.field === col ? (
                         <div className="flex items-center gap-1">
                           <input
-                            type={col === 'cogs' ? "number" : "text"}
-                            step={col === 'cogs' ? "0.01" : undefined}
-                            className="w-24 p-1 text-[11px] border border-brand-blue rounded bg-white text-zinc-900 font-bold focus:outline-none uppercase"
+                            type={['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm'].includes(col) ? "number" : "text"}
+                            step={col === 'cogs' || col === 'weight_kg' || col === 'cbm' ? "0.01" : undefined}
+                            className="w-32 p-1 text-[11px] border border-brand-blue rounded bg-white text-zinc-900 font-bold focus:outline-none uppercase"
                             value={editingCell.value}
                             onChange={e => setEditingCell({ ...editingCell, value: e.target.value })}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleUpdateField(row.sku, col, col === 'cogs' ? parseFloat(editingCell.value) : editingCell.value)
+                              if (e.key === 'Enter') {
+                                const numericFields = ['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
+                                const val = numericFields.includes(col) ? (editingCell.value === '' ? null : parseFloat(editingCell.value)) : editingCell.value
+                                handleUpdateField(row.sku, col, val)
+                              }
                               if (e.key === 'Escape') setEditingCell(null)
                             }}
                             autoFocus
                           />
                           <button
-                            onClick={() => handleUpdateField(row.sku, col, col === 'cogs' ? parseFloat(editingCell.value) : editingCell.value)}
+                            onClick={() => {
+                              const numericFields = ['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
+                              const val = numericFields.includes(col) ? (editingCell.value === '' ? null : parseFloat(editingCell.value)) : editingCell.value
+                              handleUpdateField(row.sku, col, val)
+                            }}
                             disabled={updating === `${row.sku}-${col}`}
                             className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
                           >
@@ -156,7 +164,7 @@ export function SKUTable({
                       ) : (
                         <div 
                           className="flex items-center gap-2 group/cell cursor-pointer"
-                          onClick={() => setEditingCell({ sku: row.sku, field: col, value: String(row[col] || '') })}
+                          onClick={() => setEditingCell({ sku: row.sku, field: col, value: String(row[col] ?? '') })}
                         >
                           <span className={`text-[13px] font-semibold ${col === 'cogs' ? 'text-zinc-400' : 'text-zinc-300'}`}>
                             {row[col] === null || row[col] === undefined || row[col] === '' ? '-' : (col === 'cogs' ? Number(row[col]).toFixed(2) : String(row[col]))}
