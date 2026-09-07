@@ -279,3 +279,16 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- 3. Schedule refresh_fact_inventory_planning() to run every hour at minute 0 via pg_cron
+SELECT cron.unschedule('hourly_refresh_fact_inventory_planning')
+WHERE EXISTS (
+  SELECT 1 FROM cron.job WHERE jobname = 'hourly_refresh_fact_inventory_planning'
+);
+
+SELECT cron.schedule(
+  'hourly_refresh_fact_inventory_planning',
+  '0 * * * *',
+  $$ SELECT refresh_fact_inventory_planning(); $$
+);
+
