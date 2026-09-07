@@ -11,6 +11,7 @@ interface NewSKUForm {
   fnsku: string
   saddl_id: string
   category: SKUCategory
+  product_category: string
   sub_category: string
   units_per_box: number
   moq: number
@@ -27,6 +28,7 @@ function emptyForm(): NewSKUForm {
     fnsku: '',
     saddl_id: localStorage.getItem('selected_account') || '',
     category: 'C',
+    product_category: '',
     sub_category: '',
     units_per_box: 1,
     moq: 0,
@@ -43,6 +45,8 @@ export default function SKUNewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [locations, setLocations] = useState<{ country: string, saddl_account_id: string, display_name: string }[]>([])
+  const [existingCategories, setExistingCategories] = useState<string[]>([])
+  const [isCustomCategory, setIsCustomCategory] = useState(false)
 
   useEffect(() => {
     api.getLocations().then(locs => {
@@ -51,6 +55,35 @@ export default function SKUNewPage() {
         setForm(prev => ({ ...prev, saddl_id: locs[0].saddl_account_id }))
       }
     }).catch(console.error)
+
+    api.getProductCategories().then(cats => {
+      const defaultList = [
+        'Art Supplies',
+        'Baby and Toddlers',
+        'Health',
+        'Home and Kitchen',
+        'Lunch Box',
+        'Pet Supplies',
+        'Tumblr',
+        'Wander',
+        'Water Bottles'
+      ]
+      const merged = Array.from(new Set([...defaultList, ...cats])).sort()
+      setExistingCategories(merged)
+    }).catch(err => {
+      console.error('Failed to load categories:', err)
+      setExistingCategories([
+        'Art Supplies',
+        'Baby and Toddlers',
+        'Health',
+        'Home and Kitchen',
+        'Lunch Box',
+        'Pet Supplies',
+        'Tumblr',
+        'Wander',
+        'Water Bottles'
+      ])
+    })
   }, [])
 
   const handleFormChange = (field: keyof NewSKUForm, value: string | number) => {
@@ -60,8 +93,16 @@ export default function SKUNewPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitError(null)
-    if (!form.sku || !form.name) {
-      setSubmitError('SKU code and name are required.')
+    if (!form.sku || !form.sku.trim()) {
+      setSubmitError('Internal SKU Code is required.')
+      return
+    }
+    if (!form.name || !form.name.trim()) {
+      setSubmitError('Official Product Name is required.')
+      return
+    }
+    if (!form.product_category || !form.product_category.trim()) {
+      setSubmitError('Product Category is required.')
       return
     }
     setSubmitting(true)
@@ -144,6 +185,60 @@ export default function SKUNewPage() {
             <div className="space-y-2.5">
               <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">Official Product Name <span className="text-rose-500">*</span></label>
               <input required value={form.name} onChange={e => handleFormChange('name', e.target.value)} placeholder="E.G. PREMIUM WATER BOTTLE 1L" className={inputCls} />
+            </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest ml-1">
+                  Product Category <span className="text-rose-500">*</span>
+                </label>
+                {existingCategories.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomCategory(!isCustomCategory)
+                      if (!isCustomCategory) {
+                        setForm(prev => ({ ...prev, product_category: '' }))
+                      }
+                    }}
+                    className="text-[9px] font-black text-brand-blue hover:underline uppercase tracking-wider"
+                  >
+                    {isCustomCategory ? 'Select from list' : '+ Enter new category'}
+                  </button>
+                )}
+              </div>
+              
+              {isCustomCategory || existingCategories.length === 0 ? (
+                <input
+                  required
+                  value={form.product_category}
+                  onChange={e => handleFormChange('product_category', e.target.value)}
+                  placeholder="E.G. HOME AND KITCHEN"
+                  className={inputCls}
+                />
+              ) : (
+                <select
+                  required
+                  value={form.product_category}
+                  onChange={e => {
+                    if (e.target.value === '__custom__') {
+                      setIsCustomCategory(true)
+                      setForm(prev => ({ ...prev, product_category: '' }))
+                    } else {
+                      handleFormChange('product_category', e.target.value)
+                    }
+                  }}
+                  className={`${inputCls} border-brand-blue/40 shadow-[0_0_15px_rgba(59,130,246,0.1)] appearance-none cursor-pointer`}
+                  style={{ backgroundColor: 'rgba(59, 130, 246, 0.08)' }}
+                >
+                  <option value="" disabled style={{ backgroundColor: '#18181b', color: 'white' }}>Select a Product Category...</option>
+                  {existingCategories.map(cat => (
+                    <option key={cat} value={cat} style={{ backgroundColor: '#18181b', color: 'white' }}>
+                      {cat.toUpperCase()}
+                    </option>
+                  ))}
+                  <option value="__custom__" style={{ backgroundColor: '#18181b', color: '#60a5fa' }}>+ Enter New Category...</option>
+                </select>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2.5">

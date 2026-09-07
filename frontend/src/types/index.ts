@@ -10,6 +10,7 @@ export interface SKU {
   asin: string
   fnsku: string
   category: SKUCategory
+  product_category?: string | null
   sub_category: string | null
   units_per_box: number
   dimensions: string | null
@@ -133,6 +134,7 @@ export interface SKUDetailResponse {
   sku: string
   name: string
   category: SKUCategory
+  product_category?: string | null
   units_per_box: number
   moq: number
   lead_time_days: number

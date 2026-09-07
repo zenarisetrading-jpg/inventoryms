@@ -167,7 +167,7 @@ export function useSKUData() {
 
   // Fixed column order including physical properties and flags
   const columns = [
-    'sku', 'asin', 'fnsku', 'name', 'category', 'sub_category', 'moq', 'lead_time_days',
+    'sku', 'asin', 'fnsku', 'name', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days',
     'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
     'is_active', 'amazon_active', 'noon_active', 'minutes_active'
   ]

@@ -295,6 +295,18 @@ export const api = {
     return res
   },
 
+  getProductCategories: async (): Promise<string[]> => {
+    try {
+      const { data } = await supabase.from('sku_master').select('product_category')
+      if (!data) return []
+      const cats = [...new Set(data.map(d => d.product_category).filter(Boolean))]
+      return cats.sort() as string[]
+    } catch (err) {
+      console.error('Failed to fetch product categories:', err)
+      return []
+    }
+  },
+
   createSKU: async (data: any): Promise<{ ok: true }> => {
     const res = await fetch(`${BASE}/skus`, {
       method: 'POST',
@@ -310,7 +322,7 @@ export const api = {
     return res
   },
 
-  updateSKU: async (sku: string, data: { category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean; amazon_active?: boolean; noon_active?: boolean; minutes_active?: boolean }): Promise<{ ok: true }> => {
+  updateSKU: async (sku: string, data: { category?: string | null; product_category?: string | null; sub_category?: string | null; moq?: number | null; lead_time_days?: number | null; cogs?: number | null; units_per_box?: number | null; is_active?: boolean; amazon_active?: boolean; noon_active?: boolean; minutes_active?: boolean }): Promise<{ ok: true }> => {
     const res = await fetch(`${BASE}/skus/${encodeURIComponent(sku)}?country=${getCountry()}&account_id=${getAccountId()}`, {
       method: 'PATCH',
       headers: await getHeaders(),

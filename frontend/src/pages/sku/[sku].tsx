@@ -113,9 +113,14 @@ export default function SKUDetail({ sku }: { sku: string }) {
               <h1 className="text-xl lg:text-3xl font-black text-white uppercase tracking-tight leading-none">{data.name}</h1>
               <div className="flex items-center gap-3 flex-wrap">
                 <span className="font-data text-xs font-black text-zinc-400 bg-white/5 px-3 py-1 rounded-full uppercase tracking-wider border border-white/10">{data.sku}</span>
+                {data.product_category && (
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full uppercase tracking-widest">
+                    {data.product_category}
+                  </span>
+                )}
                 {data.category && (
                   <span className="text-[10px] font-black text-white bg-brand-blue px-3 py-1 rounded-full uppercase tracking-widest">
-                    CAT {data.category}
+                    CLASS {data.category}
                   </span>
                 )}
                 <ActionFlagBadge flag={data.action_flag as ActionFlag} />
