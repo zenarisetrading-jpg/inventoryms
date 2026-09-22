@@ -20,6 +20,7 @@ interface ParsedRow {
   moq: number | null
   lead_time_days: number | null
   cogs: number | null
+  shipping_cost: number | null
   units_per_box: number | null
   dimensions: string | null
   weight_kg: number | null
@@ -42,6 +43,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   moq: ['moq', 'minimum order quantity'],
   lead_time_days: ['lead_time_days', 'lead time', 'lead time days'],
   cogs: ['cogs', 'cost of goods sold', 'cost'],
+  shipping_cost: ['shipping_cost', 'shipping cost', 'shipping', 'freight_cost', 'freight'],
   units_per_box: ['units_per_box', 'units per box', 'qty per box', 'upb'],
   dimensions: ['dimensions', 'dimension', 'size'],
   weight_kg: ['weight_kg', 'weight kg', 'weight', 'weightkg'],
@@ -115,6 +117,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     moq: findColumnIndex(headerKeys, 'moq'),
     lead_time_days: findColumnIndex(headerKeys, 'lead_time_days'),
     cogs: findColumnIndex(headerKeys, 'cogs'),
+    shipping_cost: findColumnIndex(headerKeys, 'shipping_cost'),
     units_per_box: findColumnIndex(headerKeys, 'units_per_box'),
     dimensions: findColumnIndex(headerKeys, 'dimensions'),
     weight_kg: findColumnIndex(headerKeys, 'weight_kg'),
@@ -163,6 +166,9 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const cogsRaw = parseFloat(get('cogs'))
     const cogs = isNaN(cogsRaw) ? null : cogsRaw
 
+    const shippingCostRaw = parseFloat(get('shipping_cost'))
+    const shipping_cost = isNaN(shippingCostRaw) ? null : shippingCostRaw
+
     const upbRaw = parseInt(get('units_per_box'), 10)
     const units_per_box = isNaN(upbRaw) ? 1 : upbRaw
 
@@ -188,7 +194,7 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const saddl_id = get('saddl_id')
 
     rows.push({
-      sku, name, asin, fnsku, category, sub_category, moq, lead_time_days, cogs, units_per_box, 
+      sku, name, asin, fnsku, category, sub_category, moq, lead_time_days, cogs, shipping_cost, units_per_box, 
       dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, minutes_active, country, saddl_id
     })
   }
@@ -267,6 +273,7 @@ serve(async (req: Request) => {
       moq: r.moq,
       lead_time_days: r.lead_time_days,
       cogs: r.cogs,
+      shipping_cost: r.shipping_cost,
       units_per_box: r.units_per_box,
       dimensions: r.dimensions,
       weight_kg: r.weight_kg,

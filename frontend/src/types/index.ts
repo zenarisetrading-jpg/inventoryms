@@ -22,9 +22,11 @@ export interface SKU {
   noon_active?: boolean
   minutes_active?: boolean
   weight_kg?: number | null
-  cbm?: number | null
   country?: string
   saddl_id?: string | null
+  cogs?: number | null
+  shipping_cost?: number | null
+  landing_cost?: number | null
 }
 
 export interface CommandCenterResponse {
@@ -139,6 +141,8 @@ export interface SKUDetailResponse {
   moq: number
   lead_time_days: number
   cogs: number
+  shipping_cost?: number | null
+  landing_cost?: number | null
   dimensions: string | null
   is_active: boolean
   demand: {

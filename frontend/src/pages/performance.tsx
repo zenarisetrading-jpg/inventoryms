@@ -15,8 +15,8 @@ import { ValuationChart, PoStatusChart } from '../components/performance/Valuati
 import { CoverageHealth } from '../components/performance/CoverageHealth'
 
 export default function PerformancePage() {
-  const { region } = useRegion()
-  const isKSA = region === 'KSA'
+  const { region, country } = useRegion()
+  const isKSA = country === 'KSA' || region === 's2c_test' || region.toLowerCase().includes('ksa')
   const {
     loading, error, days, setDays, search, setSearch,
     selCategories, setSelCategories, selProductCategories, setSelProductCategories,

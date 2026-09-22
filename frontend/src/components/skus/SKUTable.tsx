@@ -123,19 +123,19 @@ export function SKUTable({
                       <option value="B">B</option>
                       <option value="C">C</option>
                     </select>
-                  ) : ['cogs', 'asin', 'fnsku', 'name', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'units_per_box', 'dimensions', 'weight_kg', 'cbm'].includes(col) ? (
+                  ) : ['cogs', 'shipping_cost', 'asin', 'fnsku', 'name', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'units_per_box', 'dimensions', 'weight_kg', 'cbm'].includes(col) ? (
                     <div className="flex items-center gap-2 min-w-[80px]" onClick={e => e.stopPropagation()}>
                       {editingCell && editingCell.sku === row.sku && editingCell.field === col ? (
                         <div className="flex items-center gap-1">
                           <input
-                            type={['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm'].includes(col) ? "number" : "text"}
-                            step={col === 'cogs' || col === 'weight_kg' || col === 'cbm' ? "0.01" : undefined}
+                            type={['cogs', 'shipping_cost', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm'].includes(col) ? "number" : "text"}
+                            step={['cogs', 'shipping_cost', 'weight_kg', 'cbm'].includes(col) ? "0.01" : undefined}
                             className="w-32 p-1 text-[11px] border border-brand-blue rounded bg-white text-zinc-900 font-bold focus:outline-none uppercase"
                             value={editingCell.value}
                             onChange={e => setEditingCell({ ...editingCell, value: e.target.value })}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
-                                const numericFields = ['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
+                                const numericFields = ['cogs', 'shipping_cost', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
                                 const val = numericFields.includes(col) ? (editingCell.value === '' ? null : parseFloat(editingCell.value)) : editingCell.value
                                 handleUpdateField(row.sku, col, val)
                               }
@@ -145,7 +145,7 @@ export function SKUTable({
                           />
                           <button
                             onClick={() => {
-                              const numericFields = ['cogs', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
+                              const numericFields = ['cogs', 'shipping_cost', 'moq', 'lead_time_days', 'units_per_box', 'weight_kg', 'cbm']
                               const val = numericFields.includes(col) ? (editingCell.value === '' ? null : parseFloat(editingCell.value)) : editingCell.value
                               handleUpdateField(row.sku, col, val)
                             }}
@@ -166,12 +166,18 @@ export function SKUTable({
                           className="flex items-center gap-2 group/cell cursor-pointer"
                           onClick={() => setEditingCell({ sku: row.sku, field: col, value: String(row[col] ?? '') })}
                         >
-                          <span className={`text-[13px] font-semibold ${col === 'cogs' ? 'text-zinc-400' : 'text-zinc-300'}`}>
-                            {row[col] === null || row[col] === undefined || row[col] === '' ? '-' : (col === 'cogs' ? Number(row[col]).toFixed(2) : String(row[col]))}
+                          <span className={`text-[13px] font-semibold ${['cogs', 'shipping_cost'].includes(col) ? 'text-zinc-400' : 'text-zinc-300'}`}>
+                            {row[col] === null || row[col] === undefined || row[col] === '' ? '-' : (['cogs', 'shipping_cost'].includes(col) ? Number(row[col]).toFixed(2) : String(row[col]))}
                           </span>
                           <Edit2 className="w-3 h-3 text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-all" />
                         </div>
                       )}
+                    </div>
+                  ) : col === 'landing_cost' ? (
+                    <div className="flex items-center min-w-[80px]">
+                      <span className="text-[13px] font-bold text-emerald-400 font-data">
+                        {((Number(row.cogs) || 0) + (Number(row.shipping_cost) || 0)).toFixed(2)}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex items-center">

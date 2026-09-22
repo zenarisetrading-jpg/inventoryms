@@ -9,8 +9,8 @@ import { ColumnVisibilitySelector } from '../components/shared/ColumnVisibilityS
 import { SavedViewsSelector, type SavedView } from '../components/shared/SavedViewsSelector'
 
 export default function InventoryPage() {
-  const { region } = useRegion()
-  const isKSA = region === 'KSA'
+  const { region, country } = useRegion()
+  const isKSA = country === 'KSA' || region === 's2c_test' || region.toLowerCase().includes('ksa')
   const [data, setData] = useState<PlanningResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)

@@ -55,7 +55,16 @@ export function useSKUData() {
       if ((res as any).error) throw new Error((res as any).error)
 
       // Optimistically update local state
-      setData(prev => prev.map(row => row.sku === sku ? { ...row, [field]: value } : row))
+      setData(prev => prev.map(row => {
+        if (row.sku !== sku) return row
+        const newRow = { ...row, [field]: value }
+        if (field === 'cogs' || field === 'shipping_cost') {
+          const cogsVal = Number(newRow.cogs) || 0
+          const shipVal = Number(newRow.shipping_cost) || 0
+          newRow.landing_cost = cogsVal + shipVal
+        }
+        return newRow
+      }))
 
       setEditingCell(null)
     } catch (e: any) {
@@ -168,7 +177,7 @@ export function useSKUData() {
   // Fixed column order including physical properties and flags
   const columns = [
     'sku', 'asin', 'fnsku', 'name', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days',
-    'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
+    'cogs', 'shipping_cost', 'landing_cost', 'units_per_box', 'dimensions', 'weight_kg', 'cbm',
     'is_active', 'amazon_active', 'noon_active', 'minutes_active'
   ]
 

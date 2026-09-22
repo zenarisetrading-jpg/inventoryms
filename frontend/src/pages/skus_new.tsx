@@ -17,6 +17,7 @@ interface NewSKUForm {
   moq: number
   lead_time_days: number
   cogs: number
+  shipping_cost: number
   dimensions: string
 }
 
@@ -34,6 +35,7 @@ function emptyForm(): NewSKUForm {
     moq: 0,
     lead_time_days: 0,
     cogs: 0,
+    shipping_cost: 0,
     dimensions: '',
   }
 }
@@ -330,6 +332,37 @@ export default function SKUNewPage() {
                   onChange={e => handleFormChange('cogs', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
                   placeholder="0.00"
                   className={inputCls} 
+                />
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Truck className="w-3.5 h-3.5 text-amber-500" />
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Shipping Cost (AED)</label>
+                </div>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  min={0} 
+                  value={form.shipping_cost === 0 ? '' : form.shipping_cost} 
+                  onChange={e => handleFormChange('shipping_cost', e.target.value === '' ? 0 : parseFloat(e.target.value))} 
+                  placeholder="0.00"
+                  className={inputCls} 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Coins className="w-3.5 h-3.5 text-blue-500" />
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Landing Cost (AED)</label>
+                </div>
+                <input 
+                  type="text" 
+                  readOnly
+                  disabled
+                  value={((form.cogs || 0) + (form.shipping_cost || 0)).toFixed(2)} 
+                  className={`${inputCls} bg-white/10 text-emerald-400 cursor-not-allowed`} 
                 />
               </div>
               <div className="space-y-2.5">

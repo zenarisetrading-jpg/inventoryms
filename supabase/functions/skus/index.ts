@@ -432,6 +432,7 @@ async function handleCreate(req: Request): Promise<Response> {
     moq: body.moq || 0,
     lead_time_days: body.lead_time_days || 0,
     cogs: body.cogs || 0,
+    shipping_cost: body.shipping_cost || 0,
     dimensions: body.dimensions || null,
     weight_kg: body.weight_kg || null,
     cbm: body.cbm || null,
@@ -482,7 +483,7 @@ async function handleUpdate(skuId: string, req: Request): Promise<Response> {
   }
 
   // Only allow updating specific fields
-  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'units_per_box', 'dimensions', 'weight_kg', 'cbm', 'is_active', 'amazon_active', 'noon_active', 'minutes_active']
+  const allowed = ['name', 'asin', 'fnsku', 'category', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'cogs', 'shipping_cost', 'units_per_box', 'dimensions', 'weight_kg', 'cbm', 'is_active', 'amazon_active', 'noon_active', 'minutes_active']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) {
