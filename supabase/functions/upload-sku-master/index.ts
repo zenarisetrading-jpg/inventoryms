@@ -12,15 +12,17 @@ function jsonResponse(data: unknown, status = 200): Response {
 
 interface ParsedRow {
   sku: string
-  name: string
   asin: string
   fnsku: string
+  name: string
   category: string
+  product_category: string
   sub_category: string
   moq: number | null
   lead_time_days: number | null
   cogs: number | null
   shipping_cost: number | null
+  landing_cost: number | null
   units_per_box: number | null
   dimensions: string | null
   weight_kg: number | null
@@ -35,15 +37,17 @@ interface ParsedRow {
 
 const HEADER_ALIASES: Record<string, string[]> = {
   sku: ['sku', 'item sku', 'seller sku', 'internal sku'],
-  name: ['name', 'product name', 'item name', 'title'],
   asin: ['asin'],
   fnsku: ['fnsku'],
+  name: ['name', 'product name', 'item name', 'title'],
   category: ['category', 'class'],
+  product_category: ['product_category', 'product category', 'prod_category', 'prod category'],
   sub_category: ['sub_category', 'sub category', 'subcategory'],
   moq: ['moq', 'minimum order quantity'],
   lead_time_days: ['lead_time_days', 'lead time', 'lead time days'],
   cogs: ['cogs', 'cost of goods sold', 'cost'],
   shipping_cost: ['shipping_cost', 'shipping cost', 'shipping', 'freight_cost', 'freight'],
+  landing_cost: ['landing_cost', 'landing cost', 'landed cost', 'landed_cost'],
   units_per_box: ['units_per_box', 'units per box', 'qty per box', 'upb'],
   dimensions: ['dimensions', 'dimension', 'size'],
   weight_kg: ['weight_kg', 'weight kg', 'weight', 'weightkg'],
@@ -52,8 +56,8 @@ const HEADER_ALIASES: Record<string, string[]> = {
   amazon_active: ['amazon_active', 'amazon active'],
   noon_active: ['noon_active', 'noon active'],
   minutes_active: ['minutes_active', 'minutes active'],
+  saddl_id: ['saddl_id', 'saddl id', 'account_id', 'account id'],
   country: ['country', 'region'],
-  saddl_id: ['saddl_id', 'saddl id'],
 }
 
 function normalizeHeader(v: string): string {
@@ -97,9 +101,9 @@ function parseCSVLine(line: string): string[] {
   return cols
 }
 
-function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: ParsedRow[]; errors: { row: number; message: string }[] } {
+function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Record<string, any>[]; errors: { row: number; message: string }[] } {
   const errors: { row: number; message: string }[] = []
-  const rows: ParsedRow[] = []
+  const rows: Record<string, any>[] = []
 
   if (!rawRows || rawRows.length === 0) {
     errors.push({ row: 0, message: 'File must have a header row and at least one data row' })
@@ -109,15 +113,17 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
   const headerKeys = Object.keys(rawRows[0])
   const idxMap = {
     sku: findColumnIndex(headerKeys, 'sku'),
-    name: findColumnIndex(headerKeys, 'name'),
     asin: findColumnIndex(headerKeys, 'asin'),
     fnsku: findColumnIndex(headerKeys, 'fnsku'),
+    name: findColumnIndex(headerKeys, 'name'),
     category: findColumnIndex(headerKeys, 'category'),
+    product_category: findColumnIndex(headerKeys, 'product_category'),
     sub_category: findColumnIndex(headerKeys, 'sub_category'),
     moq: findColumnIndex(headerKeys, 'moq'),
     lead_time_days: findColumnIndex(headerKeys, 'lead_time_days'),
     cogs: findColumnIndex(headerKeys, 'cogs'),
     shipping_cost: findColumnIndex(headerKeys, 'shipping_cost'),
+    landing_cost: findColumnIndex(headerKeys, 'landing_cost'),
     units_per_box: findColumnIndex(headerKeys, 'units_per_box'),
     dimensions: findColumnIndex(headerKeys, 'dimensions'),
     weight_kg: findColumnIndex(headerKeys, 'weight_kg'),
@@ -126,8 +132,8 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     amazon_active: findColumnIndex(headerKeys, 'amazon_active'),
     noon_active: findColumnIndex(headerKeys, 'noon_active'),
     minutes_active: findColumnIndex(headerKeys, 'minutes_active'),
-    country: findColumnIndex(headerKeys, 'country'),
     saddl_id: findColumnIndex(headerKeys, 'saddl_id'),
+    country: findColumnIndex(headerKeys, 'country'),
   }
 
   if (idxMap.sku === -1) {
@@ -139,9 +145,10 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
     const obj = rawRows[i]
     const get = (name: keyof typeof idxMap) => {
       const colIdx = idxMap[name]
-      if (colIdx < 0) return ''
+      if (colIdx < 0) return undefined
       const key = headerKeys[colIdx]
-      return String(obj[key] ?? '').trim()
+      const val = obj[key]
+      return val !== undefined && val !== null ? String(val).trim() : ''
     }
 
     const sku = get('sku')
@@ -150,59 +157,81 @@ function parseRowsToParsedRows(rawRows: Record<string, unknown>[]): { rows: Pars
       continue
     }
 
-    const name = get('name')
-    const asin = get('asin')
-    const fnsku = get('fnsku')
-    const categoryRaw = get('category').toUpperCase()
-    const category = ['A', 'B', 'C'].includes(categoryRaw) ? categoryRaw : 'C'
-    const sub_category = get('sub_category')
-    
-    const moqRaw = parseInt(get('moq'), 10)
-    const moq = isNaN(moqRaw) ? null : moqRaw
+    const row: Record<string, any> = { sku }
 
-    const leadTimeRaw = parseInt(get('lead_time_days'), 10)
-    const lead_time_days = isNaN(leadTimeRaw) ? null : leadTimeRaw
+    if (idxMap.asin !== -1) row.asin = get('asin') || null
+    if (idxMap.fnsku !== -1) row.fnsku = get('fnsku') || null
+    if (idxMap.name !== -1) row.name = get('name') || null
+    if (idxMap.category !== -1) {
+      const cat = (get('category') || '').toUpperCase()
+      row.category = ['A', 'B', 'C'].includes(cat) ? cat : 'C'
+    }
+    if (idxMap.product_category !== -1) row.product_category = get('product_category') || null
+    if (idxMap.sub_category !== -1) row.sub_category = get('sub_category') || null
 
-    const cogsRaw = parseFloat(get('cogs'))
-    const cogs = isNaN(cogsRaw) ? null : cogsRaw
+    if (idxMap.moq !== -1) {
+      const val = parseInt(get('moq') || '', 10)
+      row.moq = isNaN(val) ? null : val
+    }
+    if (idxMap.lead_time_days !== -1) {
+      const val = parseInt(get('lead_time_days') || '', 10)
+      row.lead_time_days = isNaN(val) ? null : val
+    }
+    if (idxMap.cogs !== -1) {
+      const val = parseFloat(get('cogs') || '')
+      row.cogs = isNaN(val) ? null : val
+    }
+    if (idxMap.shipping_cost !== -1) {
+      const val = parseFloat(get('shipping_cost') || '')
+      row.shipping_cost = isNaN(val) ? null : val
+    }
+    if (idxMap.landing_cost !== -1) {
+      const val = parseFloat(get('landing_cost') || '')
+      row.landing_cost = isNaN(val) ? null : val
+    }
+    if (idxMap.units_per_box !== -1) {
+      const val = parseInt(get('units_per_box') || '', 10)
+      row.units_per_box = isNaN(val) ? 1 : val
+    }
+    if (idxMap.dimensions !== -1) row.dimensions = get('dimensions') || null
+    if (idxMap.weight_kg !== -1) {
+      const val = parseFloat(get('weight_kg') || '')
+      row.weight_kg = isNaN(val) ? null : val
+    }
+    if (idxMap.cbm !== -1) {
+      const val = parseFloat(get('cbm') || '')
+      row.cbm = isNaN(val) ? null : val
+    }
+    if (idxMap.is_active !== -1) {
+      const raw = (get('is_active') || '').toLowerCase()
+      row.is_active = !(raw === 'false' || raw === '0' || raw === 'no')
+    }
+    if (idxMap.amazon_active !== -1) {
+      const raw = (get('amazon_active') || '').toLowerCase()
+      row.amazon_active = !(raw === 'false' || raw === '0' || raw === 'no')
+    }
+    if (idxMap.noon_active !== -1) {
+      const raw = (get('noon_active') || '').toLowerCase()
+      row.noon_active = !(raw === 'false' || raw === '0' || raw === 'no')
+    }
+    if (idxMap.minutes_active !== -1) {
+      const raw = (get('minutes_active') || '').toLowerCase()
+      row.minutes_active = !(raw === 'false' || raw === '0' || raw === 'no')
+    }
+    if (idxMap.country !== -1) {
+      row.country = get('country') || 'UAE'
+    }
+    if (idxMap.saddl_id !== -1) {
+      row.saddl_id = get('saddl_id') || null
+    }
 
-    const shippingCostRaw = parseFloat(get('shipping_cost'))
-    const shipping_cost = isNaN(shippingCostRaw) ? null : shippingCostRaw
-
-    const upbRaw = parseInt(get('units_per_box'), 10)
-    const units_per_box = isNaN(upbRaw) ? 1 : upbRaw
-
-    const dimensions = get('dimensions') || null
-    const weightRaw = parseFloat(get('weight_kg'))
-    const weight_kg = isNaN(weightRaw) ? null : weightRaw
-    const cbmRaw = parseFloat(get('cbm'))
-    const cbm = isNaN(cbmRaw) ? null : cbmRaw
-
-    const isActiveRaw = get('is_active').toLowerCase()
-    const is_active = isActiveRaw === 'false' || isActiveRaw === '0' || isActiveRaw === 'no' ? false : true
-
-    const isAmazonActiveRaw = get('amazon_active').toLowerCase()
-    const amazon_active = isAmazonActiveRaw === 'false' || isAmazonActiveRaw === '0' || isAmazonActiveRaw === 'no' ? false : true
-
-    const isNoonActiveRaw = get('noon_active').toLowerCase()
-    const noon_active = isNoonActiveRaw === 'false' || isNoonActiveRaw === '0' || isNoonActiveRaw === 'no' ? false : true
-
-    const isMinutesActiveRaw = get('minutes_active').toLowerCase()
-    const minutes_active = isMinutesActiveRaw === 'false' || isMinutesActiveRaw === '0' || isMinutesActiveRaw === 'no' ? false : true
-
-    const country = get('country') || 'UAE'
-    const saddl_id = get('saddl_id')
-
-    rows.push({
-      sku, name, asin, fnsku, category, sub_category, moq, lead_time_days, cogs, shipping_cost, units_per_box, 
-      dimensions, weight_kg, cbm, is_active, amazon_active, noon_active, minutes_active, country, saddl_id
-    })
+    rows.push(row)
   }
 
   return { rows, errors }
 }
 
-function parseCSV(text: string): { rows: ParsedRow[]; errors: { row: number; message: string }[] } {
+function parseCSV(text: string): { rows: Record<string, any>[]; errors: { row: number; message: string }[] } {
   const lines = text.replace(/^\ufeff/, '').split(/\r?\n/).filter((l) => l.trim().length > 0)
   if (lines.length < 2) {
     return { rows: [], errors: [{ row: 0, message: 'CSV must have a header row and at least one data row' }] }
@@ -217,7 +246,7 @@ function parseCSV(text: string): { rows: ParsedRow[]; errors: { row: number; mes
   return parseRowsToParsedRows(rawRows)
 }
 
-function parseXLSX(buffer: ArrayBuffer): { rows: ParsedRow[]; errors: { row: number; message: string }[] } {
+function parseXLSX(buffer: ArrayBuffer): { rows: Record<string, any>[]; errors: { row: number; message: string }[] } {
   const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' })
   const firstSheetName = workbook.SheetNames[0]
   if (!firstSheetName) return { rows: [], errors: [{ row: 0, message: 'XLSX has no sheets' }] }
@@ -244,7 +273,7 @@ serve(async (req: Request) => {
     const fileName = file.name?.toLowerCase() ?? ''
     const isXlsx = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || file.type.includes('spreadsheet')
 
-    let parsed: { rows: ParsedRow[]; errors: { row: number; message: string }[] }
+    let parsed: { rows: Record<string, any>[]; errors: { row: number; message: string }[] }
     if (isXlsx) {
       const buffer = await file.arrayBuffer()
       parsed = parseXLSX(buffer)
@@ -262,32 +291,71 @@ serve(async (req: Request) => {
       return jsonResponse({ rows_processed: 0, errors: parseErrors })
     }
 
-    // Map to db format
-    const dbRows = rows.map(r => ({
-      sku: r.sku,
-      name: r.name || null,
-      asin: r.asin || null,
-      fnsku: r.fnsku || null,
-      category: r.category,
-      sub_category: r.sub_category || null,
-      moq: r.moq,
-      lead_time_days: r.lead_time_days,
-      cogs: r.cogs,
-      shipping_cost: r.shipping_cost,
-      units_per_box: r.units_per_box,
-      dimensions: r.dimensions,
-      weight_kg: r.weight_kg,
-      cbm: r.cbm,
-      is_active: r.is_active,
-      amazon_active: r.amazon_active,
-      noon_active: r.noon_active,
-      minutes_active: r.minutes_active,
-      country: r.country || defaultCountry,
-      saddl_id: r.saddl_id || defaultSaddlId,
-    }))
+    // Fetch existing SKUs to merge partial uploads and preserve non-null columns (like name, category)
+    const uniqueSkus = Array.from(new Set(rows.map(r => r.sku)))
+    const { data: existingRecords } = await supabase
+      .from('sku_master')
+      .select('*')
+      .in('sku', uniqueSkus)
+
+    const existingMap = new Map<string, Record<string, any>>()
+    if (existingRecords) {
+      for (const rec of existingRecords) {
+        const key = `${rec.sku}__${rec.country || 'UAE'}`
+        existingMap.set(key, rec)
+      }
+    }
+
+    // Build final upsert payload by merging with existing rows or supplying safe defaults
+    const dbRows = rows.map(r => {
+      const country = r.country || defaultCountry
+      const key = `${r.sku}__${country}`
+      const existing = existingMap.get(key)
+
+      const merged: Record<string, any> = existing ? { ...existing, ...r } : {
+        sku: r.sku,
+        name: r.name || r.sku,
+        asin: r.asin || null,
+        fnsku: r.fnsku || null,
+        category: r.category || 'C',
+        product_category: r.product_category || null,
+        sub_category: r.sub_category || null,
+        units_per_box: r.units_per_box ?? 1,
+        moq: r.moq ?? null,
+        lead_time_days: r.lead_time_days ?? null,
+        cogs: r.cogs ?? null,
+        shipping_cost: r.shipping_cost ?? 0,
+        is_active: r.is_active ?? true,
+        amazon_active: r.amazon_active ?? true,
+        noon_active: r.noon_active ?? true,
+        minutes_active: r.minutes_active ?? true,
+        ...r,
+      }
+
+      // If landing_cost was provided in the upload, adjust shipping_cost so that (cogs + shipping_cost = landing_cost)
+      if (r.landing_cost !== undefined && r.landing_cost !== null) {
+        const landingVal = Number(r.landing_cost)
+        const cogsVal = (r.cogs !== undefined && r.cogs !== null)
+          ? Number(r.cogs)
+          : (merged.cogs ? Number(merged.cogs) : 0)
+
+        merged.shipping_cost = Math.max(0, Number((landingVal - cogsVal).toFixed(2)))
+      }
+
+      merged.country = country
+      if (!merged.saddl_id && defaultSaddlId) merged.saddl_id = defaultSaddlId
+      if (!merged.name) merged.name = merged.sku
+
+      // Clean up fields that cannot or should not be written directly into sku_master
+      delete merged.id
+      delete merged.created_at
+      delete merged.landing_cost // Generated column in Postgres
+
+      return merged
+    })
 
     // Upsert the SKUs
-    // Note: The conflict target is (sku, country) per the migration 053
+    // Note: The conflict target is (sku, country) per migration 053
     const { error: upsertError } = await supabase
       .from('sku_master')
       .upsert(dbRows, { onConflict: 'sku, country', ignoreDuplicates: false })
