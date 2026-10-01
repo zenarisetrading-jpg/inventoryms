@@ -9,8 +9,7 @@ import { ColumnVisibilitySelector } from '../components/shared/ColumnVisibilityS
 import { SavedViewsSelector, type SavedView } from '../components/shared/SavedViewsSelector'
 
 export default function InventoryPage() {
-  const { region, country } = useRegion()
-  const isKSA = country === 'KSA' || region === 's2c_test' || region.toLowerCase().includes('ksa')
+  const { region } = useRegion()
   const [data, setData] = useState<PlanningResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -146,10 +145,6 @@ export default function InventoryPage() {
       ...existingKeys.filter(k => !PREFERRED_ORDER.includes(k))
     ]
 
-    if (isKSA) {
-      finalKeys = finalKeys.filter(k => !['fbn_units', 'noon_sv', 'minutes_units', 'minutes_sv', 'send_to_fbn_units', 'fbn_boxes', 'noon_coverage'].includes(k))
-    }
-
     let orderedKeys = finalKeys;
     if (columnOrder.length > 0) {
       const orderSet = new Set(columnOrder);
@@ -179,7 +174,7 @@ export default function InventoryPage() {
         width
       }
     })
-  }, [data, isKSA, columnOrder, columnWidths])
+  }, [data, columnOrder, columnWidths])
 
   const activeColumns = useMemo(() => {
     return baseColumns.filter(c => visibleColumns.includes(c.key));
@@ -447,10 +442,8 @@ export default function InventoryPage() {
             accent="text-indigo-600"
             items={[
               { label: 'FBA Units', value: renderCell('fba_units', totals['fba_units'] || totals['current_fba_stock_units']) },
-              ...(isKSA ? [] : [
-                { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
-                { label: 'Minutes', value: renderCell('minutes_units', totals['minutes_units']) }
-              ])
+              { label: 'FBN Units', value: renderCell('fbn_units', totals['fbn_units'] || totals['current_fbn_stock_units']) },
+              { label: 'Minutes', value: renderCell('minutes_units', totals['minutes_units']) }
             ]}
           />
           <InventoryStatCard 
@@ -468,10 +461,8 @@ export default function InventoryPage() {
             accent="text-rose-600"
             items={[
               { label: 'Amazon SV', value: renderCell('amazon_sv', totals['amazon_sv']) },
-              ...(isKSA ? [] : [
-                { label: 'Noon SV', value: renderCell('noon_sv', totals['noon_sv']) },
-                { label: 'Minutes SV', value: renderCell('minutes_sv', totals['minutes_sv']) }
-              ]),
+              { label: 'Noon SV', value: renderCell('noon_sv', totals['noon_sv']) },
+              { label: 'Minutes SV', value: renderCell('minutes_sv', totals['minutes_sv']) },
               { label: 'Total SV', value: renderCell('blended_sv', totals['blended_sv']) }
             ]}
           />
@@ -493,12 +484,10 @@ export default function InventoryPage() {
             items={[
               { label: 'FBA Boxes', value: renderCell('fba_boxes', totals['fba_boxes'] || totals['suggested_boxes_amazon']) },
               { label: 'FBA Units', value: renderCell('send_to_fba_units', totals['send_to_fba_units'] || totals['suggested_units_amazon']) },
-              ...(isKSA ? [] : [
-                { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) },
-                { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
-                { label: 'Minutes Boxes', value: renderCell('minutes_boxes', totals['minutes_boxes']) },
-                { label: 'Minutes Units', value: renderCell('send_to_minutes_units', totals['send_to_minutes_units']) }
-              ])
+              { label: 'FBN Boxes', value: renderCell('fbn_boxes', totals['fbn_boxes'] || totals['suggested_boxes_noon']) },
+              { label: 'FBN Units', value: renderCell('send_to_fbn_units', totals['send_to_fbn_units'] || totals['suggested_units_noon']) },
+              { label: 'Minutes Boxes', value: renderCell('minutes_boxes', totals['minutes_boxes']) },
+              { label: 'Minutes Units', value: renderCell('send_to_minutes_units', totals['send_to_minutes_units']) }
             ]}
           />
         </div>
