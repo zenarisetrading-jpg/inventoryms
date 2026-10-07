@@ -14,7 +14,7 @@
 // v1.0.1 - forced redeploy for schema cache
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-import { getSupabaseClient } from '../_shared/supabase.ts'
+import { getSupabaseClient, getSupabaseAdmin } from '../_shared/supabase.ts'
 import {
   fetchAmazonInventory,
   fetchAmazonSales,
@@ -87,7 +87,7 @@ async function handleSync(
   days = 90,
   countryParam: string | null = null
 ): Promise<Response> {
-  const supabase = getSupabaseClient(req)
+  const supabase = getSupabaseAdmin()
   const synced_at = new Date().toISOString()
   let skus_processed = 0
   let locad_status: 'synced' | 'skipped_not_connected' = 'skipped_not_connected'
@@ -95,13 +95,20 @@ async function handleSync(
 
   // ---- CLEAR RECORDS (Optional) ----
   if (clear) {
-    console.log('[sync] Clearing all inventory and sales records as requested...')
-    const tables = ['inventory_snapshot', 'sales_snapshot', 'demand_metrics', 'allocation_plans', 'locad_raw_staging']
+    console.log('[sync] Clearing inventory and sales records as requested...')
+    const tables = ['inventory_snapshot', 'demand_metrics', 'allocation_plans', 'locad_raw_staging']
     for (const table of tables) {
       const { error } = await supabase.from(table).delete().neq('sku', 'DOES_NOT_EXIST')
       if (error) {
         errors.push(`Clear ${table} failure: ${error.message}`)
       }
+    }
+    // Protect Noon and Minutes sales from deletion; only clear Amazon rows when clearing Amazon sync
+    if (source === 'amazon') {
+      await supabase.from('sales_snapshot').delete().eq('channel', 'amazon')
+    } else {
+      await supabase.from('sales_snapshot').delete().neq('sku', 'DOES_NOT_EXIST')
+      await supabase.rpc('sync_sales_snapshot_from_raw')
     }
   }
 
@@ -424,12 +431,19 @@ async function handleSync(
 // ---------------------------------------------------------------------------
 
 async function handleRefreshFact(req: Request): Promise<Response> {
-  const supabase = getSupabaseClient(req)
+  const supabase = getSupabaseAdmin()
   
   console.log('[sync] Refreshing fact tables...')
   
   try {
-    // 0. Trigger sync-inventory-age
+    // 0a. Sync Sales Snapshot from raw Noon & Minutes tables
+    console.log('[sync] Syncing sales snapshot from raw orders...')
+    const { error: syncSalesErr } = await supabase.rpc('sync_sales_snapshot_from_raw')
+    if (syncSalesErr) {
+      console.warn('[sync] sync_sales_snapshot_from_raw warning:', syncSalesErr)
+    }
+
+    // 0b. Trigger sync-inventory-age
     console.log('[sync] Triggering sync-inventory-age...')
     const { error: syncAgeErr } = await supabase.functions.invoke('sync-inventory-age', {
       method: 'POST'
