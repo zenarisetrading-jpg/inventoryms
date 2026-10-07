@@ -116,10 +116,15 @@ export interface LineItem {
 }
 
 export function createDefaultLineItems(saved?: LineItem[]): LineItem[] {
-  if (saved) {
-    // For saved lists, preserve user-deleted rows (do not auto-pad)
+  if (saved && Array.isArray(saved) && saved.length > 0) {
     const capped = saved.slice(0, 10)
-    return capped.map((item, idx) => ({ ...item, sno: idx + 1 }))
+    return capped.map((item, idx) => ({
+      id: item.id || `item-${idx + 1}-${Date.now()}-${idx}`,
+      sno: idx + 1,
+      description: item.description ?? '',
+      qty: Number(item.qty) || 0,
+      rate: Number(item.rate) || 0
+    }))
   }
 
   return [
@@ -132,3 +137,68 @@ export function createDefaultLineItems(saved?: LineItem[]): LineItem[] {
     }
   ]
 }
+
+/**
+ * Automatically computes the next invoice number based on the highest existing invoice number + 1.
+ * Supports patterns such as SADL-INV-26-007 -> SADL-INV-26-008.
+ * Scans all saved records in invoicesList to avoid duplicates.
+ */
+export function computeNextInvoiceNumber(currentNo: string, targetDateStr: string, invoicesList?: any[]): string {
+  const parsedDate = parseDate(targetDateStr) || new Date()
+  const yy = parsedDate.getFullYear().toString().slice(-2)
+
+  const yearSeqMatch = (currentNo || '').trim().match(/^(.*?-)(\d{2})-(\d+)$/)
+  const endNumMatch = (currentNo || '').trim().match(/^(.*?)(\d+)$/)
+
+  let basePrefix = 'SADL-INV-'
+  let yearPart = yy
+  let padLength = 3
+  let maxSeq = 0
+
+  if (yearSeqMatch) {
+    basePrefix = yearSeqMatch[1]
+    yearPart = yy
+    padLength = Math.max(3, yearSeqMatch[3].length)
+    const currentSeq = parseInt(yearSeqMatch[3], 10)
+    if (!isNaN(currentSeq) && currentSeq > maxSeq) {
+      maxSeq = currentSeq
+    }
+  } else if (endNumMatch) {
+    basePrefix = endNumMatch[1]
+    padLength = Math.max(3, endNumMatch[2].length)
+    const currentSeq = parseInt(endNumMatch[2], 10)
+    if (!isNaN(currentSeq) && currentSeq > maxSeq) {
+      maxSeq = currentSeq
+    }
+  }
+
+  const fullPrefix = `${basePrefix}${yearPart}-`
+
+  if (Array.isArray(invoicesList)) {
+    invoicesList.forEach(inv => {
+      const invNo = inv?.invoice_no
+      if (typeof invNo === 'string') {
+        const clean = invNo.trim()
+        if (clean.startsWith(fullPrefix)) {
+          const suffix = clean.slice(fullPrefix.length)
+          const num = parseInt(suffix, 10)
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num
+          }
+        } else {
+          const m = clean.match(/^SADL-INV-(\d{2})-(\d+)$/)
+          if (m && m[1] === yy) {
+            const num = parseInt(m[2], 10)
+            if (!isNaN(num) && num > maxSeq) {
+              maxSeq = num
+            }
+          }
+        }
+      }
+    })
+  }
+
+  const nextSeq = maxSeq + 1
+  return `${fullPrefix}${String(nextSeq).padStart(padLength, '0')}`
+}
+

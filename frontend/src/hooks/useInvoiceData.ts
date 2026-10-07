@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { parseDate, formatDateToDDMMYYYY, createDefaultLineItems, numberToWords, LineItem } from '../components/invoice/utils'
+import { parseDate, formatDateToDDMMYYYY, createDefaultLineItems, numberToWords, LineItem, computeNextInvoiceNumber } from '../components/invoice/utils'
 
 export function useInvoiceData(user?: any) {
   const [currentUser, setCurrentUser] = useState<any>(user || null)
@@ -49,7 +49,14 @@ export function useInvoiceData(user?: any) {
   })
 
   // Seller Details
-  const [sellerName, setSellerName] = useState(() => localStorage.getItem('s2c_inv_seller_name') || 'Zenarise Trading LLC FZ')
+  const [sellerName, setSellerName] = useState(() => {
+    const saved = localStorage.getItem('s2c_inv_seller_name')
+    if (!saved || saved === 'Zenarise Trading LLC FZ') {
+      localStorage.setItem('s2c_inv_seller_name', 'Zenarise Trading L.L.C-FZ')
+      return 'Zenarise Trading L.L.C-FZ'
+    }
+    return saved
+  })
   const [sellerAddress, setSellerAddress] = useState(() => localStorage.getItem('s2c_inv_seller_address') || 'Meydan Grandstand, 6th floor, Meydan Road,\nNad Al Sheba, Dubai, U.A.E.')
   const [sellerTrn, setSellerTrn] = useState(() => localStorage.getItem('s2c_inv_seller_trn') || '104554276600003')
 
@@ -82,7 +89,14 @@ export function useInvoiceData(user?: any) {
   const [bankIban, setBankIban] = useState(() => localStorage.getItem('s2c_inv_bank_iban') || 'AE460860000009854848878')
   const [bankSwift, setBankSwift] = useState(() => localStorage.getItem('s2c_inv_bank_swift') || 'WIOBAEADXXX')
   const [bankType, setBankType] = useState(() => localStorage.getItem('s2c_inv_bank_type') || 'Current Account')
-  const [beneficiaryName, setBeneficiaryName] = useState(() => localStorage.getItem('s2c_inv_beneficiary_name') || 'Zenarise Trading LLC FZ')
+  const [beneficiaryName, setBeneficiaryName] = useState(() => {
+    const saved = localStorage.getItem('s2c_inv_beneficiary_name')
+    if (!saved || saved === 'Zenarise Trading LLC FZ') {
+      localStorage.setItem('s2c_inv_beneficiary_name', 'Zenarise Trading L.L.C-FZ')
+      return 'Zenarise Trading L.L.C-FZ'
+    }
+    return saved
+  })
   
   const [remarks, setRemarks] = useState(() => localStorage.getItem('s2c_inv_remarks') || 'Kindly send proof of payments to accounts@saddl.io with email subject "INV# - Proof of Payment"')
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -105,7 +119,11 @@ export function useInvoiceData(user?: any) {
     }
   }, [invoiceDate, terms])
 
+  const isLoadingInvoiceRef = useRef(false)
+  const [newInvoiceNotice, setNewInvoiceNotice] = useState<string | null>(null)
+
   useEffect(() => {
+    if (isLoadingInvoiceRef.current) return
     if (!invoiceDate) return
     try {
       const parsed = parseDate(invoiceDate)
@@ -147,11 +165,37 @@ export function useInvoiceData(user?: any) {
 
   useEffect(() => { fetchInvoices() }, [])
 
+  const generateNewInvoiceNumber = () => {
+    const nextNo = computeNextInvoiceNumber(invoiceNo, invoiceDate, invoicesList)
+    setInvoiceNo(nextNo)
+    localStorage.setItem('s2c_inv_no', nextNo)
+    return nextNo
+  }
+
   const handleSaveToDatabase = async () => {
     setIsSaving(true)
     try {
+      let finalInvoiceNo = invoiceNo
+
+      // If creating a new record (currentInvoiceId is null) and the invoice number matches an existing saved invoice,
+      // prompt to optionally auto-generate the next number
+      if (!currentInvoiceId) {
+        const isDuplicate = invoicesList.some(inv => inv.invoice_no?.trim().toLowerCase() === invoiceNo.trim().toLowerCase())
+        if (isDuplicate) {
+          const autoNext = generateNewInvoiceNumber()
+          const confirmGenerate = window.confirm(
+            `Invoice number "${invoiceNo}" already exists in the Saved Invoices Registry.\n\nClick "OK" to save as new invoice "${autoNext}".\nClick "Cancel" to return and edit the invoice number manually.`
+          )
+          if (!confirmGenerate) {
+            setIsSaving(false)
+            return
+          }
+          finalInvoiceNo = autoNext
+        }
+      }
+
       const invoiceData = {
-        invoice_title: invoiceTitle, title_font_size: titleFontSize, invoice_no: invoiceNo, invoice_date: invoiceDate, terms, due_date: dueDate,
+        invoice_title: invoiceTitle, title_font_size: titleFontSize, invoice_no: finalInvoiceNo, invoice_date: invoiceDate, terms, due_date: dueDate,
         seller_name: sellerName, seller_address: sellerAddress, seller_trn: sellerTrn,
         buyer_name: buyerName, buyer_address: buyerAddress, buyer_trn: buyerTrn || '-', buyer_email: buyerEmail || '-', buyer_phone: buyerPhone || '-',
         bank_name: bankName, bank_account: bankAccount, bank_iban: bankIban, bank_swift: bankSwift, bank_type: bankType, beneficiary_name: beneficiaryName,
@@ -168,7 +212,7 @@ export function useInvoiceData(user?: any) {
       
       // Update local storage
       localStorage.setItem('s2c_inv_title', invoiceTitle); localStorage.setItem('s2c_inv_title_size', String(titleFontSize))
-      localStorage.setItem('s2c_inv_no', invoiceNo); localStorage.setItem('s2c_inv_date', invoiceDate)
+      localStorage.setItem('s2c_inv_no', finalInvoiceNo); localStorage.setItem('s2c_inv_date', invoiceDate)
       localStorage.setItem('s2c_inv_terms', String(terms)); localStorage.setItem('s2c_inv_seller_name', sellerName)
       localStorage.setItem('s2c_inv_seller_address', sellerAddress); localStorage.setItem('s2c_inv_seller_trn', sellerTrn)
       localStorage.setItem('s2c_inv_buyer_name', buyerName); localStorage.setItem('s2c_inv_buyer_address', buyerAddress)
@@ -179,6 +223,7 @@ export function useInvoiceData(user?: any) {
       localStorage.setItem('s2c_inv_bank_swift', bankSwift); localStorage.setItem('s2c_inv_bank_type', bankType)
       localStorage.setItem('s2c_inv_beneficiary_name', beneficiaryName); localStorage.setItem('s2c_inv_remarks', remarks)
 
+      setNewInvoiceNotice(null)
       setSaveSuccess(true); setTimeout(() => setSaveSuccess(false), 3000)
       fetchInvoices()
     } catch (err: any) {
@@ -187,7 +232,7 @@ export function useInvoiceData(user?: any) {
   }
 
   const handleReset = () => {
-    if (window.confirm('Reset invoice fields to default?')) {
+    if (window.confirm('Reset invoice fields to default template?')) {
       const keys = ['s2c_inv_title', 's2c_inv_title_size', 's2c_inv_no', 's2c_inv_date', 's2c_inv_terms', 's2c_inv_seller_name', 's2c_inv_seller_address', 's2c_inv_seller_trn', 's2c_inv_buyer_name', 's2c_inv_buyer_address', 's2c_inv_buyer_email', 's2c_inv_buyer_phone', 's2c_inv_buyer_trn', 's2c_inv_items', 's2c_inv_max_items_p1', 's2c_inv_bank_name', 's2c_inv_bank_account', 's2c_inv_bank_iban', 's2c_inv_bank_swift', 's2c_inv_bank_type', 's2c_inv_beneficiary_name', 's2c_inv_remarks']
       keys.forEach(k => localStorage.removeItem(k))
       window.location.reload()
@@ -195,17 +240,54 @@ export function useInvoiceData(user?: any) {
   }
 
   const handleLoadInvoice = (inv: any) => {
+    isLoadingInvoiceRef.current = true
     setCurrentInvoiceId(inv.id)
-    setInvoiceTitle(inv.invoice_title || 'TAX INVOICE'); setTitleFontSize(inv.title_font_size || 72)
-    setInvoiceNo(inv.invoice_no || ''); setInvoiceDate(inv.invoice_date || ''); setTerms(inv.terms || 5)
-    setSellerName(inv.seller_name || ''); setSellerAddress(inv.seller_address || ''); setSellerTrn(inv.seller_trn || '')
-    setBuyerName(inv.buyer_name || ''); setBuyerAddress(inv.buyer_address || ''); setBuyerEmail(inv.buyer_email || '')
-    setBuyerPhone(inv.buyer_phone || ''); setBuyerTrn(inv.buyer_trn || '')
-    setLineItems(createDefaultLineItems(inv.line_items)); setMaxItemsPage1(inv.max_items_page1 || 5)
-    setBankName(inv.bank_name || 'Wio Bank'); setBankAccount(inv.bank_account || '9854848878'); setBankIban(inv.bank_iban || 'AE460860000009854848878')
-    setBankSwift(inv.bank_swift || 'WIOBAEADXXX'); setBankType(inv.bank_type || 'Current Account'); setBeneficiaryName(inv.beneficiary_name || '')
-    setRemarks(inv.remarks || '')
+    setInvoiceTitle(inv.invoice_title ?? 'TAX INVOICE'); setTitleFontSize(inv.title_font_size ?? 72)
+    setInvoiceNo(inv.invoice_no ?? ''); setInvoiceDate(inv.invoice_date ?? ''); setTerms(inv.terms ?? 5)
+    setSellerName(inv.seller_name ?? ''); setSellerAddress(inv.seller_address ?? ''); setSellerTrn(inv.seller_trn ?? '')
+    setBuyerName(inv.buyer_name ?? ''); setBuyerAddress(inv.buyer_address ?? '')
+    setBuyerEmail(inv.buyer_email === '-' ? '' : (inv.buyer_email ?? ''))
+    setBuyerPhone(inv.buyer_phone === '-' ? '' : (inv.buyer_phone ?? ''))
+    setBuyerTrn(inv.buyer_trn === '-' ? '' : (inv.buyer_trn ?? ''))
+
+    let items = inv.line_items
+    if (typeof items === 'string') {
+      try { items = JSON.parse(items) } catch { items = [] }
+    }
+    setLineItems(createDefaultLineItems(items)); setMaxItemsPage1(inv.max_items_page1 ?? 5)
+    setBankName(inv.bank_name ?? ''); setBankAccount(inv.bank_account ?? ''); setBankIban(inv.bank_iban ?? '')
+    setBankSwift(inv.bank_swift ?? ''); setBankType(inv.bank_type ?? 'Current Account'); setBeneficiaryName(inv.beneficiary_name ?? '')
+    setRemarks(inv.remarks ?? '')
+    setNewInvoiceNotice(null)
+
+    // Sync to local storage
+    localStorage.setItem('s2c_inv_title', inv.invoice_title ?? 'TAX INVOICE')
+    localStorage.setItem('s2c_inv_title_size', String(inv.title_font_size ?? 72))
+    localStorage.setItem('s2c_inv_no', inv.invoice_no ?? '')
+    localStorage.setItem('s2c_inv_date', inv.invoice_date ?? '')
+    localStorage.setItem('s2c_inv_terms', String(inv.terms ?? 5))
+    localStorage.setItem('s2c_inv_seller_name', inv.seller_name ?? '')
+    localStorage.setItem('s2c_inv_seller_address', inv.seller_address ?? '')
+    localStorage.setItem('s2c_inv_seller_trn', inv.seller_trn ?? '')
+    localStorage.setItem('s2c_inv_buyer_name', inv.buyer_name ?? '')
+    localStorage.setItem('s2c_inv_buyer_address', inv.buyer_address ?? '')
+    localStorage.setItem('s2c_inv_buyer_email', inv.buyer_email === '-' ? '' : (inv.buyer_email ?? ''))
+    localStorage.setItem('s2c_inv_buyer_phone', inv.buyer_phone === '-' ? '' : (inv.buyer_phone ?? ''))
+    localStorage.setItem('s2c_inv_buyer_trn', inv.buyer_trn === '-' ? '' : (inv.buyer_trn ?? ''))
+    localStorage.setItem('s2c_inv_items', JSON.stringify(items || []))
+    localStorage.setItem('s2c_inv_max_items_p1', String(inv.max_items_page1 ?? 5))
+    localStorage.setItem('s2c_inv_bank_name', inv.bank_name ?? '')
+    localStorage.setItem('s2c_inv_bank_account', inv.bank_account ?? '')
+    localStorage.setItem('s2c_inv_bank_iban', inv.bank_iban ?? '')
+    localStorage.setItem('s2c_inv_bank_swift', inv.bank_swift ?? '')
+    localStorage.setItem('s2c_inv_bank_type', inv.bank_type ?? 'Current Account')
+    localStorage.setItem('s2c_inv_beneficiary_name', inv.beneficiary_name ?? '')
+    localStorage.setItem('s2c_inv_remarks', inv.remarks ?? '')
+
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    setTimeout(() => {
+      isLoadingInvoiceRef.current = false
+    }, 200)
   }
 
   const handleDeleteInvoice = async (id: string, e: React.MouseEvent) => {
@@ -221,18 +303,28 @@ export function useInvoiceData(user?: any) {
   }
 
   const handleNewInvoice = () => {
-    if (window.confirm('Start a new invoice? This will clear the canvas.')) {
-      setCurrentInvoiceId(null); setInvoiceTitle('TAX INVOICE'); setTitleFontSize(72)
-      setInvoiceNo(`INV-26-${String(invoicesList.length + 1).padStart(3, '0')}`)
-      setInvoiceDate(formatDateToDDMMYYYY(new Date())); setTerms(5)
-      setSellerName('Zenarise Trading LLC FZ'); setSellerAddress('Building Name, Floor, Street,\nCity, Country')
-      setSellerTrn('104554276600003')
-      setBuyerName(''); setBuyerAddress(''); setBuyerEmail(''); setBuyerPhone(''); setBuyerTrn('')
-      setLineItems(createDefaultLineItems()); setMaxItemsPage1(5)
-      setBankName('WIO Bank PJSC (UAE)'); setBankAccount('9854848878'); setBankIban('AE460860000009854848878')
-      setBankSwift('BANKXXXXX'); setBankType('Current Account'); setBeneficiaryName('Zenarise Trading LLC FZ')
-      setRemarks('Kindly send proof of payments to accounts@example.com with email subject "INV# - Proof of Payment"')
-    }
+    isLoadingInvoiceRef.current = true
+
+    // 1 & 2. Keep currently loaded invoice data as working copy/cache
+    // Disconnect currentInvoiceId so saving creates a brand new record without overwriting original
+    setCurrentInvoiceId(null)
+
+    // 5. Update invoice date to current date
+    const todayStr = formatDateToDDMMYYYY(new Date())
+    setInvoiceDate(todayStr)
+    localStorage.setItem('s2c_inv_date', todayStr)
+
+    // 4. Automatically increment invoice number based on highest existing invoice number + 1
+    const nextNo = computeNextInvoiceNumber(invoiceNo, todayStr, invoicesList)
+    setInvoiceNo(nextNo)
+    localStorage.setItem('s2c_inv_no', nextNo)
+
+    setNewInvoiceNotice(`Started new invoice ${nextNo} from loaded copy. Modify details and click Save to create a new record.`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    setTimeout(() => {
+      isLoadingInvoiceRef.current = false
+    }, 200)
   }
 
   const clearItem = (id: string) => setLineItems(prev => prev.filter(item => item.id !== id).map((item, idx) => ({ ...item, sno: idx + 1 })))
@@ -271,6 +363,7 @@ export function useInvoiceData(user?: any) {
     bankName, setBankName, bankAccount, setBankAccount, bankIban, setBankIban, bankSwift, setBankSwift, bankType, setBankType, beneficiaryName, setBeneficiaryName,
     remarks, setRemarks, currentInvoiceId, isSaving, saveSuccess,
     invoicesList, isLoadingList, subTotal, vat, total, amountInWords,
-    handleSaveToDatabase, handleReset, handleLoadInvoice, handleDeleteInvoice, handleNewInvoice, clearItem, handleAddItem, handleItemChange, fetchInvoices
+    handleSaveToDatabase, handleReset, handleLoadInvoice, handleDeleteInvoice, handleNewInvoice, clearItem, handleAddItem, handleItemChange, fetchInvoices,
+    generateNewInvoiceNumber, newInvoiceNotice
   }
 }

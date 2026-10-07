@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
-import { Plus, Save, Printer, ArrowLeft, RefreshCw, FileText, Eye, Download, X } from 'lucide-react'
+import { Plus, Save, Printer, ArrowLeft, RefreshCw, FileText, Eye, Download, X, Sparkles } from 'lucide-react'
 
 import { navigate } from '../lib/router'
 import { useInvoiceData } from '../hooks/useInvoiceData'
@@ -23,7 +23,8 @@ export default function Invoice({ user }: { user?: any }) {
     bankName, setBankName, bankAccount, setBankAccount, bankIban, setBankIban, bankSwift, setBankSwift, bankType, setBankType, beneficiaryName, setBeneficiaryName,
     remarks, setRemarks, currentInvoiceId, isSaving, saveSuccess,
     invoicesList, isLoadingList, subTotal, vat, total, amountInWords,
-    handleSaveToDatabase, handleReset, handleLoadInvoice, handleDeleteInvoice, handleNewInvoice, clearItem, handleAddItem, handleItemChange, fetchInvoices
+    handleSaveToDatabase, handleReset, handleLoadInvoice, handleDeleteInvoice, handleNewInvoice, clearItem, handleAddItem, handleItemChange, fetchInvoices,
+    generateNewInvoiceNumber, newInvoiceNotice
   } = invoiceData
 
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
@@ -148,7 +149,20 @@ export default function Invoice({ user }: { user?: any }) {
               <FileText className="w-5 h-5 text-brand-blue" />
               Saddl Invoice Generator
             </h1>
-            <p className="text-[10px] lg:text-xs text-zinc-500 font-medium tracking-wide mt-1 uppercase">Automated billing engine & PDF generation</p>
+            <div className="flex items-center gap-2 mt-1">
+              <p className="text-[10px] lg:text-xs text-zinc-500 font-medium tracking-wide uppercase">Automated billing engine & PDF generation</p>
+              {currentInvoiceId ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-brand-blue border border-brand-blue/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse" />
+                  Loaded Invoice Active
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  New Invoice Draft
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -156,7 +170,7 @@ export default function Invoice({ user }: { user?: any }) {
           <button onClick={handleReset} className="px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-red-400/80 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all active:scale-95 border border-transparent hover:border-red-500/20">
             Reset All
           </button>
-          <button onClick={handleNewInvoice} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-brand-blue hover:text-white border border-brand-blue/30 hover:bg-brand-blue rounded-lg transition-all active:scale-95">
+          <button onClick={handleNewInvoice} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-brand-blue hover:text-white border border-brand-blue/30 hover:bg-brand-blue rounded-lg transition-all active:scale-95" title="Start new invoice based on current canvas without overwriting original">
             <Plus className="w-3.5 h-3.5" /> New Invoice
           </button>
           <button
@@ -173,12 +187,22 @@ export default function Invoice({ user }: { user?: any }) {
             )}
           </button>
 
-
           <button onClick={handleDownloadPDF} disabled={isExporting} className="flex items-center justify-center gap-1.5 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider bg-zinc-800 hover:bg-zinc-700 text-brand-blue border border-brand-blue/30 rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             {isExporting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />} {isExporting ? 'Exporting...' : 'PDF'}
           </button>
         </div>
       </div>
+
+      {/* New Invoice Draft Notice */}
+      {newInvoiceNotice && (
+        <div className="bg-brand-blue/10 border border-brand-blue/30 rounded-xl p-3 text-xs text-brand-blue flex items-center justify-between shadow-lg print:hidden animate-fade-in">
+          <div className="flex items-center gap-2 font-medium">
+            <Sparkles className="w-4 h-4 shrink-0 text-brand-blue" />
+            <span>{newInvoiceNotice}</span>
+          </div>
+          <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-semibold">Click &ldquo;Save Invoice&rdquo; to persist as new record</span>
+        </div>
+      )}
 
       {/* Editor & Preview Workspace Container */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 print:block">
@@ -211,6 +235,7 @@ export default function Invoice({ user }: { user?: any }) {
           bankType={bankType} setBankType={setBankType}
           bankIban={bankIban} setBankIban={setBankIban}
           bankSwift={bankSwift} setBankSwift={setBankSwift}
+          generateNewInvoiceNumber={generateNewInvoiceNumber}
         />
         
         <InvoicePreview

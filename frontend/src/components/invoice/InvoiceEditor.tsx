@@ -1,5 +1,5 @@
 import React, { useRef } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Sparkles } from 'lucide-react'
 import { parseDate } from './utils'
 import type { LineItem } from './utils'
 
@@ -32,6 +32,7 @@ interface InvoiceEditorProps {
   bankType: string; setBankType: (v: string) => void;
   bankIban: string; setBankIban: (v: string) => void;
   bankSwift: string; setBankSwift: (v: string) => void;
+  generateNewInvoiceNumber?: () => void;
 }
 
 export function InvoiceEditor(props: InvoiceEditorProps) {
@@ -112,7 +113,20 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               </div>
             </div>
             <div>
-              <label className="block text-[10px] font-black text-zinc-300 uppercase tracking-widest mb-1.5">Invoice Number</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] font-black text-zinc-300 uppercase tracking-widest">Invoice Number</label>
+                {props.generateNewInvoiceNumber && (
+                  <button
+                    type="button"
+                    onClick={props.generateNewInvoiceNumber}
+                    className="flex items-center gap-1 text-[10px] font-bold text-brand-blue hover:text-white hover:bg-brand-blue/20 px-2 py-0.5 rounded transition-all border border-brand-blue/30 active:scale-95"
+                    title="Generate next sequential invoice number"
+                  >
+                    <Sparkles className="w-3 h-3 text-brand-blue" />
+                    Generate Next #
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
                 value={props.invoiceNo}
