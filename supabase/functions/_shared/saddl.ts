@@ -35,45 +35,62 @@ export function getPool(): Pool {
 
 // ---------------------------------------------------------------------------
 // fetchAmazonInventory
-// Returns the most recent snapshot per ASIN (sku column is always NULL).
-// Caller must resolve asin → internal SKU via sku_master.
+// Returns the most recent snapshot per ASIN/SKU using DISTINCT ON.
 // ---------------------------------------------------------------------------
 export async function fetchAmazonInventory(
   clientId: string = DEFAULT_CLIENT_ID
 ): Promise<
-  { asin: string; available: number; inbound: number; reserved: number }[]
+  {
+    asin: string
+    sku?: string | null
+    fnsku?: string | null
+    available: number
+    inbound: number
+    reserved: number
+    unfulfillable: number
+    snapshot_date: string
+  }[]
 > {
   const pool = getPool()
   const conn = await pool.connect()
   try {
     const { rows } = await conn.queryObject<{
       asin: string
+      sku: string | null
+      fnsku: string | null
       available: number
       inbound: number
       reserved: number
+      unfulfillable: number
+      snapshot_date: string
     }>(`
-      SELECT
+      SELECT DISTINCT ON (asin)
         asin,
+        sku,
+        fnsku,
         COALESCE(afn_fulfillable_quantity, 0)                            AS available,
         COALESCE(afn_inbound_working_quantity, 0)
           + COALESCE(afn_inbound_shipped_quantity, 0)
           + COALESCE(afn_inbound_receiving_quantity, 0)                  AS inbound,
-        COALESCE(afn_reserved_quantity, 0)                               AS reserved
-      FROM sc_raw.fba_inventory fi
+        COALESCE(afn_reserved_quantity, 0)                               AS reserved,
+        COALESCE(afn_unsellable_quantity, 0)                            AS unfulfillable,
+        snapshot_date::text                                              AS snapshot_date
+      FROM sc_raw.fba_inventory
       WHERE client_id = $1
-        AND snapshot_date = (
-          SELECT MAX(snapshot_date) FROM sc_raw.fba_inventory fi2
-          WHERE fi2.asin = fi.asin AND fi2.client_id = fi.client_id
-        )
         AND asin IS NOT NULL
         AND asin <> ''
+      ORDER BY asin, snapshot_date DESC, pulled_at DESC
     `, [clientId])
     console.log(`[saddl] fetchAmazonInventory (client=${clientId}): ${rows.length} ASINs`)
     return rows.map(r => ({
-      asin:      String(r.asin),
-      available: Number(r.available) || 0,
-      inbound:   Number(r.inbound)   || 0,
-      reserved:  Number(r.reserved)  || 0,
+      asin:          String(r.asin),
+      sku:           r.sku ? String(r.sku).trim() : null,
+      fnsku:         r.fnsku ? String(r.fnsku).trim() : null,
+      available:     Number(r.available) || 0,
+      inbound:       Number(r.inbound)   || 0,
+      reserved:      Number(r.reserved)  || 0,
+      unfulfillable: Number(r.unfulfillable) || 0,
+      snapshot_date: String(r.snapshot_date || '').slice(0, 10),
     }))
   } catch (err) {
     console.error('[saddl] fetchAmazonInventory error:', err)
@@ -83,6 +100,7 @@ export async function fetchAmazonInventory(
     await pool.end()
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // fetchAmazonSales

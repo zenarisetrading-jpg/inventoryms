@@ -7,7 +7,8 @@ const headers = {
   'Content-Type': 'application/json',
 }
 
-const sql = fs.readFileSync('supabase/migrations/067_update_refresh_for_saddl_id.sql', 'utf8')
+const sql = fs.readFileSync('supabase/migrations/090_fix_inventory_sync_permissions_and_audit.sql', 'utf8')
+
 
 fetch(url, {
   method: 'POST',

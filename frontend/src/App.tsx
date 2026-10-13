@@ -10,6 +10,7 @@ import PONewPage from './pages/po_new'
 import UploadPage from './pages/upload'
 import HealthPage from './pages/health'
 import InventoryPage from './pages/inventory'
+import SKUIntelligencePage from './pages/sku_intelligence'
 import PerformancePage from './pages/performance'
 import InvoicePage from './pages/invoice'
 import { navigate } from './lib/router'
@@ -33,6 +34,7 @@ type Route =
   | { name: 'upload' }
   | { name: 'health' }
   | { name: 'inventory' }
+  | { name: 'sku_intelligence' }
   | { name: 'performance' }
   | { name: 'invoice' }
 
@@ -47,6 +49,7 @@ function parseRoute(): Route {
   if (path === '/upload') return { name: 'upload' }
   if (path === '/health') return { name: 'health' }
   if (path === '/inventory') return { name: 'inventory' }
+  if (path === '/sku-intelligence') return { name: 'sku_intelligence' }
   if (path === '/performance') return { name: 'performance' }
   if (path === '/invoice') return { name: 'invoice' }
   return { name: 'dashboard' }
@@ -205,6 +208,7 @@ export default function App() {
             <div className="h-[1px] flex-1 min-w-[20px] bg-gradient-to-r from-white/5 to-transparent" />
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
+          <SidebarLink icon={ShieldAlert} label="SKU Intelligence" path="/sku-intelligence" current={route.name === 'sku_intelligence'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
           {(['Administrator', 'Finance', 'finance'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') || user?.email?.toLowerCase() === 'irfaan.a@zenarise.org') && (
@@ -365,6 +369,7 @@ export default function App() {
               {route.name === 'upload' && <UploadPage />}
               {route.name === 'health' && <HealthPage />}
               {route.name === 'inventory' && <InventoryPage />}
+              {route.name === 'sku_intelligence' && <SKUIntelligencePage />}
               {route.name === 'performance' && <PerformancePage />}
               {route.name === 'invoice' && <InvoicePage user={user} />}
             </ErrorBoundary>

@@ -274,8 +274,22 @@ export interface UploadNoonInventoryResponse {
   unmatched_skus: string[]
 }
 
+export interface AmazonSyncLogStatus {
+  latest_status: 'success' | 'running' | 'failed' | 'partial' | null
+  started_at: string | null
+  completed_at: string | null
+  records_fetched: number | null
+  records_updated: number | null
+  error_details: string | null
+  last_success_at: string | null
+}
+
 export interface SyncStatus {
-  amazon: { status: 'connected' | 'error'; last_synced: string | null }
+  amazon: {
+    status: 'connected' | 'error'
+    last_synced: string | null
+    sync_log?: AmazonSyncLogStatus | null
+  }
   locad_api: { status: 'connected' | 'not_connected'; credentials_configured: boolean; last_synced?: string | null }
   locad_xlsx: { last_uploaded: string | null; rows_matched: number | null; rows_unmatched: number | null }
   noon_csv: { last_uploaded: string | null }
@@ -392,5 +406,118 @@ export interface PlanningResponse {
   raw_data: any[]
   generated_at?: string
 }
+
+// ---------------------------------------------------------------------------
+// SKU Intelligence Types
+// ---------------------------------------------------------------------------
+
+export type SKUClassification =
+  | 'Active + In Stock'
+  | 'Active + Low Stock'
+  | 'Active + OOS + Sold in Last 120 Days'
+  | 'Active + OOS + No Sales in Last 120 Days'
+  | 'Active + No Sales History'
+  | 'Inactive + In Stock'
+  | 'Inactive + OOS'
+  | 'Unknown Status / Stale Data'
+
+export type SKURecommendedAction =
+  | 'REORDER NOW'
+  | 'REORDER SOON'
+  | 'MONITOR'
+  | 'INVESTIGATE LISTING'
+  | 'RESTOCK ONLY IF APPROVED'
+  | 'DO NOT REORDER YET'
+  | 'INSUFFICIENT DATA'
+
+export type StockoutRisk =
+  | 'Immediate (OOS)'
+  | 'Critical (<14d)'
+  | 'High (<30d)'
+  | 'Moderate (<60d)'
+  | 'Healthy (60d+)'
+  | 'No Sales Demand'
+
+export type VelocityTrend = 'Increasing' | 'Stable' | 'Declining' | 'No Sales'
+
+export interface SKUIntelligenceItem {
+  sku: string
+  name: string
+  asin?: string | null
+  fnsku?: string | null
+  category: string
+  product_category: string
+  sub_category: string
+  country: string
+  saddl_id: string
+
+  // Dimensions
+  listing_status: 'Active' | 'Inactive' | 'Unknown'
+  is_active: boolean
+  amazon_active: boolean
+  noon_active: boolean
+  minutes_active: boolean
+
+  inventory_status: 'In Stock' | 'Low Stock' | 'Out of Stock' | 'Unknown'
+  sku_classification: SKUClassification
+
+  // Quantities
+  fba_available: number
+  fba_reserved: number
+  fba_inbound: number
+  fbn_available: number
+  minutes_available: number
+  locad_available: number
+  locad_boxes: number
+  units_per_box: number
+  total_available: number
+  total_reserved: number
+  total_inbound: number
+
+  // Planning metrics
+  amazon_sv: number
+  noon_sv: number
+  minutes_sv: number
+  blended_sv: number
+  effective_demand: number
+  amazon_coverage: number
+  noon_coverage: number
+  total_coverage: number
+  days_of_cover: number | null
+  stockout_risk: StockoutRisk
+  estimated_stockout_date: string
+
+  // Sales (Last 120 Days)
+  sales_7d: number
+  sales_30d: number
+  sales_60d: number
+  sales_90d: number
+  sales_120d: number
+  revenue_120d: number
+  sales_all_time: number
+  last_sale_date: string | null
+  days_since_last_sale: number | null
+  has_sales_before_120d: boolean
+  ads_30d: number
+  ads_60d: number
+  ads_120d: number
+  sales_history_status: 'Sold in Last 120 Days' | 'Previously Sold (>120d ago)' | 'Never Sold' | 'History Unavailable'
+  velocity_trend: VelocityTrend
+
+  // Reorder rules & PO
+  moq: number
+  lead_time_days: number
+  cogs: number
+  suggested_reorder_qty: number
+  already_ordered: number
+  pending_qty_to_reorder: number
+  earliest_eta: string | null
+  recommended_action: SKURecommendedAction
+  recommendation_reason: string
+
+  // Observability
+  last_inventory_sync: string | null
+}
+
 
 

@@ -38,27 +38,29 @@ serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const url = new URL(req.url)
-  // Extract action from path (e.g. ".../sync/refresh-fact" -> "refresh-fact")
-  const segments = url.pathname.split('/').filter(Boolean)
-  const action = segments[segments.length - 1] ?? ''
-
   try {
-    if (req.method === 'GET' && action === 'status') {
-      return await handleStatus(req)
-    }
+    const url = new URL(req.url)
+    // Extract action from path (e.g. ".../sync/refresh-fact" -> "refresh-fact")
+    const segments = url.pathname.split('/').filter(Boolean)
+    const action = segments[segments.length - 1] ?? ''
 
     const clear = url.searchParams.get('clear') === 'true'
     const daysParam = url.searchParams.get('days')
     const days = daysParam ? parseInt(daysParam, 10) : 90
     const countryParam = url.searchParams.get('country')
+    const accountParam = url.searchParams.get('account') || url.searchParams.get('account_id') || url.searchParams.get('saddl_id')
+
+    if (req.method === 'GET' && (action === 'status' || action === 'amazon-status')) {
+      return await handleStatus(req, countryParam, accountParam)
+    }
 
     if (req.method === 'POST') {
-      if (action === 'amazon') return await handleSync(req, 'amazon', clear, days, countryParam)
+      if (action === 'amazon') return await handleSync(req, 'amazon', clear, days, countryParam, accountParam)
       if (action === 'amazon-fdw') return await handleAmazonFDW(req)
-      if (action === 'locad') return await handleSync(req, 'locad', clear, days, countryParam)
-      if (action === 'all') return await handleSync(req, 'all', clear, days, countryParam)
+      if (action === 'locad') return await handleSync(req, 'locad', clear, days, countryParam, accountParam)
+      if (action === 'all') return await handleSync(req, 'all', clear, days, countryParam, accountParam)
       if (action === 'refresh-fact') return await handleRefreshFact(req)
+
       if (action === 'debug-saddl') {
         const { getPool } = await import('../_shared/saddl.ts')
         const pool = getPool();
@@ -77,6 +79,7 @@ serve(async (req: Request) => {
 })
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // handleSync
 // ---------------------------------------------------------------------------
 
@@ -85,7 +88,8 @@ async function handleSync(
   source: 'amazon' | 'locad' | 'all',
   clear = false,
   days = 90,
-  countryParam: string | null = null
+  countryParam: string | null = null,
+  accountParam: string | null = null
 ): Promise<Response> {
   const supabase = getSupabaseAdmin()
   const synced_at = new Date().toISOString()
@@ -120,7 +124,6 @@ async function handleSync(
       .select('country, saddl_account_id, saddl_client_id')
       .eq('is_active', true)
     if (locErr || !locData || locData.length === 0) {
-      // Fallback to UAE defaults if table doesn't exist or is empty
       console.log('[sync] No amazon_locations found, falling back to UAE defaults')
       locations = [{ country: 'UAE', saddl_account_id: 's2c_uae_test', saddl_client_id: 's2c_uae_test' }]
     } else {
@@ -131,120 +134,256 @@ async function handleSync(
   }
 
   if (countryParam) {
-    locations = locations.filter(l => l.country === countryParam)
+    locations = locations.filter(l => l.country.toUpperCase() === countryParam.toUpperCase())
+  }
+  if (accountParam) {
+    locations = locations.filter(l => l.saddl_account_id === accountParam || l.saddl_client_id === accountParam)
   }
 
+  const locationSyncResults: any[] = []
+
   if (source === 'amazon' || source === 'all') {
-    await Promise.all(locations.map(async (loc) => {
+    // Process locations sequentially to avoid connection starvation on the Saddl pool
+    for (const loc of locations) {
+      const locErrors: string[] = []
+      let locFetched = 0
+      let locUpdated = 0
+      const syncLogId = crypto.randomUUID()
+      const locStartTime = new Date().toISOString()
+
+      // Record started audit log
+      try {
+        await supabase.from('amazon_sync_log').insert({
+          id: syncLogId,
+          country: loc.country,
+          saddl_id: loc.saddl_account_id,
+          status: 'running',
+          started_at: locStartTime
+        })
+      } catch (logErr) {
+        console.warn(`[sync] failed to write initial sync log:`, logErr)
+      }
+
       try {
         console.log(`[sync] Syncing Amazon for ${loc.country} (account=${loc.saddl_account_id}, client=${loc.saddl_client_id})`)
 
         const inventory = await fetchAmazonInventory(loc.saddl_client_id).catch(err => {
-          errors.push(`[${loc.country}] fetch inventory err: ${err.message}`);
-          return [];
-        });
+          const msg = `[${loc.country}] fetch inventory err: ${err.message}`
+          locErrors.push(msg)
+          errors.push(msg)
+          return []
+        })
+        locFetched = inventory.length
+
         const sales = await fetchAmazonSales(days, loc.saddl_account_id).catch(err => {
-          errors.push(`[${loc.country}] fetch sales err: ${err.message}`);
-          return [];
-        });
+          const msg = `[${loc.country}] fetch sales err: ${err.message}`
+          locErrors.push(msg)
+          errors.push(msg)
+          return []
+        })
 
-      // Build asin → sku mapping from sku_master (filtered by saddl_id to ensure exact account matching)
-      const { data: skuMasterRows, error: smErr } = await supabase
-        .from('sku_master')
-        .select('sku, asin')
-        .eq('saddl_id', loc.saddl_client_id)
-        .not('asin', 'is', null)
-      if (smErr) {
-        errors.push(`[${loc.country}] sku_master lookup: ${smErr.message}`)
-      }
-      const asinToSku: Record<string, string> = {}
-      for (const row of skuMasterRows ?? []) {
-        if (row.asin) asinToSku[row.asin] = row.sku
-      }
-      console.log(`[sync] [${loc.country}] asin→sku map: ${Object.keys(asinToSku).length} entries`)
+        // Build SKU, ASIN, and FNSKU mapping from sku_master (filtered by country and saddl_id)
+        const { data: skuMasterRows, error: smErr } = await supabase
+          .from('sku_master')
+          .select('sku, asin, fnsku')
+          .eq('country', loc.country)
+          .eq('saddl_id', loc.saddl_account_id)
 
-
-      if (inventory.length > 0) {
-        const snapshotDate = new Date().toISOString().split('T')[0]
-        const snapRows = inventory
-          .filter((item) => asinToSku[item.asin])
-          .map((item) => ({
-            sku: asinToSku[item.asin],
-            node: 'amazon_fba',
-            warehouse_name: null,
-            available: item.available,
-            inbound: item.inbound,
-            reserved: item.reserved,
-            snapshot_date: snapshotDate,
-            country: loc.country,
-            saddl_id: loc.saddl_account_id
-          }))
-
-        console.log(`[sync] [${loc.country}] inventory: ${inventory.length} ASINs from Saddl, ${snapRows.length} matched to sku_master`)
-
-        if (snapRows.length > 0) {
-          const { error: invErr } = await supabase
-            .from('inventory_snapshot')
-            .upsert(snapRows, {
-              onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
-            })
-          if (invErr) {
-            errors.push(`inventory_snapshot upsert: ${invErr.message}`)
-          } else {
-            skus_processed += snapRows.length
-          }
-        }
-      }
-
-      if (sales.length > 0) {
-        const salesRows = sales
-          .filter((s) => asinToSku[s.asin])
-          .map((s) => ({
-            sku: asinToSku[s.asin],
-            date: s.date,
-            channel: 'amazon' as const,
-            units_sold: s.units_sold,
-            revenue: s.revenue,
-            country: loc.country,
-            saddl_id: loc.saddl_account_id
-          }))
-
-        console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
-
-        if (salesRows.length > 0) {
-          const { error: salesErr } = await supabase
-            .from('sales_snapshot')
-            .upsert(salesRows, { onConflict: 'sku,date,channel,country,saddl_id' })
-          if (salesErr) {
-            errors.push(`sales_snapshot upsert: ${salesErr.message}`)
-          }
+        if (smErr) {
+          const msg = `[${loc.country}] sku_master lookup: ${smErr.message}`
+          locErrors.push(msg)
+          errors.push(msg)
         }
 
-        // --- NEW: Populate raw amazon_sales for fact table refresh ---
-        const rawSalesRows = sales.map(s => ({
-          report_date: s.date,
-          child_asin: s.asin,
+        const validSkus = new Map<string, string>() // upper SKU -> original SKU
+        const asinToSku: Record<string, string> = {}
+        const fnskuToSku: Record<string, string> = {}
+
+        for (const row of skuMasterRows ?? []) {
+          if (row.sku) validSkus.set(row.sku.trim().toUpperCase(), row.sku)
+          if (row.asin && row.sku) asinToSku[row.asin.trim()] = row.sku
+          if (row.fnsku && row.sku) fnskuToSku[row.fnsku.trim()] = row.sku
+        }
+
+        console.log(`[sync] [${loc.country}] Catalog mapping: ${validSkus.size} SKUs, ${Object.keys(asinToSku).length} ASINs, ${Object.keys(fnskuToSku).length} FNSKUs`)
+
+        // Only update inventory if we fetched records — never overwrite valid data with zero on empty fetch
+        if (inventory.length > 0) {
+          const snapshotDate = new Date().toISOString().split('T')[0]
+          const snapRows: any[] = []
+
+          for (const item of inventory) {
+            let resolvedSku: string | null = null
+
+            // 1. Direct SKU match if seller SKU is present
+            if (item.sku && validSkus.has(item.sku.trim().toUpperCase())) {
+              resolvedSku = validSkus.get(item.sku.trim().toUpperCase())!
+            } else if (item.asin && asinToSku[item.asin.trim()]) {
+              resolvedSku = asinToSku[item.asin.trim()]
+            } else if (item.fnsku && fnskuToSku[item.fnsku.trim()]) {
+              resolvedSku = fnskuToSku[item.fnsku.trim()]
+            }
+
+            if (resolvedSku) {
+              snapRows.push({
+                sku: resolvedSku,
+                node: 'amazon_fba',
+                warehouse_name: null,
+                available: item.available,
+                inbound: item.inbound,
+                reserved: item.reserved,
+                snapshot_date: snapshotDate,
+                country: loc.country,
+                saddl_id: loc.saddl_account_id
+              })
+            }
+          }
+
+          console.log(`[sync] [${loc.country}] inventory: ${inventory.length} items from Saddl, ${snapRows.length} matched to sku_master`)
+
+          if (snapRows.length > 0) {
+            // Upsert in chunks of 100 to avoid payload limits and timeouts
+            const CHUNK_SIZE = 100
+            for (let i = 0; i < snapRows.length; i += CHUNK_SIZE) {
+              const chunk = snapRows.slice(i, i + CHUNK_SIZE)
+              const { error: invErr } = await supabase
+                .from('inventory_snapshot')
+                .upsert(chunk, {
+                  onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
+                })
+              if (invErr) {
+                const msg = `[${loc.country}] inventory_snapshot upsert: ${invErr.message}`
+                locErrors.push(msg)
+                errors.push(msg)
+              } else {
+                locUpdated += chunk.length
+                skus_processed += chunk.length
+              }
+            }
+          }
+        }
+
+        if (sales.length > 0) {
+          const salesRows: any[] = []
+          for (const s of sales) {
+            const resolvedSku = asinToSku[s.asin.trim()]
+            if (resolvedSku) {
+              salesRows.push({
+                sku: resolvedSku,
+                date: s.date,
+                channel: 'amazon' as const,
+                units_sold: s.units_sold,
+                revenue: s.revenue,
+                country: loc.country,
+                saddl_id: loc.saddl_account_id
+              })
+            }
+          }
+
+          console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
+
+          if (salesRows.length > 0) {
+            const CHUNK_SIZE = 100
+            for (let i = 0; i < salesRows.length; i += CHUNK_SIZE) {
+              const chunk = salesRows.slice(i, i + CHUNK_SIZE)
+              const { error: salesErr } = await supabase
+                .from('sales_snapshot')
+                .upsert(chunk, { onConflict: 'sku,date,channel,country,saddl_id' })
+              if (salesErr) {
+                const msg = `[${loc.country}] sales_snapshot upsert: ${salesErr.message}`
+                locErrors.push(msg)
+                errors.push(msg)
+              }
+            }
+          }
+
+          // Populate raw amazon_sales for fact table refresh (deduplicated by report_date, child_asin, country)
+          const rawSalesMap = new Map<string, any>()
+          for (const s of sales) {
+            const key = `${s.date}_${s.asin}_${loc.country}`
+            if (!rawSalesMap.has(key)) {
+              rawSalesMap.set(key, {
+                report_date: s.date,
+                child_asin: s.asin,
+                country: loc.country,
+                units_ordered: s.units_sold,
+                ordered_revenue: s.revenue,
+                saddl_id: loc.saddl_account_id
+              })
+            } else {
+              const existing = rawSalesMap.get(key)
+              existing.units_ordered = (existing.units_ordered || 0) + (s.units_sold || 0)
+              existing.ordered_revenue = (existing.ordered_revenue || 0) + (s.revenue || 0)
+            }
+          }
+          const rawSalesRows = Array.from(rawSalesMap.values())
+
+          if (rawSalesRows.length > 0) {
+            const CHUNK_SIZE = 100
+            for (let i = 0; i < rawSalesRows.length; i += CHUNK_SIZE) {
+              const chunk = rawSalesRows.slice(i, i + CHUNK_SIZE)
+              const { error: rawErr } = await supabase
+                .from('amazon_sales')
+                .upsert(chunk, { onConflict: 'report_date,child_asin,country' })
+              if (rawErr) {
+                console.error('[sync] amazon_sales upsert error:', rawErr)
+                const msg = `[${loc.country}] amazon_sales upsert: ${rawErr.message}`
+                locErrors.push(msg)
+                errors.push(msg)
+              }
+            }
+          }
+        }
+
+        // Record completed audit log
+        const locStatus = locErrors.length === 0 ? 'success' : (locUpdated > 0 ? 'partial' : 'failed')
+        locationSyncResults.push({
           country: loc.country,
-          units_ordered: s.units_sold,
-          ordered_revenue: s.revenue,
-          saddl_id: loc.saddl_account_id
-        }))
+          account_id: loc.saddl_account_id,
+          status: locStatus,
+          records_fetched: locFetched,
+          records_updated: locUpdated,
+          errors: locErrors
+        })
 
-        if (rawSalesRows.length > 0) {
-          const { error: rawErr } = await supabase
-            .from('amazon_sales')
-            .upsert(rawSalesRows, { onConflict: 'report_date,child_asin,country,saddl_id' })
-          if (rawErr) {
-            console.error('[sync] amazon_sales upsert error:', rawErr)
-            errors.push(`[${loc.country}] amazon_sales upsert: ${rawErr.message}`)
-          }
+        try {
+          await supabase.from('amazon_sync_log').update({
+            status: locStatus,
+            completed_at: new Date().toISOString(),
+            records_fetched: locFetched,
+            records_updated: locUpdated,
+            error_details: locErrors.join('; ') || null
+          }).eq('id', syncLogId)
+        } catch (updateLogErr) {
+          console.warn(`[sync] failed to update sync log:`, updateLogErr)
         }
-      }
+
       } catch (err) {
-        errors.push(`[${loc.country}] Amazon sync error: ${(err as Error).message}`)
+        const msg = `[${loc.country}] Amazon sync error: ${(err as Error).message}`
+        locErrors.push(msg)
+        errors.push(msg)
+        locationSyncResults.push({
+          country: loc.country,
+          account_id: loc.saddl_account_id,
+          status: 'failed',
+          records_fetched: locFetched,
+          records_updated: locUpdated,
+          errors: locErrors
+        })
+
+        try {
+          await supabase.from('amazon_sync_log').update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            records_fetched: locFetched,
+            records_updated: locUpdated,
+            error_details: locErrors.join('; ')
+          }).eq('id', syncLogId)
+        } catch {}
       }
-    }));
+    }
   }
+
 
   // ---- Locad REST API ----
   if (source === 'locad' || source === 'all') {
@@ -422,6 +561,7 @@ async function handleSync(
     synced_at,
     skus_processed,
     locad_status,
+    locations: locationSyncResults,
     ...(errors.length > 0 ? { errors } : {}),
   })
 }
@@ -505,11 +645,29 @@ async function handleAmazonFDW(req: Request): Promise<Response> {
 // handleStatus
 // ---------------------------------------------------------------------------
 
-async function handleStatus(req: Request): Promise<Response> {
-  const supabase = getSupabaseClient(req)
+async function handleStatus(
+  req: Request,
+  countryParam?: string | null,
+  accountParam?: string | null
+): Promise<Response> {
+  const supabase = getSupabaseAdmin()
 
   // Amazon (Saddl) status
   const amazonStatus = await getSaddlConnectionStatus()
+
+  // Query amazon_sync_log via RPC
+  let latestAmazonSync: any = null
+  try {
+    const { data: syncLogs, error: syncLogErr } = await supabase.rpc('get_latest_amazon_sync_status', {
+      p_country: countryParam || 'UAE',
+      p_saddl_id: accountParam || 's2c_uae_test',
+    })
+    if (!syncLogErr && syncLogs) {
+      latestAmazonSync = Array.isArray(syncLogs) ? (syncLogs[0] ?? null) : syncLogs
+    }
+  } catch (err) {
+    console.warn('[sync] failed to fetch latest amazon sync status:', err)
+  }
 
   // Locad API status
   const locadConfigured = isLocadConfigured()
@@ -560,6 +718,7 @@ async function handleStatus(req: Request): Promise<Response> {
     amazon: {
       status: amazonStatus.status,
       last_synced: amazonStatus.last_synced,
+      sync_log: latestAmazonSync,
     },
     locad_api: {
       status: locadApiStatus,

@@ -10,8 +10,10 @@ import type {
   UploadPOResponse,
   SyncStatus,
   SyncResponse,
+  AmazonSyncLogStatus,
   PlanningResponse,
   AnalyticsResponse,
+  SKUIntelligenceItem,
 } from '../types'
 import { supabase } from './supabase'
 
@@ -446,13 +448,38 @@ export const api = {
 
   getSyncStatus: async (forceRefresh = false): Promise<SyncStatus> =>
     fetchCached<SyncStatus>(
-      `${BASE}/sync/status`,
-      15000,
+      `${BASE}/sync/status?country=${getCountry()}&account_id=${getAccountId()}`,
+      10000,
       forceRefresh
     ).catch(err => ({ error: err.message } as unknown as SyncStatus)),
 
+  getAmazonSyncStatus: async (): Promise<AmazonSyncLogStatus | null> => {
+    try {
+      const { data, error } = await supabase.rpc('get_latest_amazon_sync_status', {
+        p_country: getCountry(),
+        p_saddl_id: getAccountId()
+      })
+      if (error || !data) return null
+      return data as AmazonSyncLogStatus
+    } catch {
+      return null
+    }
+  },
+
   triggerSync: async (source: 'amazon' | 'locad' | 'all'): Promise<SyncResponse> => {
-    const res = await fetch(`${BASE}/sync/${source}`, {
+    const res = await fetch(`${BASE}/sync/${source}?country=${getCountry()}&account_id=${getAccountId()}`, {
+      method: 'POST',
+      headers: await getHeaders(),
+    })
+      .then(r => handleResponse<SyncResponse>(r))
+      .catch(err => ({ error: err.message } as unknown as SyncResponse))
+
+    invalidateApiCache()
+    return res
+  },
+
+  syncAmazonInventory: async (): Promise<SyncResponse> => {
+    const res = await fetch(`${BASE}/sync/amazon?country=${getCountry()}&account_id=${getAccountId()}`, {
       method: 'POST',
       headers: await getHeaders(),
     })
@@ -537,4 +564,28 @@ export const api = {
       30000,
       forceRefresh
     ).catch(err => ({ error: err.message } as unknown as AnalyticsResponse)),
+
+  getSKUIntelligence: async (forceRefresh = false): Promise<SKUIntelligenceItem[]> => {
+    const country = getCountry()
+    const accountId = getAccountId()
+    const cacheKey = `sku_intelligence_${country}_${accountId}`
+    if (!forceRefresh) {
+      const cached = responseCache.get(cacheKey)
+      if (cached && cached.expiry > Date.now()) return cached.data
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('get_sku_intelligence', {
+        p_country: country,
+        p_saddl_id: accountId
+      })
+      if (error) throw error
+      const result = (data as SKUIntelligenceItem[]) || []
+      responseCache.set(cacheKey, { data: result, expiry: Date.now() + 20000 })
+      return result
+    } catch (err: any) {
+      console.error('getSKUIntelligence error:', err)
+      return []
+    }
+  },
 }

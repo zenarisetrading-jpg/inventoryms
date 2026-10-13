@@ -1,5 +1,6 @@
-import type { SKU } from './types.ts'
+import type { SKU, SKUCategory } from './types.ts'
 import { THRESHOLDS } from './types.ts'
+
 
 // ---------------------------------------------------------------------------
 // computeReorder
@@ -37,7 +38,9 @@ export function computeReorderPlan(
   shortfall_units: number
   buffer_units: number
 } {
-  const thresholds = THRESHOLDS[sku.category ?? 'C']
+  const catKey = (sku.category && (sku.category in THRESHOLDS)) ? sku.category as SKUCategory : 'C'
+  const thresholds = THRESHOLDS[catKey] || THRESHOLDS.C
+
   const projected_coverage = blended_sv === 0 ? Infinity : (total_available + incoming_po_units) / blended_sv
 
   // Trigger: projected_coverage falls below reorder_trigger

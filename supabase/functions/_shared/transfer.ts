@@ -1,5 +1,6 @@
-import type { SKU, InventoryNode } from './types.ts'
+import type { SKU, InventoryNode, SKUCategory } from './types.ts'
 import { THRESHOLDS } from './types.ts'
+
 
 // ---------------------------------------------------------------------------
 // TransferRecommendation
@@ -34,10 +35,10 @@ export function computeTransfers(
   const transfers: TransferRecommendation[] = []
 
   // No velocity → no basis for transfers
-  if (blended_sv === 0 || sku.units_per_box <= 0) return transfers
-
-  const thresholds = THRESHOLDS[sku.category ?? 'C']
+  const catKey = (sku.category && (sku.category in THRESHOLDS)) ? sku.category as SKUCategory : 'C'
+  const thresholds = THRESHOLDS[catKey] || THRESHOLDS.C
   const deficit_threshold = thresholds.reorder_trigger
+
 
   // Transfers ONLY originate from locad_warehouse → amazon_fba or noon_fbn.
   // Reverse transfers (FBA→Noon, FBA→Locad, Noon→anything) are never recommended.

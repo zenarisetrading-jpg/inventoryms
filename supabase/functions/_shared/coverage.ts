@@ -1,7 +1,8 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import type { SKU, InventoryNode } from './types.ts'
 import { INCOMING_PO_STATUSES, THRESHOLDS } from './types.ts'
-import type { ActionFlag } from './types.ts'
+import type { ActionFlag, SKUCategory } from './types.ts'
+
 
 // ---------------------------------------------------------------------------
 // CoverageResult
@@ -222,8 +223,11 @@ export function computeActionFlag(
   // No velocity → no OOS risk
   if (blended_sv === 0) return 'OK'
 
-  const thresholds = THRESHOLDS[sku.category ?? 'C']
+  const catKey = (sku.category && (sku.category in THRESHOLDS)) ? sku.category as SKUCategory : 'C'
+  const thresholds = THRESHOLDS[catKey] || THRESHOLDS.C
   const total_coverage = coverage.total_coverage
+
+
 
   // Guard: treat Infinity as safe
   const safeTotal = isFinite(total_coverage) ? total_coverage : Infinity
