@@ -208,7 +208,6 @@ export default function App() {
             <div className="h-[1px] flex-1 min-w-[20px] bg-gradient-to-r from-white/5 to-transparent" />
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
-          <SidebarLink icon={ShieldAlert} label="SKU Intelligence" path="/sku-intelligence" current={route.name === 'sku_intelligence'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
           {(['Administrator', 'Finance', 'finance'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') || user?.email?.toLowerCase() === 'irfaan.a@zenarise.org') && (

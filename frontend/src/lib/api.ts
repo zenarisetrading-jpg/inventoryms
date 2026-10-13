@@ -588,4 +588,33 @@ export const api = {
       return []
     }
   },
+
+  saveSKUReviewDecision: async (
+    sku: string,
+    decision: string,
+    notes?: string,
+    reviewerEmail?: string,
+    marketplace: string = 'global'
+  ): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      const country = getCountry()
+      const accountId = getAccountId()
+      const { data, error } = await supabase.rpc('save_sku_review_decision', {
+        p_sku: sku,
+        p_decision: decision,
+        p_notes: notes || null,
+        p_reviewer_email: reviewerEmail || null,
+        p_marketplace: marketplace,
+        p_country: country,
+        p_saddl_id: accountId
+      })
+      if (error) throw error
+      invalidateApiCache('sku_intelligence')
+      return { success: true, data }
+    } catch (err: any) {
+      console.error('saveSKUReviewDecision error:', err)
+      return { success: false, error: err.message || 'Failed to save review decision' }
+    }
+  },
 }
+

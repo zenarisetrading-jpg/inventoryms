@@ -424,11 +424,22 @@ export type SKUClassification =
 export type SKURecommendedAction =
   | 'REORDER NOW'
   | 'REORDER SOON'
+  | 'REVIEW FOR DISCONTINUATION'
+  | 'DO NOT REORDER YET'
+  | 'REVIEW PRODUCT PERFORMANCE'
+  | 'FIX LISTING'
+  | 'DATA NEEDS CHECKING'
   | 'MONITOR'
   | 'INVESTIGATE LISTING'
   | 'RESTOCK ONLY IF APPROVED'
-  | 'DO NOT REORDER YET'
   | 'INSUFFICIENT DATA'
+
+export type SKUReviewDecision =
+  | 'Approve for Replenishment'
+  | 'Mark for Discontinuation Review'
+  | 'Keep Active'
+  | 'Investigate Listing'
+  | 'Defer Decision'
 
 export type StockoutRisk =
   | 'Immediate (OOS)'
@@ -453,13 +464,15 @@ export interface SKUIntelligenceItem {
 
   // Dimensions
   listing_status: 'Active' | 'Inactive' | 'Unknown'
+  amazon_listing_status: 'Active' | 'Inactive' | 'Unknown'
+  noon_listing_status: 'Active' | 'Inactive' | 'Unknown'
   is_active: boolean
   amazon_active: boolean
   noon_active: boolean
   minutes_active: boolean
 
   inventory_status: 'In Stock' | 'Low Stock' | 'Out of Stock' | 'Unknown'
-  sku_classification: SKUClassification
+  sku_classification?: SKUClassification
 
   // Quantities
   fba_available: number
@@ -467,6 +480,7 @@ export interface SKUIntelligenceItem {
   fba_inbound: number
   fbn_available: number
   minutes_available: number
+  noon_available: number
   locad_available: number
   locad_boxes: number
   units_per_box: number
@@ -485,24 +499,40 @@ export interface SKUIntelligenceItem {
   total_coverage: number
   days_of_cover: number | null
   stockout_risk: StockoutRisk
-  estimated_stockout_date: string
+  estimated_stockout_date?: string
 
-  // Sales (Last 120 Days)
-  sales_7d: number
+  // Combined Sales (Last 120 Days)
+  sales_7d?: number
   sales_30d: number
-  sales_60d: number
-  sales_90d: number
+  sales_60d?: number
+  sales_90d?: number
   sales_120d: number
-  revenue_120d: number
+  revenue_120d?: number
   sales_all_time: number
   last_sale_date: string | null
   days_since_last_sale: number | null
-  has_sales_before_120d: boolean
-  ads_30d: number
-  ads_60d: number
-  ads_120d: number
-  sales_history_status: 'Sold in Last 120 Days' | 'Previously Sold (>120d ago)' | 'Never Sold' | 'History Unavailable'
-  velocity_trend: VelocityTrend
+  has_sales_before_120d?: boolean
+  ads_30d?: number
+  ads_60d?: number
+  ads_120d?: number
+  sales_history_status?: string
+  velocity_trend?: VelocityTrend
+
+  // Amazon Marketplace Breakdown
+  amz_sales_30d: number
+  amz_sales_120d: number
+  amz_last_sale_date: string | null
+  amz_days_since_last_sale: number | null
+  amazon_recommended_action: string
+  amazon_recommendation_reason: string
+
+  // Noon Marketplace Breakdown
+  noon_sales_30d: number
+  noon_sales_120d: number
+  noon_last_sale_date: string | null
+  noon_days_since_last_sale: number | null
+  noon_recommended_action: string
+  noon_recommendation_reason: string
 
   // Reorder rules & PO
   moq: number
@@ -515,9 +545,16 @@ export interface SKUIntelligenceItem {
   recommended_action: SKURecommendedAction
   recommendation_reason: string
 
+  // Review & Approval Workflow
+  review_decision?: SKUReviewDecision | string | null
+  reviewer_email?: string | null
+  reviewed_at?: string | null
+  review_notes?: string | null
+
   // Observability
   last_inventory_sync: string | null
 }
+
 
 
 

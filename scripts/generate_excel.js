@@ -23,201 +23,121 @@ async function buildExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // 1. Summary Sheet
+  // Metrics
   const totalCatalog = data.length;
-  const activeListings = data.filter(d => d.listing_status === 'Active').length;
-  const inactiveListings = data.filter(d => d.listing_status === 'Inactive').length;
-  const totalOOS = data.filter(d => d.total_available === 0).length;
-  const activeOOS120d = data.filter(d => d.sku_classification === 'Active + OOS + Sold in Last 120 Days').length;
-  const activeOOSNoSales = data.filter(d => d.sku_classification === 'Active + OOS + No Sales in Last 120 Days').length;
-  const activeNoSales = data.filter(d => d.sku_classification === 'Active + No Sales History').length;
-  const activeLowStock = data.filter(d => d.sku_classification === 'Active + Low Stock').length;
-  const activeInStock = data.filter(d => d.sku_classification === 'Active + In Stock').length;
-  const inactiveOOS = data.filter(d => d.sku_classification === 'Inactive + OOS').length;
+  const activeSKUs = data.filter(d => d.listing_status === 'Active');
+  const inactiveSKUs = data.filter(d => d.listing_status === 'Inactive');
+  const activeAmazonListings = data.filter(d => d.is_active && d.amazon_listing_status === 'Active').length;
+  const activeNoonListings = data.filter(d => d.is_active && d.noon_listing_status === 'Active').length;
+  const amzOOS = data.filter(d => d.is_active && d.fba_available === 0).length;
+  const noonOOS = data.filter(d => d.is_active && d.noon_available === 0).length;
+  const bothOOS = data.filter(d => d.is_active && d.fba_available === 0 && d.noon_available === 0).length;
+  const noSales120d = data.filter(d => d.is_active && d.sales_120d === 0).length;
+  const discontReview = data.filter(d => d.recommended_action === 'REVIEW FOR DISCONTINUATION').length;
+  const restockCandidates = data.filter(d => d.recommended_action === 'REORDER NOW' || d.recommended_action === 'REORDER SOON').length;
+  const inactiveWithStock = data.filter(d => !d.is_active && d.total_available > 0).length;
   const totalAvailableStock = data.reduce((acc, c) => acc + (c.total_available || 0), 0);
   const totalNetReorder = data.reduce((acc, c) => acc + (c.pending_qty_to_reorder || 0), 0);
 
+  // 1. Summary Sheet
   const summaryData = [
-    ['SADDL INVENTORY OS — SKU AVAILABILITY & REORDER INTELLIGENCE REPORT'],
+    ['SADDL INVENTORY OS — SKU INTELLIGENCE & OOS DECISION SYSTEM'],
     ['Marketplace / Region', 'UAE (United Arab Emirates)'],
     ['Account ID', 's2c_uae_test'],
     ['Generated At', new Date().toISOString()],
     [],
-    ['METRIC', 'COUNT / VALUE', 'NOTES & INTELLIGENCE CONTEXT'],
-    ['Total Unique Catalog SKUs', totalCatalog, 'All distinct SKUs in sku_master & fact_inventory_planning'],
-    ['Active Marketplace Listings', activeListings, 'Active and eligible to sell on Amazon UAE or Noon'],
-    ['Inactive Marketplace Listings', inactiveListings, 'Closed, deleted, or suppressed listings'],
+    ['METRIC', 'COUNT / VALUE', 'SCOPE & BUSINESS MEANING'],
+    ['Total Unique Catalog SKUs', totalCatalog, 'All catalog items in sku_master'],
+    ['Active Catalog SKUs', activeSKUs.length, 'Master active status (is_active = true)'],
+    ['Inactive Catalog SKUs', inactiveSKUs.length, 'Master inactive status (is_active = false)'],
+    ['Active Amazon FBA Listings', activeAmazonListings, 'Active and listed on Amazon UAE'],
+    ['Active Noon Listings', activeNoonListings, 'Active and listed on Noon UAE'],
     [],
-    ['--- OUT OF STOCK & REORDER CLASSIFICATION ---'],
-    ['Total Out of Stock SKUs', totalOOS, 'All SKUs with 0 total sellable units across all channels'],
-    ['Active OOS · Sold in Last 120 Days', activeOOS120d, 'PRIORITY 1 REPLENISHMENT: Active listings losing sales due to stockouts'],
-    ['Active OOS · No Sales in Last 120 Days', activeOOSNoSales, 'INVESTIGATE: Sold historically (>120d ago), verify seasonal/lifecycle demand'],
-    ['Active · No Sales History', activeNoSales, 'AUDIT: New or unproven product with zero lifetime orders'],
-    ['Inactive · Out of Stock', inactiveOOS, 'NO PURCHASE: Inactive listings with zero inventory'],
+    ['--- MARKETPLACE OOS & INVENTORY BREAKDOWN ---'],
+    ['Amazon FBA Out of Stock', amzOOS, 'Active SKUs with 0 available FBA units'],
+    ['Noon Out of Stock', noonOOS, 'Active SKUs with 0 available units across FBN & Minutes'],
+    ['Out of Stock on Both Marketplaces', bothOOS, 'Active SKUs with 0 stock on Amazon AND 0 stock on Noon'],
+    ['No Sales in Last 120 Days', noSales120d, 'Active SKUs with 0 verified units sold across all channels'],
+    ['Review for Discontinuation', discontReview, 'CRITICAL: OOS with 0 sales in 120d and reorder suggested; review before spending money'],
+    ['Replenishment Candidates', restockCandidates, 'URGENT: Stockout or low stock with proven recent demand in 120d'],
+    ['Inactive Listings with Inventory', inactiveWithStock, 'Stranded stock on inactive listings needing investigation'],
     [],
-    ['--- IN STOCK HEALTH ---'],
-    ['Active · Low Stock (<21d Coverage)', activeLowStock, 'At high risk of stockout within supplier lead time'],
-    ['Active · In Stock (Healthy)', activeInStock, 'Active listings with balanced coverage (>21 days)'],
+    ['--- TOTAL INVENTORY & CAPITAL ALLOCATION ---'],
     ['Total Available Sellable Units', totalAvailableStock, 'Sum of FBA, FBN, Minutes, and Locad warehouse stock'],
-    ['Total Net Replenishment Required', totalNetReorder, 'Total units recommended after deducting existing purchase orders']
+    ['Total Net Quantity to Reorder', totalNetReorder, 'Total units recommended after deducting confirmed pipeline POs']
   ];
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-  wsSummary['!cols'] = [{ wch: 40 }, { wch: 22 }, { wch: 65 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary Dashboard');
+  wsSummary['!cols'] = [{ wch: 42 }, { wch: 18 }, { wch: 75 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Executive Summary');
 
-  // Helper function to map rows
-  const mapGroup1 = (d) => ({
+  // Format helper
+  const mapRow = (d) => ({
     'SKU': d.sku,
     'Product Name': d.name,
     'ASIN': d.asin || '',
     'FNSKU': d.fnsku || '',
     'Category': d.category || d.product_category || '',
-    '120d Units Sold': d.sales_120d,
-    '120d Revenue (AED)': Math.round(d.revenue_120d),
-    '30d Units Sold': d.sales_30d,
-    '7d Units Sold': d.sales_7d,
-    'Last Sale Date': d.last_sale_date || 'N/A',
+    'Global Listing Status': d.listing_status,
+    'Recommended Action': d.recommended_action,
+    'Recommendation Reason': d.recommendation_reason,
+    'Review Status': d.review_decision || 'Pending Review',
+    'Reviewer': d.reviewer_email || '',
+    'Review Notes': d.review_notes || '',
+    'Amazon Listing Status': d.amazon_listing_status,
+    'Amazon FBA Available': d.fba_available,
+    'Amazon 30d Sales': d.amz_sales_30d,
+    'Amazon 120d Sales': d.amz_sales_120d,
+    'Amazon Last Sale Date': d.amz_last_sale_date || 'None',
+    'Amazon Action': d.amazon_recommended_action,
+    'Noon Listing Status': d.noon_listing_status,
+    'Noon Available': d.noon_available,
+    'Noon 30d Sales': d.noon_sales_30d,
+    'Noon 120d Sales': d.noon_sales_120d,
+    'Noon Last Sale Date': d.noon_last_sale_date || 'None',
+    'Noon Action': d.noon_recommended_action,
+    'Combined Available Stock': d.total_available,
+    'Combined 30d Sales': d.sales_30d,
+    'Combined 120d Sales': d.sales_120d,
+    'Combined 120d Revenue (AED)': Math.round(d.revenue_120d || 0),
+    'Combined Last Sale Date': d.last_sale_date || 'None',
     'Days Since Last Sale': d.days_since_last_sale !== null ? d.days_since_last_sale : 'N/A',
-    'Average Daily Sales (30d)': d.ads_30d,
-    'Average Daily Sales (120d)': d.ads_120d,
     'Supplier Lead Time (Days)': d.lead_time_days,
     'MOQ': d.moq,
     'Already Ordered (Incoming PO)': d.already_ordered,
     'Suggested Reorder Qty': d.suggested_reorder_qty,
-    'Pending Qty to Reorder': d.pending_qty_to_reorder,
-    'Recommended Action': d.recommended_action,
-    'Justification Reason': d.recommendation_reason
+    'Pending Qty to Reorder': d.pending_qty_to_reorder
   });
 
-  // 2. Sheet 2: Active OOS Sold in Last 120 Days (Priority 1)
-  const g1 = data.filter(d => d.sku_classification === 'Active + OOS + Sold in Last 120 Days')
+  // 2. Discontinuation Review Sheet
+  const discontItems = data.filter(d => d.recommended_action === 'REVIEW FOR DISCONTINUATION')
+    .sort((a,b) => (b.moq || 0) - (a.moq || 0));
+  const wsDiscont = XLSX.utils.json_to_sheet(discontItems.map(mapRow));
+  XLSX.utils.book_append_sheet(wb, wsDiscont, 'Discontinuation Review');
+
+  // 3. Replenishment Candidates Sheet
+  const restockItems = data.filter(d => d.recommended_action === 'REORDER NOW' || d.recommended_action === 'REORDER SOON')
     .sort((a,b) => b.sales_120d - a.sales_120d);
-  const ws1 = XLSX.utils.json_to_sheet(g1.map(mapGroup1));
-  ws1['!cols'] = [
-    { wch: 22 }, { wch: 45 }, { wch: 14 }, { wch: 14 }, { wch: 18 },
-    { wch: 15 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
-    { wch: 20 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 10 },
-    { wch: 26 }, { wch: 22 }, { wch: 22 }, { wch: 20 }, { wch: 55 }
-  ];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Active OOS (120d Sellers)');
+  const wsRestock = XLSX.utils.json_to_sheet(restockItems.map(mapRow));
+  XLSX.utils.book_append_sheet(wb, wsRestock, 'Restock Candidates');
 
-  // 3. Sheet 3: Active OOS No Sales in Last 120 Days (Investigate)
-  const g2 = data.filter(d => d.sku_classification === 'Active + OOS + No Sales in Last 120 Days');
-  const ws2 = XLSX.utils.json_to_sheet(g2.map(d => ({
-    'SKU': d.sku,
-    'Product Name': d.name,
-    'ASIN': d.asin || '',
-    'Category': d.category || d.product_category || '',
-    'Lifetime Units Sold': d.sales_all_time,
-    'Last Recorded Sale': d.last_sale_date || 'N/A',
-    'Days Since Last Sale': d.days_since_last_sale !== null ? d.days_since_last_sale : 'N/A',
-    'Supplier Lead Time (Days)': d.lead_time_days,
-    'MOQ': d.moq,
-    'Recommended Action': d.recommended_action,
-    'Justification Reason': d.recommendation_reason
-  })));
-  ws2['!cols'] = [
-    { wch: 22 }, { wch: 45 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
-    { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 10 }, { wch: 25 }, { wch: 55 }
-  ];
-  XLSX.utils.book_append_sheet(wb, ws2, 'Active OOS (No 120d Sales)');
+  // 4. Amazon OOS Analysis Sheet
+  const amzOosItems = data.filter(d => d.is_active && d.fba_available === 0)
+    .sort((a,b) => b.sales_120d - a.sales_120d);
+  const wsAmz = XLSX.utils.json_to_sheet(amzOosItems.map(mapRow));
+  XLSX.utils.book_append_sheet(wb, wsAmz, 'Amazon FBA OOS');
 
-  // 4. Sheet 4: Active No Sales History
-  const g3 = data.filter(d => d.sku_classification === 'Active + No Sales History');
-  const ws3 = XLSX.utils.json_to_sheet(g3.map(d => ({
-    'SKU': d.sku,
-    'Product Name': d.name,
-    'ASIN': d.asin || '',
-    'Category': d.category || d.product_category || '',
-    'Listing Status': d.listing_status,
-    'Amazon Active': d.amazon_active ? 'Yes' : 'No',
-    'Noon Active': d.noon_active ? 'Yes' : 'No',
-    'Recommended Action': d.recommended_action,
-    'Justification Reason': d.recommendation_reason
-  })));
-  ws3['!cols'] = [
-    { wch: 22 }, { wch: 45 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
-    { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 55 }
-  ];
-  XLSX.utils.book_append_sheet(wb, ws3, 'Active (No Sales History)');
-
-  // 5. Sheet 5: Inactive Listings (46 SKUs)
-  const g4 = data.filter(d => d.listing_status === 'Inactive');
-  const ws4 = XLSX.utils.json_to_sheet(g4.map(d => ({
-    'SKU': d.sku,
-    'Product Name': d.name,
-    'ASIN': d.asin || '',
-    'Category': d.category || d.product_category || '',
-    'Listing Status': d.listing_status,
-    'Available Inventory': d.total_available,
-    'Lifetime Units Sold': d.sales_all_time,
-    'Last Sale Date': d.last_sale_date || 'N/A',
-    'Recommended Action': d.recommended_action,
-    'Justification Reason': d.recommendation_reason
-  })));
-  ws4['!cols'] = [
-    { wch: 22 }, { wch: 45 }, { wch: 14 }, { wch: 18 }, { wch: 14 },
-    { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 22 }, { wch: 50 }
-  ];
-  XLSX.utils.book_append_sheet(wb, ws4, 'Inactive Listings (46 SKUs)');
-
-  // 6. Sheet 6: Full 174 Catalog Master
-  const wsFull = XLSX.utils.json_to_sheet(data.map(d => ({
-    'SKU': d.sku,
-    'Product Name': d.name,
-    'ASIN': d.asin || '',
-    'FNSKU': d.fnsku || '',
-    'Category': d.category || '',
-    'Product Category': d.product_category || '',
-    'Listing Status': d.listing_status,
-    'Amazon Active': d.amazon_active ? 'Yes' : 'No',
-    'Noon Active': d.noon_active ? 'Yes' : 'No',
-    'Inventory Status': d.inventory_status,
-    'SKU Classification': d.sku_classification,
-    'Total Available': d.total_available,
-    'FBA Available': d.fba_available,
-    'FBA Reserved': d.fba_reserved,
-    'FBA Inbound': d.fba_inbound,
-    'FBN Available': d.fbn_available,
-    'Minutes Available': d.minutes_available,
-    'Locad Available': d.locad_available,
-    'Total Reserved': d.total_reserved,
-    'Total Inbound': d.total_inbound,
-    'Units Sold 30d': d.sales_30d,
-    'Units Sold 60d': d.sales_60d,
-    'Units Sold 90d': d.sales_90d,
-    'Units Sold 120d': d.sales_120d,
-    'Revenue 120d (AED)': Math.round(d.revenue_120d),
-    'Lifetime Sales': d.sales_all_time,
-    'Last Sale Date': d.last_sale_date || 'None',
-    'Days Since Last Sale': d.days_since_last_sale !== null ? d.days_since_last_sale : 'N/A',
-    'ADS 30d': d.ads_30d,
-    'ADS 120d': d.ads_120d,
-    'Days of Cover': d.days_of_cover !== null ? d.days_of_cover : 'N/A',
-    'Stockout Risk': d.stockout_risk,
-    'Velocity Trend': d.velocity_trend,
-    'Supplier Lead Time (Days)': d.lead_time_days,
-    'MOQ': d.moq,
-    'Already Ordered (PO Pipeline)': d.already_ordered,
-    'Earliest PO ETA': d.earliest_eta || 'N/A',
-    'Suggested Reorder Qty': d.suggested_reorder_qty,
-    'Pending Qty to Reorder': d.pending_qty_to_reorder,
-    'Recommended Action': d.recommended_action,
-    'Decision Justification': d.recommendation_reason,
-    'Last Sync Timestamp': d.last_inventory_sync || ''
-  })));
+  // 5. Full Catalog Sheet (174 SKUs)
+  const fullItems = [...data].sort((a,b) => b.sales_120d - a.sales_120d);
+  const wsFull = XLSX.utils.json_to_sheet(fullItems.map(mapRow));
   XLSX.utils.book_append_sheet(wb, wsFull, 'Full Catalog (174 SKUs)');
 
-  // Output paths: in project root, public directory for web download, and brain artifact
+  // Output paths: public directory for web download, and brain artifact
   const fileName = 'SADDL_UAE_SKU_Intelligence_OOS_Breakdown.xlsx';
-  const outPathRoot = path.join(process.cwd(), fileName);
   const outPathPublic = path.join(process.cwd(), 'frontend', 'public', fileName);
 
-  XLSX.writeFile(wb, outPathRoot);
   XLSX.writeFile(wb, outPathPublic);
-
-  console.log(`Excel file generated successfully:\n1. Root: ${outPathRoot}\n2. Frontend Public: ${outPathPublic}`);
+  console.log(`Excel file generated successfully:\nFrontend Public: ${outPathPublic}`);
 }
 
 buildExcel();

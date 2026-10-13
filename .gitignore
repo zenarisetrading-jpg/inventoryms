@@ -24,3 +24,14 @@ brain/
 tmp/
 scratch/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+error_out.json
+*_backup.*
+*.tmp
+
+# Root-level generated data files (preserve public directory assets)
+/*.xlsx
+/*.csv
+
