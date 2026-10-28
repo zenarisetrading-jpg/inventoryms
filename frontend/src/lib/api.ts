@@ -16,6 +16,7 @@ import type {
   SKUIntelligenceItem,
 } from '../types'
 import { supabase } from './supabase'
+import { fetchReorderRawData } from './reorderService'
 
 const BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
 
@@ -615,6 +616,10 @@ export const api = {
       console.error('saveSKUReviewDecision error:', err)
       return { success: false, error: err.message || 'Failed to save review decision' }
     }
+  },
+
+  getReorderRawData: async (forceRefresh = false) => {
+    return fetchReorderRawData(getCountry(), getAccountId(), forceRefresh)
   },
 }
 

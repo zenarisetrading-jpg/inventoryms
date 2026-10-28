@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt, Plus, Edit2, Trash2 } from 'lucide-react'
+import { LayoutDashboard, Package, ClipboardList, Upload, Activity, Calendar, BarChart2, ShieldAlert, Settings, User, ChevronDown, Menu, X, Table, LogOut, Loader2, TrendingUp, Layers, Receipt, Plus, Edit2, Trash2, ShoppingCart } from 'lucide-react'
 
 import CommandCenter from './pages/index'
 import SKUDetail from './pages/sku/[sku]'
@@ -13,6 +13,7 @@ import InventoryPage from './pages/inventory'
 import SKUIntelligencePage from './pages/sku_intelligence'
 import PerformancePage from './pages/performance'
 import InvoicePage from './pages/invoice'
+import ReorderRecommendationsPage from './pages/reorder_recommendations'
 import { navigate } from './lib/router'
 import { ErrorBoundary } from './components/shared/ErrorBoundary'
 import { supabase } from './lib/supabase'
@@ -37,6 +38,7 @@ type Route =
   | { name: 'sku_intelligence' }
   | { name: 'performance' }
   | { name: 'invoice' }
+  | { name: 'reorder' }
 
 function parseRoute(): Route {
   const path = window.location.pathname
@@ -52,6 +54,7 @@ function parseRoute(): Route {
   if (path === '/sku-intelligence') return { name: 'sku_intelligence' }
   if (path === '/performance') return { name: 'performance' }
   if (path === '/invoice') return { name: 'invoice' }
+  if (path === '/reorder' || path === '/reorder-recommendations') return { name: 'reorder' }
   return { name: 'dashboard' }
 }
 
@@ -208,6 +211,7 @@ export default function App() {
             <div className="h-[1px] flex-1 min-w-[20px] bg-gradient-to-r from-white/5 to-transparent" />
           </div>
           <SidebarLink icon={LayoutDashboard} label="Dashboard" path="/" current={route.name === 'dashboard'} collapsed={isSidebarCollapsed} />
+          <SidebarLink icon={ShoppingCart} label="Reorder Plan" path="/reorder" current={route.name === 'reorder'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={Table} label="Inventory" path="/inventory" current={route.name === 'inventory'} collapsed={isSidebarCollapsed} />
           <SidebarLink icon={TrendingUp} label="Performance" path="/performance" current={route.name === 'performance'} collapsed={isSidebarCollapsed} />
           {(['Administrator', 'Finance', 'finance'].includes(user?.user_metadata?.role || user?.app_metadata?.role || '') || user?.email?.toLowerCase() === 'irfaan.a@zenarise.org') && (
@@ -371,6 +375,7 @@ export default function App() {
               {route.name === 'sku_intelligence' && <SKUIntelligencePage />}
               {route.name === 'performance' && <PerformancePage />}
               {route.name === 'invoice' && <InvoicePage user={user} />}
+              {route.name === 'reorder' && <ReorderRecommendationsPage />}
             </ErrorBoundary>
           </div>
         </main>
