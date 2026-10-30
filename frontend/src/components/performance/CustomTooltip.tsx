@@ -7,7 +7,7 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
     const isDate = !isNaN(dateParsed) && label?.toString().includes('-');
     const displayLabel = isDate
       ? new Date(label).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
-      : label?.toString().toUpperCase();
+      : label != null ? String(label).toUpperCase() : 'GENERAL';
 
     return (
       <div className="bg-[#0f172a] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-xl">

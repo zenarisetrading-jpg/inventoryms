@@ -48,9 +48,17 @@ export interface SKUReorderRecommendation {
   moq: number
   // 13. Suggested Order Qty (After MOQ & case-pack multiples)
   suggested_order_qty: number
-  // 14. Unit Cost (From cogs / landing_cost)
+  // 14. Final Qty (User-editable, defaults to suggested_order_qty)
+  final_qty?: number
+  is_custom_final_qty?: boolean
+  // 15. Unit Cost (From cogs / landing_cost)
   unit_cost: number
-  // 15. Total Reorder Cost = Suggested Order Qty * Unit Cost
+  // 16. Suggested Reorder Cost = Suggested Order Qty * Unit Cost
+  suggested_reorder_cost: number
+  // 17. Finalized Reorder Cost = Final Qty * Unit Cost
+  final_reorder_cost: number
+  finalized_reorder_cost?: number
+  // Total Reorder Cost = Compatibility alias for final_reorder_cost
   total_reorder_cost: number
 
   // Channel-level breakdown (aligned with Inventory tab)
@@ -105,6 +113,9 @@ export interface ReorderExecutiveKPIs {
   totalExistingPOQty: number
   totalRemainingReorderQty: number
   totalSuggestedOrderQty: number
+  totalFinalQty?: number
+  totalSuggestedReorderCost: number
+  totalFinalizedReorderCost: number
   totalReorderCost: number
 
   // Review & Diagnostic Metrics
@@ -126,6 +137,9 @@ export interface ABCCategorySummary {
   totalExistingPOQty: number
   totalRemainingReorderQty: number
   totalSuggestedOrderQty: number
+  totalFinalQty?: number
+  totalSuggestedReorderCost: number
+  totalFinalizedReorderCost: number
   totalReorderCost: number
   stockoutRiskCount: number
 }
@@ -140,7 +154,40 @@ export interface ReorderFilterState {
   moqApplied: boolean
   missingUnitCost: boolean
   missingMOQ: boolean
-  planningToDiscontinue: boolean
+  planningToDiscontinue: 'all' | 'yes' | 'no'
+
+  // 7 Column Numeric Filters
+  reorderQtyMin: string
+  reorderQtyMax: string
+  reorderQtyMode: 'all' | 'gt0' | 'eq0'
+
+  existingPOQtyMin: string
+  existingPOQtyMax: string
+  existingPOQtyMode: 'all' | 'gt0' | 'eq0'
+
+  remainingReorderQtyMin: string
+  remainingReorderQtyMax: string
+  remainingReorderQtyMode: 'all' | 'gt0' | 'eq0'
+
+  moqMin: string
+  moqMax: string
+  moqMode: 'all' | 'gt0' | 'eq0'
+
+  suggestedOrderQtyMin: string
+  suggestedOrderQtyMax: string
+  suggestedOrderQtyMode: 'all' | 'gt0' | 'eq0'
+
+  unitCostMin: string
+  unitCostMax: string
+  unitCostMode: 'all' | 'gt0' | 'eq0'
+
+  suggestedReorderCostMin: string
+  suggestedReorderCostMax: string
+  suggestedReorderCostMode: 'all' | 'gt0' | 'eq0'
+
+  totalReorderCostMin: string
+  totalReorderCostMax: string
+  totalReorderCostMode: 'all' | 'gt0' | 'eq0'
 }
 
 export const INITIAL_REORDER_FILTERS: ReorderFilterState = {
@@ -153,5 +200,37 @@ export const INITIAL_REORDER_FILTERS: ReorderFilterState = {
   moqApplied: false,
   missingUnitCost: false,
   missingMOQ: false,
-  planningToDiscontinue: false,
+  planningToDiscontinue: 'all',
+
+  reorderQtyMin: '',
+  reorderQtyMax: '',
+  reorderQtyMode: 'all',
+
+  existingPOQtyMin: '',
+  existingPOQtyMax: '',
+  existingPOQtyMode: 'all',
+
+  remainingReorderQtyMin: '',
+  remainingReorderQtyMax: '',
+  remainingReorderQtyMode: 'all',
+
+  moqMin: '',
+  moqMax: '',
+  moqMode: 'all',
+
+  suggestedOrderQtyMin: '',
+  suggestedOrderQtyMax: '',
+  suggestedOrderQtyMode: 'all',
+
+  unitCostMin: '',
+  unitCostMax: '',
+  unitCostMode: 'all',
+
+  suggestedReorderCostMin: '',
+  suggestedReorderCostMax: '',
+  suggestedReorderCostMode: 'all',
+
+  totalReorderCostMin: '',
+  totalReorderCostMax: '',
+  totalReorderCostMode: 'all',
 }

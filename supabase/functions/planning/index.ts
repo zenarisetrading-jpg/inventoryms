@@ -113,18 +113,27 @@ serve(async (req: Request) => {
     const country = url.searchParams.get('country') || 'UAE'
     const accountId = url.searchParams.get('account_id')
 
-    let factQuery = supabase.from('v_fact_inventory_with_age').select('*').eq('country', country)
+    // Fetch all data from v_fact_inventory_with_age using pagination loop
+    const factRows: any[] = []
+    let from = 0
+    while (true) {
+      let factQuery = supabase
+        .from('v_fact_inventory_with_age')
+        .select('*')
+        .eq('country', country)
 
-    if (accountId) {
-      factQuery = factQuery.eq('saddl_id', accountId)
+      if (accountId) {
+        factQuery = factQuery.eq('saddl_id', accountId)
+      }
+
+      const { data: page, error: pErr } = await factQuery.range(from, from + 999)
+      if (pErr) throw pErr
+      if (!page || page.length === 0) break
+      factRows.push(...page)
+      if (page.length < 1000) break
+      from += 1000
     }
 
-    // Fetch data from v_fact_inventory_with_age
-    const factRes = await factQuery
-
-    if (factRes.error) throw factRes.error
-
-    const factRows = factRes.data || []
     const rawData = factRows // view now contains all necessary data
 
     const response = {

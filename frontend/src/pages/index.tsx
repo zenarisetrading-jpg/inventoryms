@@ -640,7 +640,7 @@ export default function CommandCenter() {
             />
             <KPITile
               label="Ship Pending"
-              value={data.ship_now.length}
+              value={(data?.ship_now || []).length}
               sub={`${totalShipUnits} Units (${totalShipBoxes} Boxes) staged - Send to Channels`}
               accentColor="border-l-blue-500"
               icon={MoveRight}
@@ -653,7 +653,7 @@ export default function CommandCenter() {
             />
             <KPITile
               label="Procurement"
-              value={data.reorder_now.length}
+              value={(data?.reorder_now || []).length}
               sub="Suggested Reorders"
               accentColor="border-l-amber-400"
               icon={PlusCircle}
@@ -754,7 +754,7 @@ export default function CommandCenter() {
         {/* CRITICAL ALERTS */}
         <SectionCard
           title="High Priority Stockouts"
-          count={data?.alerts.length ?? 0}
+          count={data?.alerts?.length ?? 0}
           accentColor="border-l-red-500"
           icon={ShieldAlert}
           subtitle="Immediate replenishment required to prevent revenue loss"
@@ -785,8 +785,8 @@ export default function CommandCenter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
-                {loading ? <SkeletonRow cols={5} /> : (data?.alerts.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
-                  data?.alerts.map(a => (
+                {loading ? <SkeletonRow cols={5} /> : (data?.alerts?.length ?? 0) === 0 ? <EmptyRow cols={5} /> : (
+                  (data?.alerts || []).map(a => (
                     <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={a.sku}>
                       <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                           <SKULink sku={a.sku} />
@@ -811,7 +811,7 @@ export default function CommandCenter() {
         {/* SHIP NOW */}
         <SectionCard
           title="Staged Replenishment"
-          count={data?.ship_now.length ?? 0}
+          count={(data?.ship_now || []).length}
           accentColor="border-l-brand-blue"
           icon={MoveRight}
           subtitle={`${totalShipUnits} units prepared for channel distribution`}
@@ -890,7 +890,7 @@ export default function CommandCenter() {
         {/* REORDER NOW */}
         <SectionCard
           title="Procurement Orders"
-          count={data?.reorder_now.length ?? 0}
+          count={(data?.reorder_now || []).length}
           accentColor="border-l-brand-amber"
           icon={PlusCircle}
           subtitle="New supply required to satisfy forecasted demand"
@@ -921,8 +921,8 @@ export default function CommandCenter() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
-                {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
-                  data?.reorder_now.map(r => (
+                {loading ? <SkeletonRow cols={4} /> : (data?.reorder_now?.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
+                  (data?.reorder_now || []).map(r => (
                     <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={r.sku}>
                       <td className="px-4 py-2.5 text-center"><div className="flex justify-center"><SKULink sku={r.sku} /></div></td>
                       <td className="px-4 py-2.5 text-center font-data text-[13px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{r.suggested_units}</span></td>
@@ -933,13 +933,13 @@ export default function CommandCenter() {
                   ))
                 )}
               </tbody>
-              {(data?.reorder_now.length ?? 0) > 0 && (
+              {(data?.reorder_now?.length ?? 0) > 0 && (
                 <tfoot className="bg-white/5 border-t border-white/10 sticky bottom-0 z-10 backdrop-blur-md">
                   <tr className="font-bold text-white group">
                     <td className="px-4 py-2.5 text-[12px] uppercase tracking-widest text-primary"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">Totals</span></td>
                     <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{(data?.reorder_now ?? []).reduce((sum, r) => sum + (r.suggested_units || 0), 0).toLocaleString()}</span></td>
                     <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{(data?.reorder_now ?? []).reduce((sum, r) => sum + (Number(r.total_cost_aed || (r.suggested_units * (r.cogs || 0))) || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span></td>
-                    <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{((data?.reorder_now ?? []).reduce((sum, r) => sum + (r.projected_coverage || 0), 0) / (data?.reorder_now.length || 1)).toFixed(1)}d</span></td>
+                    <td className="px-4 py-2.5 text-right font-data text-[13px]"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{((data?.reorder_now ?? []).reduce((sum, r) => sum + (r.projected_coverage || 0), 0) / ((data?.reorder_now || []).length || 1)).toFixed(1)}d</span></td>
                     <td className="px-4 py-2.5"></td>
                   </tr>
                 </tfoot>
@@ -982,14 +982,14 @@ export default function CommandCenter() {
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
                 {loading ? <SkeletonRow cols={4} /> : (data?.inbound?.length ?? 0) === 0 ? <EmptyRow cols={4} /> : (
-                  data?.inbound?.flatMap((b: any) => (b.line_items ?? []).map((li: any) => ({
+                  ((data?.inbound || []) as any[]).flatMap((b: any) => ((b && b.line_items) ? b.line_items : []).map((li: any) => ({
                     po: b.po_number,
                     sku: li.sku,
                     name: li.name,
                     units: li.units_ordered,
                     eta: b.eta
-                  }))).map((row: any) => (
-                    <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={`${row.po}-${row.sku}`}>
+                  }))).map((row: any, rIdx: number) => (
+                    <tr className="group hover:bg-white/10 transition-colors transition-all duration-300 hover:scale-[1.02] hover:z-10 relative hover:shadow-xl" key={`${row.po || ''}-${row.sku || ''}-${rIdx}`}>
                       <td className="px-4 py-2.5 text-center font-data text-[12px] font-bold text-white transition-all duration-200"><span className="inline-block transition-transform duration-300 group-hover:scale-[1.15] origin-center">{row.po}</span></td>
                       <td className="px-4 py-2.5"><div className="flex flex-col items-center justify-center">
                           <SKULink sku={row.sku} />

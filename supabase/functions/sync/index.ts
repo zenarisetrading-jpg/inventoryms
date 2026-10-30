@@ -182,17 +182,28 @@ async function handleSync(
           return []
         })
 
-        // Build SKU, ASIN, and FNSKU mapping from sku_master (filtered by country and saddl_id)
-        const { data: skuMasterRows, error: smErr } = await supabase
-          .from('sku_master')
-          .select('sku, asin, fnsku')
-          .eq('country', loc.country)
-          .eq('saddl_id', loc.saddl_account_id)
+        // Build SKU, ASIN, and FNSKU mapping from sku_master (filtered by country and saddl_id with full pagination)
+        const skuMasterRows: any[] = []
+        let smFrom = 0
+        const SM_STEP = 1000
+        while (true) {
+          const { data: page, error: smErr } = await supabase
+            .from('sku_master')
+            .select('sku, asin, fnsku')
+            .eq('country', loc.country)
+            .eq('saddl_id', loc.saddl_account_id)
+            .range(smFrom, smFrom + SM_STEP - 1)
 
-        if (smErr) {
-          const msg = `[${loc.country}] sku_master lookup: ${smErr.message}`
-          locErrors.push(msg)
-          errors.push(msg)
+          if (smErr) {
+            const msg = `[${loc.country}] sku_master lookup: ${smErr.message}`
+            locErrors.push(msg)
+            errors.push(msg)
+            break
+          }
+          if (!page || page.length === 0) break
+          skuMasterRows.push(...page)
+          if (page.length < SM_STEP) break
+          smFrom += SM_STEP
         }
 
         const validSkus = new Map<string, string>() // upper SKU -> original SKU
@@ -283,7 +294,7 @@ async function handleSync(
           console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
 
           if (salesRows.length > 0) {
-            const CHUNK_SIZE = 100
+            const CHUNK_SIZE = 500
             for (let i = 0; i < salesRows.length; i += CHUNK_SIZE) {
               const chunk = salesRows.slice(i, i + CHUNK_SIZE)
               const { error: salesErr } = await supabase
@@ -319,12 +330,12 @@ async function handleSync(
           const rawSalesRows = Array.from(rawSalesMap.values())
 
           if (rawSalesRows.length > 0) {
-            const CHUNK_SIZE = 100
+            const CHUNK_SIZE = 500
             for (let i = 0; i < rawSalesRows.length; i += CHUNK_SIZE) {
               const chunk = rawSalesRows.slice(i, i + CHUNK_SIZE)
               const { error: rawErr } = await supabase
                 .from('amazon_sales')
-                .upsert(chunk, { onConflict: 'report_date,child_asin,country' })
+                .upsert(chunk, { onConflict: 'report_date,child_asin,country,saddl_id' })
               if (rawErr) {
                 console.error('[sync] amazon_sales upsert error:', rawErr)
                 const msg = `[${loc.country}] amazon_sales upsert: ${rawErr.message}`

@@ -33,8 +33,8 @@ export function SalesPerformanceCard({
 }: SalesPerformanceCardProps) {
   const isPositive = growth && growth > 0;
   
-  const formatCurrency = (val: number) => 
-    val.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formatCurrency = (val: number | undefined | null) => 
+    (Number(val) || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="flex flex-col bg-[#1A1A1A] rounded-2xl overflow-hidden shadow-2xl border border-white/5 w-full min-w-0 transition-all hover:border-white/10">

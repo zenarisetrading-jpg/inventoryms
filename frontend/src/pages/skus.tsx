@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Package, Search, Download, AlertTriangle, RefreshCw, X, Filter, Layers, Plus, Upload, Trash2 } from 'lucide-react'
 import { LoadingScreen } from '../components/shared/LoadingScreen'
 import { navigate } from '../lib/router'
@@ -6,22 +6,46 @@ import { MultiSelect } from '../components/shared/MultiSelect'
 import { useSKUData } from '../hooks/useSKUData'
 import { SKUTable } from '../components/skus/SKUTable'
 import { SKUBulkUploadModal } from '../components/skus/SKUBulkUploadModal'
+import { CategoryManagerModal } from '../components/skus/CategoryManagerModal'
 
 export default function SKUCatalog() {
   const {
     data, loading, error,
     searchQuery, setSearchQuery,
     sortConfig, handleSort,
-    filters, setFilters, validSubCategories,
+    filters, setFilters,
+    validProductCategories, validSubCategories,
     updating, handleUpdateField,
     editingCell, setEditingCell,
     sortedAndFilteredData, columns,
     fetchData, handleExport,
-    selectedSkus, setSelectedSkus, handleDeleteSelected
+    selectedSkus, setSelectedSkus, handleDeleteSelected,
+    handleAddProductCategory,
+    handleRenameProductCategory,
+    handleDeleteProductCategory,
+    handleAddSubCategory,
+    handleRenameSubCategory,
+    handleDeleteSubCategory,
   } = useSKUData()
 
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const isAnyFilterActive = Object.values(filters).some(arr => arr.length > 0)
+
+  const [pageSize, setPageSize] = useState<number>(50)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+
+  const paginatedData = useMemo(() => {
+    if (pageSize === -1) return sortedAndFilteredData
+    const start = (currentPage - 1) * pageSize
+    return sortedAndFilteredData.slice(start, start + pageSize)
+  }, [sortedAndFilteredData, currentPage, pageSize])
+
+  const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(sortedAndFilteredData.length / pageSize))
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filters, sortConfig, pageSize])
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6 -mt-4 lg:-mt-8 px-0 sm:px-4">
@@ -56,6 +80,7 @@ export default function SKUCatalog() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
+            {/* 1. Class Filter */}
             <MultiSelect 
               label="Class"
               placeholder="ALL CLASSS"
@@ -74,6 +99,28 @@ export default function SKUCatalog() {
               }}
             />
 
+            {/* 2. Product Category Filter */}
+            <MultiSelect 
+              label="Product Category"
+              placeholder="ALL PRODUCT CATEGORIES"
+              icon={Package}
+              options={validProductCategories.map(cat => ({ label: cat.toUpperCase(), value: cat }))}
+              selected={filters.product_categories}
+              onChange={(val) => {
+                setFilters(prev => {
+                  const next = { ...prev, product_categories: val }
+                  if (val.length > 0) {
+                    const validSubs = new Set(data.filter(r => val.includes(r.product_category)).map(r => r.sub_category))
+                    next.sub_categories = prev.sub_categories.filter(s => validSubs.has(s))
+                  }
+                  return next
+                })
+              }}
+              onManage={() => setShowCategoryModal(true)}
+              manageLabel="+ Manage Categories..."
+            />
+
+            {/* 3. Sub-Category Filter */}
             <MultiSelect 
               label="Sub-Category"
               placeholder="ALL SUB-CATEGORYS"
@@ -81,8 +128,11 @@ export default function SKUCatalog() {
               options={validSubCategories.map(sub => ({ label: sub.toUpperCase(), value: sub }))}
               selected={filters.sub_categories}
               onChange={(val) => setFilters(prev => ({ ...prev, sub_categories: val }))}
+              onManage={() => setShowCategoryModal(true)}
+              manageLabel="+ Manage Sub-Categories..."
             />
 
+            {/* 4. Status Filter */}
             <MultiSelect 
               label="Status"
               placeholder="ALL STATUSS"
@@ -91,6 +141,16 @@ export default function SKUCatalog() {
               selected={filters.is_active}
               onChange={(val) => setFilters(prev => ({ ...prev, is_active: val }))}
             />
+
+            {/* 5. Manage Categories Button */}
+            <button
+              onClick={() => setShowCategoryModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/5 hover:bg-brand-blue/20 hover:text-brand-blue border border-white/10 hover:border-brand-blue/40 rounded-xl text-[10px] lg:text-xs font-black uppercase tracking-wider text-zinc-300 transition-all shadow-sm"
+              title="Add, rename or delete categories"
+            >
+              <Layers className="w-3.5 h-3.5 text-brand-blue" />
+              <span>Categories</span>
+            </button>
           </div>
 
           <div className="h-8 w-px bg-white/10 hidden lg:block mx-1" />
@@ -141,7 +201,7 @@ export default function SKUCatalog() {
 
             {isAnyFilterActive && (
               <button
-                onClick={() => setFilters({ categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [], minutes_active: [] })}
+                onClick={() => setFilters({ categories: [], product_categories: [], sub_categories: [], is_active: [], amazon_active: [], noon_active: [], minutes_active: [] })}
                 className="p-3 bg-rose-500/10 text-rose-500 rounded-2xl hover:bg-rose-500/20 transition-all"
                 title="Clear Filters"
               >
@@ -171,7 +231,8 @@ export default function SKUCatalog() {
 
         {!error && data.length > 0 && (
           <SKUTable
-            sortedAndFilteredData={sortedAndFilteredData}
+            allData={data}
+            sortedAndFilteredData={paginatedData}
             columns={columns}
             sortConfig={sortConfig}
             handleSort={handleSort}
@@ -186,7 +247,52 @@ export default function SKUCatalog() {
 
         <div className="px-8 py-4 bg-transparent border-t border-white/5 flex items-center justify-between shrink-0 z-30">
           <div className="flex items-center gap-6">
-            <p className="text-[12px] font-bold uppercase text-zinc-500">RECORDS: {sortedAndFilteredData.length}</p>
+            <p className="text-[12px] font-bold uppercase text-zinc-500">
+              RECORDS: {sortedAndFilteredData.length}
+              {pageSize !== -1 && sortedAndFilteredData.length > pageSize && (
+                <span className="ml-2 text-zinc-400">
+                  (SHOWING {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, sortedAndFilteredData.length)})
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">SHOW:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-slate-900 border border-white/15 text-white rounded-lg text-xs font-bold px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand-blue cursor-pointer"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            {pageSize !== -1 && totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed uppercase transition-colors"
+                >
+                  PREV
+                </button>
+                <span className="text-xs font-bold text-zinc-300 font-data px-1">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed uppercase transition-colors"
+                >
+                  NEXT
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -199,6 +305,23 @@ export default function SKUCatalog() {
             setShowBulkModal(false)
             fetchData()
           }}
+        />
+      )}
+
+      {/* Category Manager Modal */}
+      {showCategoryModal && (
+        <CategoryManagerModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          productCategories={validProductCategories}
+          subCategories={validSubCategories}
+          data={data}
+          onAddProductCategory={handleAddProductCategory}
+          onRenameProductCategory={handleRenameProductCategory}
+          onDeleteProductCategory={handleDeleteProductCategory}
+          onAddSubCategory={handleAddSubCategory}
+          onRenameSubCategory={handleRenameSubCategory}
+          onDeleteSubCategory={handleDeleteSubCategory}
         />
       )}
 

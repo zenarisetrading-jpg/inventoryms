@@ -65,31 +65,51 @@ export async function fetchReorderRawData(
   }
 
   try {
-    // Fetch directly from authoritative Inventory Tab view and SKU master in parallel (Active SKUs only)
-    const [factRes, smRes, poRes] = await Promise.all([
-      supabase
-        .from('v_fact_inventory_with_age')
-        .select('*')
-        .eq('country', country)
-        .eq('saddl_id', saddlId)
-        .eq('is_active', true),
-      supabase
-        .from('sku_master')
-        .select('sku, name, asin, fnsku, lead_time_days, moq, units_per_box, cogs, landing_cost, product_category, sub_category, category, is_active')
-        .eq('country', country)
-        .eq('saddl_id', saddlId)
-        .eq('is_active', true),
-      supabase
-        .from('fact_purchase')
-        .select('sku, supplier, order_date, status, units_ordered, units_received, cogs_per_unit, eta')
-        .eq('country', country)
-        .eq('saddl_id', saddlId)
-        .order('order_date', { ascending: false }),
-    ])
+    // Helper to paginate through Supabase default 1000 row limits
+    const fetchAllRows = async (buildQuery: (from: number, to: number) => any) => {
+      const rows: any[] = []
+      let from = 0
+      while (true) {
+        const { data, error } = await buildQuery(from, from + 999)
+        if (error) throw error
+        if (!data || data.length === 0) break
+        rows.push(...data)
+        if (data.length < 1000) break
+        from += 1000
+      }
+      return rows
+    }
 
-    const factRows = factRes.data || []
-    const smRows = smRes.data || []
-    const poRows = poRes.data || []
+    // Fetch directly from authoritative Inventory Tab view and SKU master in parallel (Active SKUs only)
+    const [factRows, smRows, poRows] = await Promise.all([
+      fetchAllRows((from, to) =>
+        supabase
+          .from('v_fact_inventory_with_age')
+          .select('*')
+          .eq('country', country)
+          .eq('saddl_id', saddlId)
+          .eq('is_active', true)
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('sku_master')
+          .select('sku, name, asin, fnsku, lead_time_days, moq, units_per_box, cogs, landing_cost, product_category, sub_category, category, is_active')
+          .eq('country', country)
+          .eq('saddl_id', saddlId)
+          .eq('is_active', true)
+          .range(from, to)
+      ),
+      fetchAllRows((from, to) =>
+        supabase
+          .from('fact_purchase')
+          .select('sku, supplier, order_date, status, units_ordered, units_received, cogs_per_unit, eta')
+          .eq('country', country)
+          .eq('saddl_id', saddlId)
+          .order('order_date', { ascending: false })
+          .range(from, to)
+      ),
+    ])
 
     // Build SKU master lookup map
     const smMap = new Map<string, any>()
@@ -318,7 +338,11 @@ export function calculateReorderPlan(
       remaining_reorder_qty,
       moq,
       suggested_order_qty,
+      final_qty: suggested_order_qty,
       unit_cost,
+      suggested_reorder_cost: total_reorder_cost,
+      final_reorder_cost: total_reorder_cost,
+      finalized_reorder_cost: total_reorder_cost,
       total_reorder_cost,
 
       fba_units,
@@ -381,10 +405,16 @@ export function calculateKPIs(items: SKUReorderRecommendation[]): ReorderExecuti
   const totalExistingPOQty = items.reduce((acc, i) => acc + i.existing_po_qty, 0)
   const totalRemainingReorderQty = items.reduce((acc, i) => acc + i.remaining_reorder_qty, 0)
   const totalSuggestedOrderQty = items.reduce((acc, i) => acc + i.suggested_order_qty, 0)
+  const totalFinalQty = items.reduce((acc, i) => acc + (i.final_qty ?? i.suggested_order_qty), 0)
 
-  // Total Reorder Cost must equal the sum of SKU-level Total Reorder Cost values
-  const totalReorderCost =
-    Math.round(items.reduce((acc, i) => acc + i.total_reorder_cost, 0) * 100) / 100
+  const totalSuggestedReorderCost =
+    Math.round(items.reduce((acc, i) => acc + (i.suggested_reorder_cost ?? (i.suggested_order_qty * i.unit_cost)), 0) * 100) / 100
+
+  const totalFinalizedReorderCost =
+    Math.round(items.reduce((acc, i) => acc + (i.final_reorder_cost ?? i.total_reorder_cost ?? ((i.final_qty ?? i.suggested_order_qty) * i.unit_cost)), 0) * 100) / 100
+
+  // Total Reorder Cost defaults to Finalized Reorder Cost
+  const totalReorderCost = totalFinalizedReorderCost
 
   const missingUnitCostCount = items.filter((i) => i.is_missing_cost).length
   const missingMOQCount = items.filter((i) => i.is_missing_moq).length
@@ -401,6 +431,9 @@ export function calculateKPIs(items: SKUReorderRecommendation[]): ReorderExecuti
     totalExistingPOQty,
     totalRemainingReorderQty,
     totalSuggestedOrderQty,
+    totalFinalQty,
+    totalSuggestedReorderCost,
+    totalFinalizedReorderCost,
     totalReorderCost,
     missingUnitCostCount,
     missingMOQCount,
@@ -429,7 +462,10 @@ export function calculateABCCategorySummaryForCat(
     totalExistingPOQty: catItems.reduce((acc, i) => acc + i.existing_po_qty, 0),
     totalRemainingReorderQty: catItems.reduce((acc, i) => acc + i.remaining_reorder_qty, 0),
     totalSuggestedOrderQty: catItems.reduce((acc, i) => acc + i.suggested_order_qty, 0),
-    totalReorderCost: Math.round(catItems.reduce((acc, i) => acc + i.total_reorder_cost, 0) * 100) / 100,
+    totalFinalQty: catItems.reduce((acc, i) => acc + (i.final_qty ?? i.suggested_order_qty), 0),
+    totalSuggestedReorderCost: Math.round(catItems.reduce((acc, i) => acc + (i.suggested_reorder_cost ?? (i.suggested_order_qty * i.unit_cost)), 0) * 100) / 100,
+    totalFinalizedReorderCost: Math.round(catItems.reduce((acc, i) => acc + (i.final_reorder_cost ?? i.total_reorder_cost ?? ((i.final_qty ?? i.suggested_order_qty) * i.unit_cost)), 0) * 100) / 100,
+    totalReorderCost: Math.round(catItems.reduce((acc, i) => acc + (i.final_reorder_cost ?? i.total_reorder_cost ?? ((i.final_qty ?? i.suggested_order_qty) * i.unit_cost)), 0) * 100) / 100,
     stockoutRiskCount: catItems.filter((i) => i.is_stockout_risk).length,
   }
 }
@@ -445,6 +481,28 @@ export function calculateABCSummaries(items: SKUReorderRecommendation[]): ABCCat
 // ---------------------------------------------------------------------------
 // Filtering & Sorting
 // ---------------------------------------------------------------------------
+function matchesNumericFilter(
+  val: number | undefined | null,
+  mode: 'all' | 'gt0' | 'eq0' | undefined,
+  minStr: string | undefined,
+  maxStr: string | undefined
+): boolean {
+  const num = typeof val === 'number' && !isNaN(val) ? val : parseFloat(String(val ?? 0)) || 0
+
+  if (mode === 'gt0' && num <= 0) return false
+  if (mode === 'eq0' && num !== 0) return false
+
+  if (minStr !== undefined && minStr.trim() !== '') {
+    const min = parseFloat(minStr)
+    if (!isNaN(min) && num < min) return false
+  }
+  if (maxStr !== undefined && maxStr.trim() !== '') {
+    const max = parseFloat(maxStr)
+    if (!isNaN(max) && num > max) return false
+  }
+  return true
+}
+
 export function filterReorderItems(
   items: SKUReorderRecommendation[],
   filters: ReorderFilterState
@@ -497,8 +555,50 @@ export function filterReorderItems(
       return false
     }
 
-    // 10. Planning to Discontinue filter
-    if (filters.planningToDiscontinue && !item.is_discontinued) {
+    // 10. Planning to Discontinue filter (All / Yes / No)
+    if (filters.planningToDiscontinue === 'yes') {
+      if (!item.is_discontinued) return false
+    } else if (filters.planningToDiscontinue === 'no') {
+      if (item.is_discontinued) return false
+    }
+
+    // 11. Reorder Qty filter
+    if (!matchesNumericFilter(item.reorder_qty, filters.reorderQtyMode, filters.reorderQtyMin, filters.reorderQtyMax)) {
+      return false
+    }
+
+    // 12. Existing PO Qty filter
+    if (!matchesNumericFilter(item.existing_po_qty, filters.existingPOQtyMode, filters.existingPOQtyMin, filters.existingPOQtyMax)) {
+      return false
+    }
+
+    // 13. Remaining Reorder Qty filter
+    if (!matchesNumericFilter(item.remaining_reorder_qty, filters.remainingReorderQtyMode, filters.remainingReorderQtyMin, filters.remainingReorderQtyMax)) {
+      return false
+    }
+
+    // 14. MOQ filter
+    if (!matchesNumericFilter(item.moq, filters.moqMode, filters.moqMin, filters.moqMax)) {
+      return false
+    }
+
+    // 15. Suggested Order Qty filter
+    if (!matchesNumericFilter(item.suggested_order_qty, filters.suggestedOrderQtyMode, filters.suggestedOrderQtyMin, filters.suggestedOrderQtyMax)) {
+      return false
+    }
+
+    // 16. Unit Cost filter
+    if (!matchesNumericFilter(item.unit_cost, filters.unitCostMode, filters.unitCostMin, filters.unitCostMax)) {
+      return false
+    }
+
+    // 17. Suggested Reorder Cost filter
+    if (filters.suggestedReorderCostMode && !matchesNumericFilter(item.suggested_reorder_cost, filters.suggestedReorderCostMode, filters.suggestedReorderCostMin, filters.suggestedReorderCostMax)) {
+      return false
+    }
+
+    // 18. Finalized Reorder Cost filter
+    if (!matchesNumericFilter(item.final_reorder_cost ?? item.total_reorder_cost, filters.totalReorderCostMode, filters.totalReorderCostMin, filters.totalReorderCostMax)) {
       return false
     }
 
@@ -531,13 +631,21 @@ export function sortReorderItems(
 }
 
 // ---------------------------------------------------------------------------
-// CSV Export
+// CSV Export (Dashboard View & Detailed View)
 // ---------------------------------------------------------------------------
 export function exportReorderToCSV(
   items: SKUReorderRecommendation[],
-  filename = `sku_reorder_recommendations_${new Date().toISOString().split('T')[0]}.csv`
+  mode: 'dashboard' | 'detailed' = 'dashboard',
+  customFilename?: string
 ) {
-  const headers = [
+  const dateStr = new Date().toISOString().split('T')[0]
+  const filename =
+    customFilename ||
+    (mode === 'dashboard'
+      ? `sku_reorder_dashboard_${dateStr}.csv`
+      : `sku_reorder_detailed_${dateStr}.csv`)
+
+  const dashboardHeaders = [
     'SKU',
     'Product Name',
     'CAT',
@@ -552,8 +660,13 @@ export function exportReorderToCSV(
     'Remaining Reorder Qty',
     'MOQ',
     'Suggested Order Qty',
+    'Final Qty',
     'Unit Cost',
-    'Total Reorder Cost',
+    'Suggested Reorder Cost',
+    'Finalized Reorder Cost',
+  ]
+
+  const detailedExtraHeaders = [
     'FBA Stock',
     'FBN Stock',
     'Minutes Stock',
@@ -566,7 +679,37 @@ export function exportReorderToCSV(
     'Review Flags',
   ]
 
+  const headers =
+    mode === 'dashboard'
+      ? dashboardHeaders
+      : [...dashboardHeaders, ...detailedExtraHeaders]
+
   const rows = items.map((i) => {
+    const baseCols = [
+      `"${i.sku}"`,
+      `"${(i.name || '').replace(/"/g, '""')}"`,
+      i.category,
+      i.is_discontinued ? 'Yes' : 'No',
+      Number(i.daily_sales.toFixed(2)),
+      i.available_stock,
+      i.days_left !== null ? Number(i.days_left.toFixed(1)) : 'N/A',
+      i.target_days,
+      i.target_stock,
+      i.reorder_qty,
+      i.existing_po_qty,
+      i.remaining_reorder_qty,
+      i.moq,
+      i.suggested_order_qty,
+      i.final_qty !== undefined ? i.final_qty : i.suggested_order_qty,
+      Number(i.unit_cost.toFixed(2)),
+      Number((i.suggested_reorder_cost ?? (i.suggested_order_qty * i.unit_cost)).toFixed(2)),
+      Number((i.final_reorder_cost ?? i.total_reorder_cost ?? ((i.final_qty !== undefined ? i.final_qty : i.suggested_order_qty) * i.unit_cost)).toFixed(2)),
+    ]
+
+    if (mode === 'dashboard') {
+      return baseCols.join(',')
+    }
+
     const flags: string[] = []
     if (i.is_discontinued) flags.push('Planning to Discontinue')
     if (i.is_zero_sales) flags.push('Zero Sales')
@@ -576,34 +719,21 @@ export function exportReorderToCSV(
     if (i.is_case_pack_applied) flags.push('Case Pack Rounded')
     if (i.is_stockout_risk) flags.push('Stockout Risk')
 
-    return [
-      `"${i.sku}"`,
-      `"${(i.name || '').replace(/"/g, '""')}"`,
-      i.category,
-      i.is_discontinued ? 'Yes' : 'No',
-      i.daily_sales,
-      i.available_stock,
-      i.days_left !== null ? i.days_left : 'N/A',
-      i.target_days,
-      i.target_stock,
-      i.reorder_qty,
-      i.existing_po_qty,
-      i.remaining_reorder_qty,
-      i.moq,
-      i.suggested_order_qty,
-      i.unit_cost,
-      i.total_reorder_cost,
+    const detailedCols = [
+      ...baseCols,
       i.fba_units,
       i.fbn_units,
       i.minutes_units,
       i.locad_units,
-      i.amazon_sv,
-      i.noon_sv,
-      i.minutes_sv,
+      Number(i.amazon_sv.toFixed(2)),
+      Number(i.noon_sv.toFixed(2)),
+      Number(i.minutes_sv.toFixed(2)),
       i.case_pack,
       `"${(i.supplier || '').replace(/"/g, '""')}"`,
       `"${flags.join(', ')}"`,
-    ].join(',')
+    ]
+
+    return detailedCols.join(',')
   })
 
   const csvContent = [headers.join(','), ...rows].join('\n')
@@ -651,6 +781,99 @@ export async function fetchSavedDiscontinuedFlags(
 }
 
 /**
+ * Fetches saved `final_qty` overrides from `public.sku_reorder_recommendations`.
+ * Uses pagination to support catalogs of any size without 1000-row capping.
+ */
+export async function fetchSavedFinalQty(
+  country: string,
+  saddlId: string
+): Promise<Record<string, number>> {
+  try {
+    const map: Record<string, number> = {}
+    let from = 0
+    while (true) {
+      const { data, error } = await supabase
+        .from('sku_reorder_recommendations')
+        .select('sku, final_qty')
+        .eq('country', country)
+        .eq('saddl_id', saddlId)
+        .not('final_qty', 'is', null)
+        .range(from, from + 999)
+
+      if (error || !data || data.length === 0) break
+
+      for (const row of data) {
+        if (row.final_qty !== null && row.final_qty !== undefined) {
+          map[row.sku] = Number(row.final_qty)
+        }
+      }
+      if (data.length < 1000) break
+      from += 1000
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Updates `final_qty` for a single SKU in `public.sku_reorder_recommendations`.
+ * Ensures each SKU and store (country, saddl_id) retains its own value.
+ */
+export async function updateSingleFinalQtyInDB(
+  sku: string,
+  finalQty: number | null,
+  country: string,
+  saddlId: string,
+  suggestedOrderQty?: number
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('sku_reorder_recommendations')
+      .update({ final_qty: finalQty, updated_at: new Date().toISOString() })
+      .eq('sku', sku)
+      .eq('country', country)
+      .eq('saddl_id', saddlId)
+      .select('sku')
+
+    if (error) {
+      console.error('Failed to update final_qty in DB:', error)
+      return { ok: false, error: error.message }
+    }
+
+    if ((!data || data.length === 0) && finalQty !== null) {
+      const { error: upsertErr } = await supabase
+        .from('sku_reorder_recommendations')
+        .upsert({
+          sku,
+          country,
+          saddl_id: saddlId,
+          final_qty: finalQty,
+          suggested_order_qty: suggestedOrderQty ?? finalQty,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'sku,country,saddl_id' })
+      if (upsertErr) return { ok: false, error: upsertErr.message }
+    }
+
+    return { ok: true }
+  } catch (err: any) {
+    console.error('Error updating final_qty in DB:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+/**
+ * Resets `final_qty` for a SKU in `public.sku_reorder_recommendations` back to null (defaulting to suggested_order_qty).
+ */
+export async function resetSingleFinalQtyInDB(
+  sku: string,
+  country: string,
+  saddlId: string
+): Promise<{ ok: boolean; error?: string }> {
+  return updateSingleFinalQtyInDB(sku, null, country, saddlId)
+}
+
+/**
  * Maps a `SKUReorderRecommendation` row to the `public.sku_reorder_recommendations` table schema.
  */
 function mapRecommendationToTableRow(
@@ -676,6 +899,7 @@ function mapRecommendationToTableRow(
     remaining_reorder_qty: item.remaining_reorder_qty,
     moq: item.moq,
     suggested_order_qty: item.suggested_order_qty,
+    final_qty: item.is_custom_final_qty ? (item.final_qty ?? null) : null,
     unit_cost: item.unit_cost,
     total_reorder_cost: item.total_reorder_cost,
     fba_units: item.fba_units,
@@ -716,22 +940,24 @@ export async function saveReorderRecommendationsToDB(
 
   try {
     const rows = items.map((item) => mapRecommendationToTableRow(item, country, saddlId))
-    const { error } = await supabase
-      .from('sku_reorder_recommendations')
-      .upsert(rows, { onConflict: 'sku,country,saddl_id' })
+    const BATCH_SIZE = 500
+    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+      const batch = rows.slice(i, i + BATCH_SIZE)
+      const { error } = await supabase
+        .from('sku_reorder_recommendations')
+        .upsert(batch, { onConflict: 'sku,country,saddl_id' })
 
-    if (error) {
-      // Fallback: invoke the planning edge function (which uses service_role to create & upsert the table)
-      const { data: fnData, error: fnErr } = await supabase.functions.invoke('planning', {
-        body: { rows },
-      })
-      if (!fnErr && fnData?.ok) {
-        return { ok: true, count: rows.length }
+      if (error) {
+        // Fallback: invoke the planning edge function (which uses service_role to create & upsert the table)
+        const { data: fnData, error: fnErr } = await supabase.functions.invoke('planning', {
+          body: { rows: batch },
+        })
+        if (fnErr || !fnData?.ok) {
+          console.error('Failed to save sku_reorder_recommendations batch:', error || fnErr)
+          return { ok: false, count: i, error: error?.message || fnErr?.message }
+        }
       }
-      console.error('Failed to save sku_reorder_recommendations:', error)
-      return { ok: false, count: 0, error: error.message }
     }
-
     return { ok: true, count: rows.length }
   } catch (err: any) {
     console.error('Error saving to sku_reorder_recommendations:', err)

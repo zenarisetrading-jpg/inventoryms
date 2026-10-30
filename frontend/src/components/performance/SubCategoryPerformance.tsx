@@ -36,7 +36,7 @@ export function SubCategoryPerformance({ data }: { data: any[] }) {
                       fontWeight={900}
                       transform="rotate(90)"
                     >
-                      {payload.value?.toString().toUpperCase()}
+                      {payload.value != null ? String(payload.value).toUpperCase() : 'UNASSIGNED'}
                     </text>
                   </g>
                 );

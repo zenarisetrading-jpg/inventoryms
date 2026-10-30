@@ -307,6 +307,7 @@ export default function App() {
                     {locations.map((loc) => (
                       <div key={loc.saddl_account_id} className="flex items-center w-full relative group">
                         <button 
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { setRegion(loc.saddl_account_id, loc.country); setIsRegionDropdownOpen(false) }}
                           className={`flex-1 flex items-center gap-2 pl-3 pr-2 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors overflow-hidden ${region === loc.saddl_account_id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
                         >

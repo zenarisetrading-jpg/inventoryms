@@ -21,6 +21,8 @@ export default function InventoryPage() {
   const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([])
   const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([])
   const [selectedStatus, setSelectedStatus] = useState<string[]>(['active'])
+  const [pageSize, setPageSize] = useState<number>(50)
+  const [currentPage, setCurrentPage] = useState<number>(1)
 
   const [columnOrder, setColumnOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem('inventory_column_order');
@@ -334,6 +336,18 @@ export default function InventoryPage() {
     return list
   }, [data, searchQuery, sortKey, sortDir, selectedCategories, selectedProductCategories, selectedSubCategories, selectedStatus])
 
+  const paginatedData = useMemo(() => {
+    if (pageSize === -1) return processedData
+    const start = (currentPage - 1) * pageSize
+    return processedData.slice(start, start + pageSize)
+  }, [processedData, currentPage, pageSize])
+
+  const totalPages = pageSize === -1 ? 1 : Math.max(1, Math.ceil(processedData.length / pageSize))
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, sortKey, sortDir, selectedCategories, selectedProductCategories, selectedSubCategories, selectedStatus, pageSize])
+
   const totals = useMemo(() => {
     const t: Record<string, number> = {}
     const keysToTotal = [
@@ -641,7 +655,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 bg-transparent">
-                {processedData.map((row: any, idx) => (
+                {paginatedData.map((row: any, idx) => (
                   <tr className={`group transition-colors h-[48px] ${idx % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'} hover:bg-white/[0.06]`} key={idx}>
                     {activeColumns.map((col, i) => {
                       const cellValue = renderCell(col.key, row[col.key])
@@ -712,7 +726,44 @@ export default function InventoryPage() {
               </span>
             </div>
           </div>
-          <p className="text-[12px] font-bold uppercase text-zinc-400 tracking-widest leading-none opacity-60">Saddl Inventory</p>
+          {/* Pagination Controls */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">SHOW:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="bg-slate-900 border border-white/15 text-white rounded-lg text-xs font-bold px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-brand-blue cursor-pointer"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+
+            {pageSize !== -1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed uppercase transition-colors"
+                >
+                  PREV
+                </button>
+                <span className="text-xs font-bold text-zinc-300 font-data px-1">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-bold text-zinc-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed uppercase transition-colors"
+                >
+                  NEXT
+                </button>
+              </div>
+            )}
+            <p className="text-[12px] font-bold uppercase text-zinc-400 tracking-widest leading-none opacity-60 hidden sm:block">Saddl Inventory</p>
+          </div>
         </div>
       </div>
 
@@ -734,7 +785,10 @@ function renderCell(key: string, val: any) {
       <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded text-[9px] font-black uppercase">Active</span>
     )
   }
-  if (val === null || val === undefined) return '0'
+  if (val === null || val === undefined) {
+    if (['product_category', 'sub_category', 'category'].includes(key)) return '—'
+    return '0'
+  }
   if (typeof val === 'number') {
     if (val % 1 !== 0) return val.toFixed(2)
     return val.toLocaleString()

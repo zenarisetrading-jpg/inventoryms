@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   ShoppingCart,
   TrendingUp,
@@ -28,6 +28,10 @@ import {
   ArrowRight,
   Eye,
   Percent,
+  RotateCcw,
+  Check,
+  Plus,
+  Minus,
 } from 'lucide-react'
 import {
   BarChart,
@@ -50,6 +54,9 @@ import {
   exportReorderToCSV,
   fetchSavedDiscontinuedFlags,
   saveReorderRecommendationsToDB,
+  fetchSavedFinalQty,
+  updateSingleFinalQtyInDB,
+  resetSingleFinalQtyInDB,
   type RawSKUData,
 } from '../lib/reorderService'
 import {
@@ -63,6 +70,146 @@ import {
   type ABCClass,
 } from '../types/reorder'
 import { navigate } from '../lib/router'
+
+// ---------------------------------------------------------------------------
+// Column Filter Popover Component
+// ---------------------------------------------------------------------------
+function ColumnFilterPopover({
+  label,
+  mode,
+  min,
+  max,
+  onModeChange,
+  onMinChange,
+  onMaxChange,
+  onClear,
+  onClose,
+  unit,
+}: {
+  label: string
+  mode: 'all' | 'gt0' | 'eq0'
+  min: string
+  max: string
+  onModeChange: (m: 'all' | 'gt0' | 'eq0') => void
+  onMinChange: (val: string) => void
+  onMaxChange: (val: string) => void
+  onClear: () => void
+  onClose: () => void
+  unit?: string
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement
+        if (target.closest('[data-column-filter-trigger]')) return
+        onClose()
+      }
+    }
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+    }, 0)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [onClose])
+
+  return (
+    <div
+      ref={popoverRef}
+      onClick={(e) => e.stopPropagation()}
+      className="absolute right-0 top-full mt-2 w-64 p-3 rounded-xl bg-slate-950 border border-white/20 shadow-2xl z-50 text-left normal-case tracking-normal backdrop-blur-xl"
+    >
+      <div className="flex items-center justify-between pb-2 border-b border-white/10 mb-2.5">
+        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+          <Filter className="w-3 h-3 text-cyan-400" />
+          {label} Filter
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Mode Presets */}
+      <div className="grid grid-cols-3 gap-1 mb-2.5">
+        {(['all', 'gt0', 'eq0'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onModeChange(m)
+            }}
+            className={`py-1 text-[10px] font-bold rounded-lg border transition-colors cursor-pointer ${
+              mode === m
+                ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
+                : 'bg-white/5 text-slate-400 border-white/10 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+          </button>
+        ))}
+      </div>
+
+      {/* Range inputs */}
+      <div className="space-y-1 mb-2.5">
+        <div className="text-[10px] font-semibold text-slate-400">
+          Range {unit ? `(${unit})` : ''}:
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="number"
+            placeholder="Min"
+            value={min}
+            onChange={(e) => onMinChange(e.target.value)}
+            className="w-1/2 bg-slate-900 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-data"
+          />
+          <span className="text-slate-500 text-xs">-</span>
+          <input
+            type="number"
+            placeholder="Max"
+            value={max}
+            onChange={(e) => onMaxChange(e.target.value)}
+            className="w-1/2 bg-slate-900 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-data"
+          />
+        </div>
+      </div>
+
+      {/* Action Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-white/10">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onClear()
+          }}
+          className="text-[10px] text-slate-400 hover:text-red-400 underline font-semibold transition-colors cursor-pointer"
+        >
+          Clear Filter
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onClose()
+          }}
+          className="px-3 py-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg shadow-sm transition-colors cursor-pointer"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function ReorderRecommendationsPage() {
   const { region } = useRegion()
@@ -82,6 +229,9 @@ export default function ReorderRecommendationsPage() {
   const [filters, setFilters] = useState<ReorderFilterState>(INITIAL_REORDER_FILTERS)
   const [sortKey, setSortKey] = useState<keyof SKUReorderRecommendation>('total_reorder_cost')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+  const [sortTrigger, setSortTrigger] = useState<number>(0)
+  const [activeColumnFilter, setActiveColumnFilter] = useState<string | null>(null)
+  const [showColumnFilters, setShowColumnFilters] = useState<boolean>(false)
 
   // Pagination State
   const [pageSize, setPageSize] = useState<number>(25)
@@ -92,6 +242,107 @@ export default function ReorderRecommendationsPage() {
   const [copiedSku, setCopiedSku] = useState<string | null>(null)
   const [savingToDB, setSavingToDB] = useState(false)
   const [lastSavedCount, setLastSavedCount] = useState<number | null>(null)
+
+  // Table Container Ref
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+
+  // Final Qty Overrides State (user can edit independently, defaults to suggested_order_qty)
+  const [finalQtyOverrides, setFinalQtyOverrides] = useState<Record<string, number | string>>({})
+
+  // Track persisted/saved quantities to know exactly when a row has been modified
+  const [persistedFinalQty, setPersistedFinalQty] = useState<Record<string, number>>({})
+
+  // Load saved final_qty from DB on mount / region change
+  useEffect(() => {
+    let isMounted = true
+    async function loadDBFinalQty() {
+      // Clear any legacy localStorage that cached stale final quantities
+      try {
+        localStorage.removeItem(`reorder_final_qty_${region || 's2c_uae_test'}`)
+      } catch {}
+
+      const country = localStorage.getItem('selected_country') || (region === 's2c_test' ? 'KSA' : 'UAE')
+      const saddlId = region || 's2c_uae_test'
+      const dbMap = await fetchSavedFinalQty(country, saddlId)
+      if (isMounted) {
+        setPersistedFinalQty(dbMap)
+        setFinalQtyOverrides(dbMap)
+      }
+    }
+    loadDBFinalQty()
+    return () => {
+      isMounted = false
+    }
+  }, [region])
+
+  // Track individual SKU save status for ✓ button
+  const [savingSkus, setSavingSkus] = useState<Record<string, boolean>>({})
+  const [savedSkus, setSavedSkus] = useState<Record<string, boolean>>({})
+
+  const handleSaveFinalQty = useCallback(async (sku: string, value?: number | string, suggestedQty?: number) => {
+    const rawVal = value !== undefined ? value : finalQtyOverrides[sku]
+    if (rawVal === undefined || rawVal === '') return
+    const numVal = Math.max(0, parseInt(String(rawVal), 10) || 0)
+
+    setSavingSkus((prev) => ({ ...prev, [sku]: true }))
+    try {
+      const country = localStorage.getItem('selected_country') || (region === 's2c_test' ? 'KSA' : 'UAE')
+      const saddlId = region || 's2c_uae_test'
+      await updateSingleFinalQtyInDB(sku, numVal, country, saddlId, suggestedQty)
+
+      // Ensure updated in state, persisted tracker, and storage
+      setFinalQtyOverrides((prev) => ({ ...prev, [sku]: numVal }))
+      setPersistedFinalQty((prev) => ({ ...prev, [sku]: numVal }))
+
+      setSavedSkus((prev) => ({ ...prev, [sku]: true }))
+      setTimeout(() => {
+        setSavedSkus((prev) => ({ ...prev, [sku]: false }))
+      }, 2000)
+    } finally {
+      setSavingSkus((prev) => ({ ...prev, [sku]: false }))
+    }
+  }, [finalQtyOverrides, region])
+
+  const handleFinalQtyChange = (sku: string, value: number | string) => {
+    setFinalQtyOverrides((prev) => {
+      if (value === '') {
+        return { ...prev, [sku]: '' }
+      }
+      const numVal = Math.max(0, parseInt(String(value), 10) || 0)
+      return { ...prev, [sku]: numVal }
+    })
+  }
+
+  const handleStepFinalQty = useCallback((row: SKUReorderRecommendation, direction: 1 | -1) => {
+    const upb = Math.max(1, Number(row.case_pack || (row as any).units_per_box) || 1)
+    const current = finalQtyOverrides[row.sku] !== undefined && finalQtyOverrides[row.sku] !== ''
+      ? Number(finalQtyOverrides[row.sku]) || 0
+      : Number(row.suggested_order_qty) || 0
+
+    const nextVal = direction === 1 ? current + upb : Math.max(0, current - upb)
+
+    setFinalQtyOverrides((prev) => ({ ...prev, [row.sku]: nextVal }))
+  }, [finalQtyOverrides])
+
+  const handleResetFinalQty = useCallback((sku: string) => {
+    setFinalQtyOverrides((prev) => {
+      const next = { ...prev }
+      delete next[sku]
+      return next
+    })
+    setPersistedFinalQty((prev) => {
+      const next = { ...prev }
+      delete next[sku]
+      return next
+    })
+    const country = localStorage.getItem('selected_country') || (region === 's2c_test' ? 'KSA' : 'UAE')
+    const saddlId = region || 's2c_uae_test'
+    resetSingleFinalQtyInDB(sku, country, saddlId)
+  }, [region])
+
+  const isCustomFinalQty = (sku: string) => {
+    return finalQtyOverrides[sku] !== undefined
+  }
 
   // Discontinued SKUs State (Planning to Discontinue, off by default)
   const [discontinuedSkus, setDiscontinuedSkus] = useState<Record<string, boolean>>(() => {
@@ -180,9 +431,32 @@ export default function ReorderRecommendationsPage() {
     if (!rawData.length) return []
     const { recommendations } = calculateReorderPlan(rawData, config)
 
-    // Map in the planning to discontinue flag (off by default)
+    // Map in planning to discontinue flag and final_qty
     return recommendations.map((item) => {
       const is_discontinued = Boolean(discontinuedSkus[item.sku])
+      const hasUserOverride = finalQtyOverrides[item.sku] !== undefined && finalQtyOverrides[item.sku] !== ''
+      const userQty = hasUserOverride ? Number(finalQtyOverrides[item.sku]) : null
+      const is_custom_final_qty = hasUserOverride && userQty !== item.suggested_order_qty
+      const final_qty = is_discontinued
+        ? 0
+        : hasUserOverride
+          ? Number(finalQtyOverrides[item.sku])
+          : item.suggested_order_qty
+
+      const suggested_reorder_cost = is_discontinued
+        ? 0
+        : item.is_missing_cost
+          ? 0
+          : Math.round(item.suggested_order_qty * item.unit_cost * 100) / 100
+
+      const final_reorder_cost = is_discontinued
+        ? 0
+        : item.is_missing_cost
+          ? 0
+          : Math.round(final_qty * item.unit_cost * 100) / 100
+
+      const total_reorder_cost = final_reorder_cost
+
       if (is_discontinued) {
         return {
           ...item,
@@ -190,16 +464,27 @@ export default function ReorderRecommendationsPage() {
           reorder_qty: 0,
           remaining_reorder_qty: 0,
           suggested_order_qty: 0,
+          final_qty: 0,
+          suggested_reorder_cost: 0,
+          final_reorder_cost: 0,
+          finalized_reorder_cost: 0,
           total_reorder_cost: 0,
           is_reorder_required: false,
+          is_custom_final_qty: false,
         }
       }
       return {
         ...item,
         is_discontinued: false,
+        final_qty,
+        suggested_reorder_cost,
+        final_reorder_cost,
+        finalized_reorder_cost: final_reorder_cost,
+        total_reorder_cost,
+        is_custom_final_qty,
       }
     })
-  }, [rawData, config, discontinuedSkus])
+  }, [rawData, config, discontinuedSkus, finalQtyOverrides])
 
   // Automatically sync calculated reorder recommendations table to public.sku_reorder_recommendations
   const handleSaveToDB = useCallback(async (itemsToSave = allRecommendations) => {
@@ -228,10 +513,32 @@ export default function ReorderRecommendationsPage() {
     return filterReorderItems(allRecommendations, filters)
   }, [allRecommendations, filters])
 
-  // Sort filtered items
+  // Sort filtered items order: Only re-sorted when user explicitly clicks a column header (sortTrigger / sortKey / sortDir)
+  // or when data/filters change. Does NOT automatically reshuffle rows when clicking + or - on Final Qty.
+  const sortedSkuOrder = useMemo(() => {
+    const sorted = sortReorderItems(filteredData, sortKey, sortDir)
+    return sorted.map((item) => item.sku)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawData, config, filters, sortKey, sortDir, sortTrigger])
+
   const sortedData = useMemo(() => {
-    return sortReorderItems(filteredData, sortKey, sortDir)
-  }, [filteredData, sortKey, sortDir])
+    const itemMap = new Map<string, SKUReorderRecommendation>()
+    for (const item of filteredData) {
+      itemMap.set(item.sku, item)
+    }
+    const result: SKUReorderRecommendation[] = []
+    for (const sku of sortedSkuOrder) {
+      const item = itemMap.get(sku)
+      if (item) {
+        result.push(item)
+        itemMap.delete(sku)
+      }
+    }
+    for (const item of itemMap.values()) {
+      result.push(item)
+    }
+    return result
+  }, [filteredData, sortedSkuOrder])
 
   // Reconciled KPIs calculated dynamically from the filtered dataset
   const filteredKPIs: ReorderExecutiveKPIs = useMemo(() => {
@@ -260,6 +567,7 @@ export default function ReorderRecommendationsPage() {
       setSortKey(key)
       setSortDir('desc')
     }
+    setSortTrigger((c) => c + 1)
     setCurrentPage(1)
   }
 
@@ -278,6 +586,20 @@ export default function ReorderRecommendationsPage() {
     }).format(val)
   }
 
+  // Count of active column-level filters (out of 7)
+  const activeColumnFiltersCount = useMemo(() => {
+    let count = 0
+    if (filters.reorderQtyMode !== 'all' || filters.reorderQtyMin || filters.reorderQtyMax) count++
+    if (filters.existingPOQtyMode !== 'all' || filters.existingPOQtyMin || filters.existingPOQtyMax) count++
+    if (filters.remainingReorderQtyMode !== 'all' || filters.remainingReorderQtyMin || filters.remainingReorderQtyMax) count++
+    if (filters.moqMode !== 'all' || filters.moqMin || filters.moqMax) count++
+    if (filters.suggestedOrderQtyMode !== 'all' || filters.suggestedOrderQtyMin || filters.suggestedOrderQtyMax) count++
+    if (filters.unitCostMode !== 'all' || filters.unitCostMin || filters.unitCostMax) count++
+    if (filters.suggestedReorderCostMode !== 'all' || filters.suggestedReorderCostMin || filters.suggestedReorderCostMax) count++
+    if (filters.totalReorderCostMode !== 'all' || filters.totalReorderCostMin || filters.totalReorderCostMax) count++
+    return count
+  }, [filters])
+
   // Check if any filter is active
   const hasActiveFilters = useMemo(() => {
     return (
@@ -290,16 +612,18 @@ export default function ReorderRecommendationsPage() {
       filters.moqApplied ||
       filters.missingUnitCost ||
       filters.missingMOQ ||
-      filters.planningToDiscontinue
+      filters.planningToDiscontinue !== 'all' ||
+      activeColumnFiltersCount > 0
     )
-  }, [filters])
+  }, [filters, activeColumnFiltersCount])
 
   // Chart Data for ABC Breakdown
   const chartData = useMemo(() => {
     return filteredABCSummaries.map((s) => ({
       name: `Category ${s.category}`,
       category: s.category,
-      cost: s.totalReorderCost,
+      cost: s.totalFinalizedReorderCost ?? s.totalReorderCost,
+      suggestedCost: s.totalSuggestedReorderCost,
       qty: s.totalSuggestedOrderQty,
       skus: s.skuCount,
     }))
@@ -312,79 +636,95 @@ export default function ReorderRecommendationsPage() {
   return (
     <div className="space-y-6 pb-20">
       {/* ─── 1. Header & Primary Actions ─────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-white/10 pb-5">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b border-white/10 pb-5">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-              <ShoppingCart className="w-6 h-6" />
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0 mt-0.5 sm:mt-0">
+              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                SKU-Wise Reorder Dashboard
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  Live DB
-                </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Active SKUs Only
-                </span>
-                {lastSavedCount !== null && (
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
-                    title="Saved to public.sku_reorder_recommendations table"
-                  >
-                    <CheckCircle2 className="w-3 h-3" />
-                    Table Saved ({lastSavedCount} rows)
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight">
+                  SKU-Wise Reorder Dashboard
+                </h1>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    Live DB
                   </span>
-                )}
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Automated replenishment recommendations, MOQ adjustments, and purchase commitments saved in <code className="text-cyan-400">sku_reorder_recommendations</code>
+                  <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Active SKUs Only
+                  </span>
+                  {lastSavedCount !== null && (
+                    <span
+                      className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1"
+                      title="Saved to public.sku_reorder_recommendations table"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      Table Saved ({lastSavedCount} rows)
+                    </span>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Automated replenishment recommendations, MOQ adjustments, and purchase commitments saved in <code className="text-cyan-400 font-mono">sku_reorder_recommendations</code>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full xl:w-auto">
           {/* Save to Table Button */}
           <button
             onClick={() => handleSaveToDB(allRecommendations)}
             disabled={savingToDB || !allRecommendations.length}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:text-white hover:bg-emerald-600/30 transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:text-white hover:bg-emerald-600/30 transition-all disabled:opacity-50"
             title="Save current table rows to public.sku_reorder_recommendations"
           >
-            <CheckCircle2 className={`w-3.5 h-3.5 ${savingToDB ? 'animate-pulse text-emerald-400' : 'text-emerald-400'}`} />
-            <span>{savingToDB ? 'Saving Table...' : 'Save to DB Table'}</span>
+            <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${savingToDB ? 'animate-pulse text-emerald-400' : 'text-emerald-400'}`} />
+            <span className="truncate">{savingToDB ? 'Saving...' : 'Save to DB'}</span>
           </button>
 
           {/* Refresh Button */}
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all disabled:opacity-50"
             title="Refresh inventory matrix"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-            <span>{refreshing ? 'Recalculating...' : 'Refresh'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
+            <span className="truncate">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           {/* Config Settings Button */}
           <button
             onClick={() => setIsConfigOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-white/10 text-slate-300 hover:text-white hover:bg-slate-800 transition-all col-span-2 sm:col-span-1"
             title="Configure Target Days & Ordering Parameters"
           >
-            <Sliders className="w-3.5 h-3.5 text-blue-400" />
-            <span>Target Days Settings</span>
+            <Sliders className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span className="truncate">Target Days</span>
           </button>
 
-          {/* Export CSV */}
+          {/* Export Dashboard CSV */}
           <button
-            onClick={() => exportReorderToCSV(sortedData)}
+            onClick={() => exportReorderToCSV(sortedData, 'dashboard')}
             disabled={!sortedData.length}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+            title="Download CSV with the exact columns shown in the dashboard table"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Dashboard CSV</span>
+          </button>
+
+          {/* Export Detailed CSV */}
+          <button
+            onClick={() => exportReorderToCSV(sortedData, 'detailed')}
+            disabled={!sortedData.length}
+            className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 border border-cyan-500/30 text-cyan-300 hover:text-white hover:bg-slate-800 transition-all disabled:opacity-50"
+            title="Download detailed CSV including channel stocks, channel daily sales, case pack, supplier, and review flags"
+          >
+            <Download className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span className="truncate">Detailed CSV</span>
           </button>
         </div>
       </div>
@@ -402,22 +742,22 @@ export default function ReorderRecommendationsPage() {
         </div>
       )}
 
-      {/* ─── 2. SUMMARY CARDS: Total SKU to Reorder, Units to Reorder, Total Cost ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* ─── 2. SUMMARY CARDS: Total SKU to Reorder, Units to Reorder, Suggested Cost, Finalized Cost ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Total SKU to Reorder */}
-        <div className="bg-slate-900/70 border border-amber-500/25 rounded-2xl p-5 shadow-xl backdrop-blur-md bg-amber-500/[0.03] hover:border-amber-500/40 transition-all">
+        <div className="bg-slate-900/70 border border-amber-500/25 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md bg-amber-500/[0.03] hover:border-amber-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-amber-400 uppercase tracking-wider">Total SKU to Reorder</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="my-2.5">
+          <div className="my-2 sm:my-2.5">
             <p className="text-2xl sm:text-3xl font-black text-amber-400 font-data leading-none">
               {filteredKPIs.skusRequiringReorder.toLocaleString()}
             </p>
           </div>
-          <p className="text-xs text-amber-400/80 font-medium">
+          <p className="text-[11px] sm:text-xs text-amber-400/80 font-medium">
             {filteredKPIs.totalSKUs > 0
               ? `${Math.round((filteredKPIs.skusRequiringReorder / filteredKPIs.totalSKUs) * 100)}% of ${filteredKPIs.totalSKUs} active SKUs requiring restock`
               : '0 SKUs requiring restock'}
@@ -425,38 +765,60 @@ export default function ReorderRecommendationsPage() {
         </div>
 
         {/* Card 2: Units to Reorder */}
-        <div className="bg-slate-900/70 border border-cyan-500/25 rounded-2xl p-5 shadow-xl backdrop-blur-md bg-cyan-500/[0.03] hover:border-cyan-500/40 transition-all">
+        <div className="bg-slate-900/70 border border-cyan-500/25 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md bg-cyan-500/[0.03] hover:border-cyan-500/40 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black text-cyan-400 uppercase tracking-wider">Units to Reorder</span>
-            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
+            <div className="p-1.5 sm:p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
               <ShoppingCart className="w-4 h-4" />
             </div>
           </div>
-          <div className="my-2.5">
+          <div className="my-2 sm:my-2.5">
             <p className="text-2xl sm:text-3xl font-black text-cyan-400 font-data leading-none">
               {filteredKPIs.totalSuggestedOrderQty.toLocaleString()}
             </p>
           </div>
-          <p className="text-xs text-cyan-400/80 font-medium">
+          <p className="text-[11px] sm:text-xs text-cyan-400/80 font-medium">
             MOQ & pack adjusted (Net deficit: {filteredKPIs.totalRemainingReorderQty.toLocaleString()} units)
           </p>
         </div>
 
-        {/* Card 3: Total Cost */}
-        <div className="bg-slate-900/70 border border-emerald-500/30 rounded-2xl p-5 shadow-xl backdrop-blur-md bg-emerald-500/[0.04] hover:border-emerald-500/50 transition-all">
+        {/* Card 3: Suggested Reorder Cost */}
+        <div className="bg-slate-900/70 border border-blue-500/25 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md bg-blue-500/[0.03] hover:border-blue-500/40 transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">Total Cost</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <span className="text-xs font-black text-blue-400 uppercase tracking-wider">Suggested Reorder Cost</span>
+            <div className="p-1.5 sm:p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
               <Coins className="w-4 h-4" />
             </div>
           </div>
-          <div className="my-2.5">
-            <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-data leading-none truncate">
-              {formatCurrency(filteredKPIs.totalReorderCost)}
+          <div className="my-2 sm:my-2.5">
+            <p className="text-2xl sm:text-3xl font-black text-blue-400 font-data leading-none truncate">
+              {formatCurrency(filteredKPIs.totalSuggestedReorderCost)}
             </p>
           </div>
-          <p className="text-xs text-emerald-400/80 font-medium">
+          <p className="text-[11px] sm:text-xs text-blue-400/80 font-medium truncate">
             Suggested Order Qty × Unit Cost across active SKUs
+          </p>
+        </div>
+
+        {/* Card 4: Finalized Reorder Cost */}
+        <div className="bg-slate-900/70 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md bg-emerald-500/[0.04] hover:border-emerald-500/50 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black text-emerald-400 uppercase tracking-wider">Finalized Reorder Cost</span>
+            <div className="p-1.5 sm:p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="my-2 sm:my-2.5">
+            <p className="text-2xl sm:text-3xl font-black text-emerald-400 font-data leading-none truncate">
+              {formatCurrency(filteredKPIs.totalFinalizedReorderCost)}
+            </p>
+          </div>
+          <p className="text-[11px] sm:text-xs text-emerald-400/80 font-medium truncate">
+            {filteredKPIs.totalFinalizedReorderCost === filteredKPIs.totalSuggestedReorderCost
+              ? 'Matches baseline suggested cost'
+              : filteredKPIs.totalFinalizedReorderCost > filteredKPIs.totalSuggestedReorderCost
+                ? `+${formatCurrency(filteredKPIs.totalFinalizedReorderCost - filteredKPIs.totalSuggestedReorderCost)} above suggested`
+                : `-${formatCurrency(filteredKPIs.totalSuggestedReorderCost - filteredKPIs.totalFinalizedReorderCost)} below suggested`}
           </p>
         </div>
       </div>
@@ -490,12 +852,9 @@ export default function ReorderRecommendationsPage() {
                     <th className="py-2.5 px-3 text-right">SKUs</th>
                     <th className="py-2.5 px-3 text-right">Daily Sales</th>
                     <th className="py-2.5 px-3 text-right">Available Stock</th>
-                    <th className="py-2.5 px-3 text-right">Target Stock</th>
-                    <th className="py-2.5 px-3 text-right">Reorder Qty</th>
-                    <th className="py-2.5 px-3 text-right">Existing PO</th>
-                    <th className="py-2.5 px-3 text-right">Remaining Qty</th>
-                    <th className="py-2.5 px-3 text-right text-cyan-400">Suggested Order</th>
-                    <th className="py-2.5 px-3 text-right text-emerald-400">Total Reorder Cost</th>
+                    <th className="py-2.5 px-3 text-right text-cyan-400">Suggested Reorder</th>
+                    <th className="py-2.5 px-3 text-right text-blue-400">Suggested Cost</th>
+                    <th className="py-2.5 px-3 text-right text-emerald-400">Finalized Cost</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-medium">
@@ -528,23 +887,14 @@ export default function ReorderRecommendationsPage() {
                         <td className="py-2.5 px-3 text-right font-data text-slate-300">
                           {catSummary.totalAvailableStock.toLocaleString()}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-data text-slate-300">
-                          {catSummary.totalTargetStock.toLocaleString()}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-data text-slate-300">
-                          {catSummary.totalReorderQty.toLocaleString()}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-data text-blue-400">
-                          {catSummary.totalExistingPOQty.toLocaleString()}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-data text-orange-400">
-                          {catSummary.totalRemainingReorderQty.toLocaleString()}
-                        </td>
                         <td className="py-2.5 px-3 text-right font-data font-bold text-cyan-400">
                           {catSummary.totalSuggestedOrderQty.toLocaleString()}
                         </td>
+                        <td className="py-2.5 px-3 text-right font-data font-semibold text-blue-400">
+                          {formatCurrency(catSummary.totalSuggestedReorderCost)}
+                        </td>
                         <td className="py-2.5 px-3 text-right font-data font-black text-emerald-400">
-                          {formatCurrency(catSummary.totalReorderCost)}
+                          {formatCurrency(catSummary.totalFinalizedReorderCost)}
                         </td>
                       </tr>
                     )
@@ -559,23 +909,14 @@ export default function ReorderRecommendationsPage() {
                     <td className="py-2.5 px-3 text-right font-data">
                       {filteredKPIs.totalAvailableStock.toLocaleString()}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-data">
-                      {filteredABCSummaries.reduce((s, c) => s + c.totalTargetStock, 0).toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-data">
-                      {filteredKPIs.totalReorderQty.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-data text-blue-400">
-                      {filteredKPIs.totalExistingPOQty.toLocaleString()}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-data text-orange-400">
-                      {filteredKPIs.totalRemainingReorderQty.toLocaleString()}
-                    </td>
                     <td className="py-2.5 px-3 text-right font-data text-cyan-400">
                       {filteredKPIs.totalSuggestedOrderQty.toLocaleString()}
                     </td>
-                    <td className="py-2.5 px-3 text-right font-data text-emerald-400">
-                      {formatCurrency(filteredKPIs.totalReorderCost)}
+                    <td className="py-2.5 px-3 text-right font-data text-blue-400 font-bold">
+                      {formatCurrency(filteredKPIs.totalSuggestedReorderCost)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-data text-emerald-400 font-black">
+                      {formatCurrency(filteredKPIs.totalFinalizedReorderCost)}
                     </td>
                   </tr>
                 </tbody>
@@ -602,8 +943,8 @@ export default function ReorderRecommendationsPage() {
                 <Coins className="w-4 h-4 text-cyan-400" />
                 Capital Distribution
               </h3>
-              <span className="text-xs font-bold text-cyan-400">
-                {formatCurrency(filteredKPIs.totalReorderCost)}
+              <span className="text-xs font-bold text-emerald-400">
+                {formatCurrency(filteredKPIs.totalFinalizedReorderCost)}
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -629,7 +970,10 @@ export default function ReorderRecommendationsPage() {
                           <div className="bg-slate-950 border border-white/15 p-3 rounded-xl shadow-2xl text-xs space-y-1">
                             <p className="font-black text-white uppercase tracking-wider">{d.name}</p>
                             <p className="text-slate-300">
-                              Reorder Cost: <span className="font-bold text-emerald-400">{formatCurrency(d.cost)}</span>
+                              Finalized Cost: <span className="font-bold text-emerald-400">{formatCurrency(d.cost)}</span>
+                            </p>
+                            <p className="text-slate-400 text-[11px]">
+                              Suggested Cost: <span className="font-semibold text-blue-400">{formatCurrency(d.suggestedCost)}</span>
                             </p>
                             <p className="text-slate-400">
                               Suggested Units: <span className="font-bold text-white">{d.qty.toLocaleString()}</span>
@@ -686,10 +1030,10 @@ export default function ReorderRecommendationsPage() {
       {/* ─── 4. Search, Filters, and Sorting Controls ─────────────────────── */}
       <div className="bg-slate-900/60 border border-white/[0.08] rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md space-y-4">
         {/* Row 1: Search Inputs & Category Selector */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-3 border-b border-white/10">
-          <div className="flex-1 flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 flex-1">
             {/* SKU Search */}
-            <div className="relative min-w-[180px] max-w-xs flex-1">
+            <div className="relative w-full sm:w-auto sm:min-w-[170px] sm:max-w-xs flex-1">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -715,7 +1059,7 @@ export default function ReorderRecommendationsPage() {
             </div>
 
             {/* Product Name Search */}
-            <div className="relative min-w-[220px] max-w-sm flex-1">
+            <div className="relative w-full sm:w-auto sm:min-w-[210px] sm:max-w-sm flex-1">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -747,7 +1091,7 @@ export default function ReorderRecommendationsPage() {
                 setFilters({ ...filters, cat: e.target.value })
                 setCurrentPage(1)
               }}
-              className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
+              className="w-full sm:w-auto bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer"
             >
               <option value="ALL">CAT: All Categories</option>
               <option value="A">CAT A Only</option>
@@ -763,7 +1107,7 @@ export default function ReorderRecommendationsPage() {
                 setFilters(INITIAL_REORDER_FILTERS)
                 setCurrentPage(1)
               }}
-              className="text-xs text-blue-400 hover:text-blue-300 font-bold underline whitespace-nowrap"
+              className="text-xs text-blue-400 hover:text-blue-300 font-bold underline whitespace-nowrap self-start sm:self-auto"
             >
               Reset All Filters
             </button>
@@ -872,33 +1216,617 @@ export default function ReorderRecommendationsPage() {
             {filters.missingMOQ && <CheckCircle2 className="w-3 h-3 text-yellow-400" />}
           </button>
 
-          {/* Filter: Planning to Discontinue */}
+          {/* Filter: Planning to Discontinue (All / Yes / No) */}
+          <div className="inline-flex items-center p-0.5 bg-slate-950/60 rounded-lg border border-white/10 text-xs">
+            <span className="px-2 text-slate-400 font-bold text-[11px]">Discontinue:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((prev) => ({ ...prev, planningToDiscontinue: 'all' }))
+                setCurrentPage(1)
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                filters.planningToDiscontinue === 'all'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((prev) => ({ ...prev, planningToDiscontinue: 'yes' }))
+                setCurrentPage(1)
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                filters.planningToDiscontinue === 'yes'
+                  ? 'bg-amber-500 text-slate-950 font-black shadow-sm'
+                  : 'text-slate-400 hover:text-amber-400'
+              }`}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((prev) => ({ ...prev, planningToDiscontinue: 'no' }))
+                setCurrentPage(1)
+              }}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                filters.planningToDiscontinue === 'no'
+                  ? 'bg-emerald-500 text-slate-950 font-black shadow-sm'
+                  : 'text-slate-400 hover:text-emerald-400'
+              }`}
+            >
+              No
+            </button>
+          </div>
+
+          {/* Button: Quantity & Cost Column Filters (7) */}
           <button
-            onClick={() => {
-              setFilters((prev) => ({ ...prev, planningToDiscontinue: !prev.planningToDiscontinue }))
-              setCurrentPage(1)
-            }}
+            type="button"
+            onClick={() => setShowColumnFilters((prev) => !prev)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
-              filters.planningToDiscontinue
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+              showColumnFilters || activeColumnFiltersCount > 0
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
                 : 'bg-slate-950/60 text-slate-400 border-white/10 hover:text-white'
             }`}
           >
-            <span>Planning to Discontinue</span>
-            {filters.planningToDiscontinue && <CheckCircle2 className="w-3 h-3 text-amber-400" />}
+            <Sliders className="w-3 h-3 text-cyan-400" />
+            <span>Quantity & Cost Filters (7)</span>
+            {activeColumnFiltersCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-cyan-500 text-slate-950 text-[10px] font-black">
+                {activeColumnFiltersCount}
+              </span>
+            )}
+            {showColumnFilters ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </button>
         </div>
 
+        {/* Expandable Column Value Filters Grid (7 Columns) */}
+        {showColumnFilters && (
+          <div className="pt-3 pb-1 border-t border-white/10 space-y-2.5 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Filter className="w-3.5 h-3.5 text-cyan-400" />
+                Column Numerical & Cost Filters (Reorder Qty, PO, MOQ, Costs)
+              </span>
+              {activeColumnFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((prev) => ({
+                      ...prev,
+                      reorderQtyMin: '', reorderQtyMax: '', reorderQtyMode: 'all',
+                      existingPOQtyMin: '', existingPOQtyMax: '', existingPOQtyMode: 'all',
+                      remainingReorderQtyMin: '', remainingReorderQtyMax: '', remainingReorderQtyMode: 'all',
+                      moqMin: '', moqMax: '', moqMode: 'all',
+                      suggestedOrderQtyMin: '', suggestedOrderQtyMax: '', suggestedOrderQtyMode: 'all',
+                      unitCostMin: '', unitCostMax: '', unitCostMode: 'all',
+                      suggestedReorderCostMin: '', suggestedReorderCostMax: '', suggestedReorderCostMode: 'all',
+                      totalReorderCostMin: '', totalReorderCostMax: '', totalReorderCostMode: 'all',
+                    }))
+                    setCurrentPage(1)
+                  }}
+                  className="text-[10px] text-red-400 hover:text-red-300 font-bold underline transition-colors"
+                >
+                  Reset All 7 Column Filters
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              {/* 1. Reorder Qty */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.reorderQtyMode !== 'all' || filters.reorderQtyMin || filters.reorderQtyMax
+                  ? 'bg-slate-900 border-amber-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-200 truncate">Reorder Qty</span>
+                  {(filters.reorderQtyMode !== 'all' || filters.reorderQtyMin || filters.reorderQtyMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, reorderQtyMode: 'all', reorderQtyMin: '', reorderQtyMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, reorderQtyMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.reorderQtyMode === m ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.reorderQtyMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, reorderQtyMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.reorderQtyMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, reorderQtyMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-amber-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 2. Existing PO Qty */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.existingPOQtyMode !== 'all' || filters.existingPOQtyMin || filters.existingPOQtyMax
+                  ? 'bg-slate-900 border-blue-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-blue-400 truncate">Existing PO Qty</span>
+                  {(filters.existingPOQtyMode !== 'all' || filters.existingPOQtyMin || filters.existingPOQtyMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, existingPOQtyMode: 'all', existingPOQtyMin: '', existingPOQtyMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, existingPOQtyMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.existingPOQtyMode === m ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.existingPOQtyMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, existingPOQtyMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.existingPOQtyMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, existingPOQtyMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-blue-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 3. Remaining Reorder Qty */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.remainingReorderQtyMode !== 'all' || filters.remainingReorderQtyMin || filters.remainingReorderQtyMax
+                  ? 'bg-slate-900 border-orange-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-orange-400 truncate">Remaining Qty</span>
+                  {(filters.remainingReorderQtyMode !== 'all' || filters.remainingReorderQtyMin || filters.remainingReorderQtyMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, remainingReorderQtyMode: 'all', remainingReorderQtyMin: '', remainingReorderQtyMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, remainingReorderQtyMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.remainingReorderQtyMode === m ? 'bg-orange-500 text-slate-950 border-orange-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.remainingReorderQtyMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, remainingReorderQtyMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.remainingReorderQtyMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, remainingReorderQtyMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-orange-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 4. MOQ */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.moqMode !== 'all' || filters.moqMin || filters.moqMax
+                  ? 'bg-slate-900 border-yellow-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-yellow-400 truncate">MOQ</span>
+                  {(filters.moqMode !== 'all' || filters.moqMin || filters.moqMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, moqMode: 'all', moqMin: '', moqMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, moqMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.moqMode === m ? 'bg-yellow-500 text-slate-950 border-yellow-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.moqMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, moqMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-yellow-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.moqMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, moqMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-yellow-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 5. Suggested Order Qty */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.suggestedOrderQtyMode !== 'all' || filters.suggestedOrderQtyMin || filters.suggestedOrderQtyMax
+                  ? 'bg-slate-900 border-cyan-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-cyan-400 truncate">Suggested Order</span>
+                  {(filters.suggestedOrderQtyMode !== 'all' || filters.suggestedOrderQtyMin || filters.suggestedOrderQtyMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, suggestedOrderQtyMode: 'all', suggestedOrderQtyMin: '', suggestedOrderQtyMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, suggestedOrderQtyMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.suggestedOrderQtyMode === m ? 'bg-cyan-500 text-slate-950 border-cyan-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.suggestedOrderQtyMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, suggestedOrderQtyMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.suggestedOrderQtyMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, suggestedOrderQtyMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 6. Unit Cost */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.unitCostMode !== 'all' || filters.unitCostMin || filters.unitCostMax
+                  ? 'bg-slate-900 border-rose-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-slate-200 truncate">Unit Cost (AED)</span>
+                  {(filters.unitCostMode !== 'all' || filters.unitCostMin || filters.unitCostMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, unitCostMode: 'all', unitCostMin: '', unitCostMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, unitCostMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.unitCostMode === m ? 'bg-rose-500 text-white border-rose-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.unitCostMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, unitCostMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.unitCostMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, unitCostMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500 font-data"
+                  />
+                </div>
+              </div>
+
+              {/* 7. Total Reorder Cost */}
+              <div className={`p-2.5 rounded-xl border transition-all ${
+                filters.totalReorderCostMode !== 'all' || filters.totalReorderCostMin || filters.totalReorderCostMax
+                  ? 'bg-slate-900 border-emerald-500/40 shadow-sm'
+                  : 'bg-slate-950/60 border-white/5 hover:border-white/10'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-bold text-emerald-400 truncate">Total Cost (AED)</span>
+                  {(filters.totalReorderCostMode !== 'all' || filters.totalReorderCostMin || filters.totalReorderCostMax) && (
+                    <button
+                      type="button"
+                      onClick={() => setFilters((prev) => ({ ...prev, totalReorderCostMode: 'all', totalReorderCostMin: '', totalReorderCostMax: '' }))}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 mb-1.5">
+                  {(['all', 'gt0', 'eq0'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setFilters((prev) => ({ ...prev, totalReorderCostMode: m })); setCurrentPage(1); }}
+                      className={`py-0.5 text-[9px] font-bold rounded border ${
+                        filters.totalReorderCostMode === m ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-white/5 text-slate-400 border-white/10 hover:text-white'
+                      }`}
+                    >
+                      {m === 'all' ? 'All' : m === 'gt0' ? '> 0' : '= 0'}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={filters.totalReorderCostMin}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, totalReorderCostMin: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 font-data"
+                  />
+                  <span className="text-slate-600 text-[10px]">-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={filters.totalReorderCostMax}
+                    onChange={(e) => { setFilters((prev) => ({ ...prev, totalReorderCostMax: e.target.value })); setCurrentPage(1); }}
+                    className="w-1/2 bg-slate-900 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white placeholder:text-slate-600 focus:outline-none focus:border-emerald-500 font-data"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Active Column Filter Badges */}
+        {(activeColumnFiltersCount > 0 || filters.planningToDiscontinue !== 'all') && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/5 text-[11px]">
+            <span className="text-slate-500 font-semibold mr-1">Active Filters:</span>
+
+            {/* Planning to Discontinue Badge */}
+            {filters.planningToDiscontinue !== 'all' && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium border ${
+                filters.planningToDiscontinue === 'yes'
+                  ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                  : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+              }`}>
+                Discontinue: {filters.planningToDiscontinue === 'yes' ? 'Yes (On)' : 'No (Off)'}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters((prev) => ({ ...prev, planningToDiscontinue: 'all' }))
+                    setCurrentPage(1)
+                  }}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Reorder Qty Badge */}
+            {(filters.reorderQtyMode !== 'all' || filters.reorderQtyMin || filters.reorderQtyMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-medium">
+                Reorder Qty: {filters.reorderQtyMode === 'gt0' ? '> 0' : filters.reorderQtyMode === 'eq0' ? '= 0' : ''}
+                {filters.reorderQtyMin ? ` ≥ ${filters.reorderQtyMin}` : ''}
+                {filters.reorderQtyMax ? ` ≤ ${filters.reorderQtyMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, reorderQtyMode: 'all', reorderQtyMin: '', reorderQtyMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Existing PO Qty Badge */}
+            {(filters.existingPOQtyMode !== 'all' || filters.existingPOQtyMin || filters.existingPOQtyMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/30 font-medium">
+                PO Qty: {filters.existingPOQtyMode === 'gt0' ? '> 0' : filters.existingPOQtyMode === 'eq0' ? '= 0' : ''}
+                {filters.existingPOQtyMin ? ` ≥ ${filters.existingPOQtyMin}` : ''}
+                {filters.existingPOQtyMax ? ` ≤ ${filters.existingPOQtyMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, existingPOQtyMode: 'all', existingPOQtyMin: '', existingPOQtyMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Remaining Reorder Qty Badge */}
+            {(filters.remainingReorderQtyMode !== 'all' || filters.remainingReorderQtyMin || filters.remainingReorderQtyMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-300 border border-orange-500/30 font-medium">
+                Remaining: {filters.remainingReorderQtyMode === 'gt0' ? '> 0' : filters.remainingReorderQtyMode === 'eq0' ? '= 0' : ''}
+                {filters.remainingReorderQtyMin ? ` ≥ ${filters.remainingReorderQtyMin}` : ''}
+                {filters.remainingReorderQtyMax ? ` ≤ ${filters.remainingReorderQtyMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, remainingReorderQtyMode: 'all', remainingReorderQtyMin: '', remainingReorderQtyMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* MOQ Badge */}
+            {(filters.moqMode !== 'all' || filters.moqMin || filters.moqMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-300 border border-yellow-500/30 font-medium">
+                MOQ: {filters.moqMode === 'gt0' ? '> 0' : filters.moqMode === 'eq0' ? '= 0' : ''}
+                {filters.moqMin ? ` ≥ ${filters.moqMin}` : ''}
+                {filters.moqMax ? ` ≤ ${filters.moqMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, moqMode: 'all', moqMin: '', moqMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Suggested Order Qty Badge */}
+            {(filters.suggestedOrderQtyMode !== 'all' || filters.suggestedOrderQtyMin || filters.suggestedOrderQtyMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-medium">
+                Suggested: {filters.suggestedOrderQtyMode === 'gt0' ? '> 0' : filters.suggestedOrderQtyMode === 'eq0' ? '= 0' : ''}
+                {filters.suggestedOrderQtyMin ? ` ≥ ${filters.suggestedOrderQtyMin}` : ''}
+                {filters.suggestedOrderQtyMax ? ` ≤ ${filters.suggestedOrderQtyMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, suggestedOrderQtyMode: 'all', suggestedOrderQtyMin: '', suggestedOrderQtyMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Unit Cost Badge */}
+            {(filters.unitCostMode !== 'all' || filters.unitCostMin || filters.unitCostMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/30 font-medium">
+                Unit Cost: {filters.unitCostMode === 'gt0' ? '> 0' : filters.unitCostMode === 'eq0' ? '= 0' : ''}
+                {filters.unitCostMin ? ` ≥ AED ${filters.unitCostMin}` : ''}
+                {filters.unitCostMax ? ` ≤ AED ${filters.unitCostMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, unitCostMode: 'all', unitCostMin: '', unitCostMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+
+            {/* Total Reorder Cost Badge */}
+            {(filters.totalReorderCostMode !== 'all' || filters.totalReorderCostMin || filters.totalReorderCostMax) && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-medium">
+                Total Cost: {filters.totalReorderCostMode === 'gt0' ? '> 0' : filters.totalReorderCostMode === 'eq0' ? '= 0' : ''}
+                {filters.totalReorderCostMin ? ` ≥ AED ${filters.totalReorderCostMin}` : ''}
+                {filters.totalReorderCostMax ? ` ≤ AED ${filters.totalReorderCostMax}` : ''}
+                <button
+                  type="button"
+                  onClick={() => setFilters((prev) => ({ ...prev, totalReorderCostMode: 'all', totalReorderCostMin: '', totalReorderCostMax: '' }))}
+                  className="hover:text-white"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Results Count & Page Size Selection */}
-        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400 pt-2 border-t border-white/5">
           <span>
             Showing <strong className="text-white">{sortedData.length}</strong> of{' '}
             <strong className="text-white">{allRecommendations.length}</strong> Active SKUs
             {hasActiveFilters && <span className="ml-1 text-blue-400 font-semibold">(Filtered)</span>}
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 self-start sm:self-auto">
             <span>Per Page:</span>
-            {[25, 50, 100, -1].map((size) => (
+            {[25, 50, 100].map((size) => (
               <button
                 key={size}
                 onClick={() => {
@@ -915,183 +1843,570 @@ export default function ReorderRecommendationsPage() {
           </div>
         </div>
 
+        {/* Mobile Swipe Hint Banner */}
+        <div className="flex md:hidden items-center justify-between px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] text-blue-300">
+          <span>↔ Swipe table horizontally for all 16 columns</span>
+          <span className="font-semibold text-blue-200">SKU column pinned</span>
+        </div>
+
         {/* ─── 5. REORDER DASHBOARD TABLE (Combined SKU & Product, Vertical Scroll) ─── */}
-        <div className="overflow-x-auto overflow-y-auto max-h-[620px] custom-scrollbar rounded-xl border border-white/10 shadow-2xl relative">
+        <div
+          ref={tableContainerRef}
+          className="overflow-x-auto overflow-y-auto max-h-[620px] custom-table-scrollbar rounded-xl border border-white/10 shadow-2xl relative"
+        >
           <table className="w-full text-left text-xs whitespace-nowrap">
-            <thead className="bg-slate-950/95 text-[10px] font-black text-slate-400 uppercase tracking-wider sticky top-0 z-20 border-b border-white/10 backdrop-blur-md">
-              <tr>
-                {/* 1. Combined SKU & Product Name */}
+            <thead className="bg-slate-950/95 text-[10px] font-black text-slate-400 uppercase tracking-wider sticky top-0 z-20 border-b border-white/10 backdrop-blur-md whitespace-normal align-middle">
+              <tr className="align-middle">
+                {/* 1. Combined SKU & Product Name (Sticky Left Column) */}
                 <th
                   onClick={() => handleSort(sortKey === 'sku' ? 'name' : 'sku')}
-                  className="py-3 px-3 cursor-pointer hover:text-white border-r border-white/5 min-w-[260px]"
+                  className="py-2 px-3 cursor-pointer hover:text-white border-r border-white/10 min-w-[190px] sm:min-w-[240px] sticky left-0 z-30 bg-slate-950 shadow-[3px_0_8px_-2px_rgba(0,0,0,0.8)] align-middle whitespace-normal"
                   title="Click to sort by SKU or Product Name"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>SKU & Product Name</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight">SKU & Product Name</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
-                {/* 3. CAT */}
+                {/* 2. CAT */}
                 <th
                   onClick={() => handleSort('category')}
-                  className="py-3 px-2 text-center cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-center cursor-pointer hover:text-white border-r border-white/5 min-w-[50px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    CAT
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight">CAT</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
-                {/* Planning to Discontinue */}
+                {/* 3. Planning to Discontinue */}
                 <th
                   onClick={() => handleSort('is_discontinued')}
-                  className="py-3 px-3 text-center cursor-pointer hover:text-white border-r border-white/5 min-w-[140px]"
+                  className="py-2 px-2 text-center cursor-pointer hover:text-white border-r border-white/5 min-w-[90px] max-w-[110px] align-middle whitespace-normal"
                   title="Click to sort by Planning to Discontinue"
                 >
                   <div className="flex items-center justify-center gap-1">
-                    <span>Planning to Discontinue</span>
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-center whitespace-normal">Planning to<br />Discontinue</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 4. Daily Sales */}
                 <th
                   onClick={() => handleSort('daily_sales')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-right cursor-pointer hover:text-white border-r border-white/5 min-w-[65px] max-w-[85px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Daily Sales
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Daily<br />Sales</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 5. Available Stock */}
                 <th
                   onClick={() => handleSort('available_stock')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-right cursor-pointer hover:text-white border-r border-white/5 min-w-[75px] max-w-[95px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Available Stock
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Available<br />Stock</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 6. Days Left */}
                 <th
                   onClick={() => handleSort('days_left')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-right cursor-pointer hover:text-white border-r border-white/5 min-w-[60px] max-w-[80px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Days Left
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Days<br />Left</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 7. Target Days */}
                 <th
                   onClick={() => handleSort('target_days')}
-                  className="py-3 px-2.5 text-right cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-right cursor-pointer hover:text-white border-r border-white/5 min-w-[60px] max-w-[80px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Target Days
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Target<br />Days</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 8. Target Stock */}
                 <th
                   onClick={() => handleSort('target_stock')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
+                  className="py-2 px-2 text-right cursor-pointer hover:text-white border-r border-white/5 min-w-[65px] max-w-[85px] align-middle whitespace-normal"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Target Stock
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Target<br />Stock</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
                 {/* 9. Reorder Qty */}
-                <th
-                  onClick={() => handleSort('reorder_qty')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
-                >
+                <th className="py-2 px-2 text-right border-r border-white/5 relative min-w-[75px] max-w-[95px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    Reorder Qty
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('reorder_qty')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Reorder Qty"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Reorder<br />Qty</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'reorder_qty' ? null : 'reorder_qty')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.reorderQtyMode !== 'all' || filters.reorderQtyMin || filters.reorderQtyMax
+                          ? 'bg-amber-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Reorder Qty"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'reorder_qty' && (
+                    <ColumnFilterPopover
+                      label="Reorder Qty"
+                      mode={filters.reorderQtyMode}
+                      min={filters.reorderQtyMin}
+                      max={filters.reorderQtyMax}
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, reorderQtyMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, reorderQtyMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, reorderQtyMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, reorderQtyMode: 'all', reorderQtyMin: '', reorderQtyMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
 
                 {/* 10. Existing PO Qty */}
-                <th
-                  onClick={() => handleSort('existing_po_qty')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5 text-blue-400"
-                >
+                <th className="py-2 px-2 text-right border-r border-white/5 text-blue-400 relative min-w-[80px] max-w-[100px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    Existing PO Qty
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('existing_po_qty')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Existing PO Qty"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Existing<br />PO Qty</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'existing_po_qty' ? null : 'existing_po_qty')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.existingPOQtyMode !== 'all' || filters.existingPOQtyMin || filters.existingPOQtyMax
+                          ? 'bg-blue-500 text-white font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Existing PO Qty"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'existing_po_qty' && (
+                    <ColumnFilterPopover
+                      label="Existing PO Qty"
+                      mode={filters.existingPOQtyMode}
+                      min={filters.existingPOQtyMin}
+                      max={filters.existingPOQtyMax}
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, existingPOQtyMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, existingPOQtyMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, existingPOQtyMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, existingPOQtyMode: 'all', existingPOQtyMin: '', existingPOQtyMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
 
                 {/* 11. Remaining Reorder Qty */}
-                <th
-                  onClick={() => handleSort('remaining_reorder_qty')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5 text-orange-400"
-                >
+                <th className="py-2 px-2 text-right border-r border-white/5 text-orange-400 relative min-w-[95px] max-w-[115px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    Remaining Reorder Qty
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('remaining_reorder_qty')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Remaining Reorder Qty"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Remaining<br />Reorder Qty</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'remaining_reorder_qty' ? null : 'remaining_reorder_qty')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.remainingReorderQtyMode !== 'all' || filters.remainingReorderQtyMin || filters.remainingReorderQtyMax
+                          ? 'bg-orange-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Remaining Reorder Qty"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'remaining_reorder_qty' && (
+                    <ColumnFilterPopover
+                      label="Remaining Reorder Qty"
+                      mode={filters.remainingReorderQtyMode}
+                      min={filters.remainingReorderQtyMin}
+                      max={filters.remainingReorderQtyMax}
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, remainingReorderQtyMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, remainingReorderQtyMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, remainingReorderQtyMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, remainingReorderQtyMode: 'all', remainingReorderQtyMin: '', remainingReorderQtyMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
 
                 {/* 12. MOQ */}
-                <th
-                  onClick={() => handleSort('moq')}
-                  className="py-3 px-2.5 text-right cursor-pointer hover:text-white border-r border-white/5"
-                >
+                <th className="py-2 px-2 text-right border-r border-white/5 relative min-w-[65px] max-w-[80px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    MOQ
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('moq')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by MOQ"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">MOQ</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'moq' ? null : 'moq')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.moqMode !== 'all' || filters.moqMin || filters.moqMax
+                          ? 'bg-yellow-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter MOQ"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'moq' && (
+                    <ColumnFilterPopover
+                      label="MOQ"
+                      mode={filters.moqMode}
+                      min={filters.moqMin}
+                      max={filters.moqMax}
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, moqMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, moqMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, moqMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, moqMode: 'all', moqMin: '', moqMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
 
                 {/* 13. Suggested Order Qty */}
+                <th className="py-2 px-2 text-right border-r border-white/5 text-cyan-400 relative min-w-[95px] max-w-[115px] align-middle whitespace-normal">
+                  <div className="flex items-center justify-end gap-1">
+                    <div
+                      onClick={() => handleSort('suggested_order_qty')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Suggested Order Qty"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Suggested<br />Order Qty</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'suggested_order_qty' ? null : 'suggested_order_qty')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.suggestedOrderQtyMode !== 'all' || filters.suggestedOrderQtyMin || filters.suggestedOrderQtyMax
+                          ? 'bg-cyan-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Suggested Order Qty"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                  {activeColumnFilter === 'suggested_order_qty' && (
+                    <ColumnFilterPopover
+                      label="Suggested Order Qty"
+                      mode={filters.suggestedOrderQtyMode}
+                      min={filters.suggestedOrderQtyMin}
+                      max={filters.suggestedOrderQtyMax}
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, suggestedOrderQtyMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, suggestedOrderQtyMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, suggestedOrderQtyMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, suggestedOrderQtyMode: 'all', suggestedOrderQtyMin: '', suggestedOrderQtyMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
+                </th>
+
+                {/* 14. Final Qty (Editable) */}
                 <th
-                  onClick={() => handleSort('suggested_order_qty')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5 text-cyan-400"
+                  onClick={() => handleSort('final_qty')}
+                  className="py-2 px-2 text-right border-r border-white/5 text-emerald-400 relative min-w-[145px] max-w-[170px] align-middle whitespace-normal cursor-pointer hover:text-white"
+                  title="Click to sort by Final Qty (+/- step by Units per Box, ✓ to save)"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Suggested Order Qty
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <span className="leading-tight text-right whitespace-normal">Final<br />Qty</span>
+                    <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
                   </div>
                 </th>
 
-                {/* 14. Unit Cost */}
-                <th
-                  onClick={() => handleSort('unit_cost')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white border-r border-white/5"
-                >
+                {/* 15. Unit Cost */}
+                <th className="py-2 px-2 text-right border-r border-white/5 relative min-w-[70px] max-w-[85px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    Unit Cost
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('unit_cost')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Unit Cost"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Unit<br />Cost</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'unit_cost' ? null : 'unit_cost')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.unitCostMode !== 'all' || filters.unitCostMin || filters.unitCostMax
+                          ? 'bg-rose-500 text-white font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Unit Cost"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'unit_cost' && (
+                    <ColumnFilterPopover
+                      label="Unit Cost"
+                      mode={filters.unitCostMode}
+                      min={filters.unitCostMin}
+                      max={filters.unitCostMax}
+                      unit="AED"
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, unitCostMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, unitCostMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, unitCostMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, unitCostMode: 'all', unitCostMin: '', unitCostMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
 
-                {/* 15. Total Reorder Cost */}
-                <th
-                  onClick={() => handleSort('total_reorder_cost')}
-                  className="py-3 px-3 text-right cursor-pointer hover:text-white text-emerald-400"
-                >
+                {/* 16. Suggested Reorder Cost */}
+                <th className="py-2 px-2 text-right text-blue-400 relative min-w-[95px] max-w-[115px] align-middle whitespace-normal">
                   <div className="flex items-center justify-end gap-1">
-                    Total Reorder Cost
-                    <ArrowUpDown className="w-3 h-3 text-slate-500" />
+                    <div
+                      onClick={() => handleSort('suggested_reorder_cost')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Suggested Reorder Cost"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Suggested<br />Cost</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'suggested_reorder_cost' ? null : 'suggested_reorder_cost')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.suggestedReorderCostMode !== 'all' || filters.suggestedReorderCostMin || filters.suggestedReorderCostMax
+                          ? 'bg-blue-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Suggested Reorder Cost"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
                   </div>
+                  {activeColumnFilter === 'suggested_reorder_cost' && (
+                    <ColumnFilterPopover
+                      label="Suggested Reorder Cost"
+                      mode={filters.suggestedReorderCostMode}
+                      min={filters.suggestedReorderCostMin}
+                      max={filters.suggestedReorderCostMax}
+                      unit="AED"
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, suggestedReorderCostMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, suggestedReorderCostMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, suggestedReorderCostMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, suggestedReorderCostMode: 'all', suggestedReorderCostMin: '', suggestedReorderCostMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
+                </th>
+
+                {/* 17. Finalized Reorder Cost */}
+                <th className="py-2 px-2 text-right text-emerald-400 relative min-w-[95px] max-w-[115px] align-middle whitespace-normal">
+                  <div className="flex items-center justify-end gap-1">
+                    <div
+                      onClick={() => handleSort('final_reorder_cost')}
+                      className="flex items-center gap-1 cursor-pointer hover:text-white"
+                      title="Sort by Finalized Reorder Cost"
+                    >
+                      <span className="leading-tight text-right whitespace-normal">Finalized<br />Cost</span>
+                      <ArrowUpDown className="w-3 h-3 text-slate-500 shrink-0" />
+                    </div>
+                    <button
+                      type="button"
+                      data-column-filter-trigger="true"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveColumnFilter(activeColumnFilter === 'total_reorder_cost' ? null : 'total_reorder_cost')
+                      }}
+                      className={`p-1 rounded shrink-0 transition-colors ${
+                        filters.totalReorderCostMode !== 'all' || filters.totalReorderCostMin || filters.totalReorderCostMax
+                          ? 'bg-emerald-500 text-slate-950 font-bold'
+                          : 'text-slate-500 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Filter Finalized Reorder Cost"
+                    >
+                      <Filter className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                  {activeColumnFilter === 'total_reorder_cost' && (
+                    <ColumnFilterPopover
+                      label="Finalized Reorder Cost"
+                      mode={filters.totalReorderCostMode}
+                      min={filters.totalReorderCostMin}
+                      max={filters.totalReorderCostMax}
+                      unit="AED"
+                      onModeChange={(m) => {
+                        setFilters((prev) => ({ ...prev, totalReorderCostMode: m }))
+                        setCurrentPage(1)
+                      }}
+                      onMinChange={(val) => {
+                        setFilters((prev) => ({ ...prev, totalReorderCostMin: val }))
+                        setCurrentPage(1)
+                      }}
+                      onMaxChange={(val) => {
+                        setFilters((prev) => ({ ...prev, totalReorderCostMax: val }))
+                        setCurrentPage(1)
+                      }}
+                      onClear={() => {
+                        setFilters((prev) => ({ ...prev, totalReorderCostMode: 'all', totalReorderCostMin: '', totalReorderCostMax: '' }))
+                        setCurrentPage(1)
+                      }}
+                      onClose={() => setActiveColumnFilter(null)}
+                    />
+                  )}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 bg-slate-900/40 font-medium">
               {paginatedData.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-12 text-center text-slate-500">
+                  <td colSpan={16} className="py-12 text-center text-slate-500">
                     No SKUs matching your active filter criteria.
                   </td>
                 </tr>
@@ -1113,8 +2428,8 @@ export default function ReorderRecommendationsPage() {
                         isUrgent ? 'bg-red-500/[0.04]' : ''
                       }`}
                     >
-                      {/* Combined SKU & Product Name */}
-                      <td className="py-2.5 px-3 border-r border-white/5 min-w-[260px] max-w-sm">
+                      {/* Combined SKU & Product Name (Sticky Left on horizontal scroll) */}
+                      <td className="py-2.5 px-3 border-r border-white/10 min-w-[200px] sm:min-w-[260px] max-w-sm sticky left-0 z-10 bg-slate-950/95 backdrop-blur-md shadow-[3px_0_8px_-2px_rgba(0,0,0,0.8)]">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
                             <span className="font-black text-white font-data text-xs tracking-tight">{row.sku}</span>
@@ -1137,7 +2452,7 @@ export default function ReorderRecommendationsPage() {
                               </span>
                             )}
                           </div>
-                          <span className="text-slate-300 text-[11px] truncate block leading-tight" title={row.name}>
+                          <span className="text-slate-300 text-[11px] truncate block leading-tight max-w-[180px] sm:max-w-xs" title={row.name}>
                             {row.name}
                           </span>
                         </div>
@@ -1321,7 +2636,134 @@ export default function ReorderRecommendationsPage() {
                         )}
                       </td>
 
-                      {/* 14. Unit Cost */}
+                      {/* 14. Final Qty (Editable with consistent inline stepper [−] [Quantity] [+] [✓]) */}
+                      <td
+                        className="py-2 px-2 text-right font-data border-r border-white/5"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {row.is_discontinued ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span
+                              className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                              title="Planning to Discontinue: Reorders suspended"
+                            >
+                              Suspended
+                            </span>
+                          </div>
+                        ) : (() => {
+                          const upb = Math.max(1, Number(row.case_pack || (row as any).units_per_box) || 1)
+                          const isSaving = Boolean(savingSkus[row.sku])
+                          const isSaved = Boolean(savedSkus[row.sku])
+                          const suggested = Number(row.suggested_order_qty) || 0
+                          const displayQty = finalQtyOverrides[row.sku] !== undefined
+                            ? finalQtyOverrides[row.sku]
+                            : suggested
+
+                          const numCurrent = displayQty === '' ? 0 : Number(displayQty) || 0
+                          const savedVal = persistedFinalQty[row.sku] !== undefined
+                            ? persistedFinalQty[row.sku]
+                            : suggested
+
+                          // True if the quantity currently differs from what is saved in the database
+                          const isModified = displayQty !== '' && numCurrent !== savedVal
+                          const hasSavedOverride = persistedFinalQty[row.sku] !== undefined && persistedFinalQty[row.sku] !== suggested
+
+                          // Requirement 6: Green above suggested, red below suggested, neutral when equal
+                          let colorStyles = 'bg-slate-900/90 border-white/10 text-slate-200 focus:border-blue-500 focus:ring-blue-500/30'
+                          if (numCurrent > suggested) {
+                            colorStyles = 'bg-emerald-950/40 border-emerald-500/50 text-emerald-400 focus:border-emerald-400 focus:ring-emerald-400/30 shadow-[0_0_10px_rgba(16,185,129,0.15)]'
+                          } else if (numCurrent < suggested) {
+                            colorStyles = 'bg-rose-950/40 border-rose-500/50 text-rose-400 focus:border-rose-400 focus:ring-rose-400/30 shadow-[0_0_10px_rgba(244,63,94,0.15)]'
+                          }
+
+                          return (
+                            <div className="flex items-center justify-end gap-1.5 select-none">
+                              {/* 1. [−] Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleStepFinalQty(row, -1)}
+                                disabled={isSaving || numCurrent <= 0}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white border border-white/10 hover:border-white/30 text-xs font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                                title={`Click − to decrease by Units per Box (−${upb})`}
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+
+                              {/* 2. [Quantity] Input */}
+                              <input
+                                type="number"
+                                min={0}
+                                step={upb}
+                                value={displayQty}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value, 10) || 0)
+                                  handleFinalQtyChange(row.sku, val)
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && isModified) {
+                                    handleSaveFinalQty(row.sku, displayQty, row.suggested_order_qty)
+                                  }
+                                }}
+                                className={`w-14 h-7 px-1 text-center text-xs font-bold font-data rounded-lg border transition-all focus:outline-none focus:ring-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shrink-0 ${colorStyles}`}
+                                title={`Units per Box = ${upb}. Suggested Qty = ${suggested}`}
+                              />
+
+                              {/* 3. [+] Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleStepFinalQty(row, 1)}
+                                disabled={isSaving}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 text-slate-300 hover:text-white border border-white/10 hover:border-white/30 text-xs font-bold transition-all disabled:opacity-30 shrink-0"
+                                title={`Click + to increase by Units per Box (+${upb})`}
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+
+                              {/* 4. [✓] Action Slot: Fixed w-7 h-7 to maintain perfect column alignment across all rows */}
+                              <div className="w-7 h-7 flex items-center justify-center shrink-0">
+                                {isSaving ? (
+                                  <div
+                                    className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400"
+                                    title="Saving to database..."
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-300" />
+                                  </div>
+                                ) : isSaved ? (
+                                  <div
+                                    className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/60 flex items-center justify-center text-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-in fade-in zoom-in-95"
+                                    title="Saved to database!"
+                                  >
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </div>
+                                ) : isModified ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveFinalQty(row.sku, displayQty, row.suggested_order_qty)}
+                                    className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white border border-emerald-400/60 shadow-md shadow-emerald-600/30 flex items-center justify-center transition-all cursor-pointer animate-in fade-in zoom-in-95"
+                                    title="✓ Click to Save quantity to database"
+                                  >
+                                    <Check className="w-4 h-4 stroke-[3]" />
+                                  </button>
+                                ) : hasSavedOverride ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetFinalQty(row.sku)}
+                                    className="w-7 h-7 rounded-lg bg-slate-800/80 hover:bg-slate-700 active:bg-slate-600 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer"
+                                    title="↺ Reset to Suggested Order Qty"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                ) : (
+                                  /* Kept empty for unmodified rows so stepper controls stay perfectly aligned across all rows */
+                                  <div className="w-7 h-7" />
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </td>
+
+                      {/* 15. Unit Cost */}
                       <td className="py-2.5 px-3 text-right font-data border-r border-white/5">
                         {row.is_missing_cost ? (
                           <span
@@ -1335,12 +2777,31 @@ export default function ReorderRecommendationsPage() {
                         )}
                       </td>
 
-                      {/* 15. Total Reorder Cost */}
+                      {/* 16. Suggested Reorder Cost */}
+                      <td className="py-2.5 px-3 text-right font-data font-semibold text-slate-300 border-r border-white/5">
+                        {row.is_discontinued ? (
+                          <span className="text-slate-500">AED 0</span>
+                        ) : row.suggested_reorder_cost > 0 ? (
+                          <span className="text-blue-300 font-data">{formatCurrency(row.suggested_reorder_cost)}</span>
+                        ) : (
+                          <span className="text-slate-600">AED 0</span>
+                        )}
+                      </td>
+
+                      {/* 17. Finalized Reorder Cost */}
                       <td className="py-2.5 px-3 text-right font-data font-black">
                         {row.is_discontinued ? (
                           <span className="text-slate-500">AED 0</span>
-                        ) : row.total_reorder_cost > 0 ? (
-                          <span className="text-emerald-400">{formatCurrency(row.total_reorder_cost)}</span>
+                        ) : row.final_reorder_cost > 0 ? (
+                          <span className={
+                            row.final_reorder_cost > row.suggested_reorder_cost
+                              ? 'text-emerald-400 font-bold'
+                              : row.final_reorder_cost < row.suggested_reorder_cost
+                                ? 'text-rose-400 font-bold'
+                                : 'text-emerald-400'
+                          }>
+                            {formatCurrency(row.final_reorder_cost)}
+                          </span>
                         ) : (
                           <span className="text-slate-600">AED 0</span>
                         )}
@@ -1355,12 +2816,12 @@ export default function ReorderRecommendationsPage() {
 
         {/* Pagination Navigation Controls */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-2 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 text-xs">
             <span className="text-slate-400">
               Page <strong className="text-white">{currentPage}</strong> of{' '}
               <strong className="text-white">{totalPages}</strong>
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
@@ -1382,12 +2843,12 @@ export default function ReorderRecommendationsPage() {
 
       {/* ─── 6. SKU Detail Drill-Down Modal ──────────────────────────────── */}
       {selectedSKU && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="bg-slate-900 border border-white/15 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-white/15 rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-base font-black text-white font-data">{selectedSKU.sku}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
                     CAT {selectedSKU.category}
@@ -1415,7 +2876,7 @@ export default function ReorderRecommendationsPage() {
 
             {/* Discontinued Status Banner if active */}
             {selectedSKU.is_discontinued && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-xs text-amber-300">
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-300">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>
@@ -1425,7 +2886,7 @@ export default function ReorderRecommendationsPage() {
                 <button
                   type="button"
                   onClick={() => handleToggleDiscontinue(selectedSKU.sku)}
-                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold border border-amber-500/40 transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold border border-amber-500/40 transition-colors self-start sm:self-auto"
                 >
                   Re-enable Reorders
                 </button>
@@ -1438,7 +2899,7 @@ export default function ReorderRecommendationsPage() {
                 <Box className="w-3.5 h-3.5 text-blue-400" />
                 Available Stock Channels (Inventory Tab Parity)
               </h4>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10">
                   <span className="text-[10px] text-slate-400 block font-semibold">FBA Stock</span>
                   <span className="text-sm font-bold text-white font-data">{selectedSKU.fba_units.toLocaleString()}</span>
@@ -1464,7 +2925,7 @@ export default function ReorderRecommendationsPage() {
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
                 Channel Sales Velocity (Units/Day)
               </h4>
-              <div className="grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                 <div className="p-2.5 rounded-xl bg-slate-950 border border-white/10">
                   <span className="text-[10px] text-slate-400 block font-semibold">Amazon Daily</span>
                   <span className="text-sm font-bold text-white font-data">{selectedSKU.amazon_sv.toFixed(2)}</span>
@@ -1491,39 +2952,43 @@ export default function ReorderRecommendationsPage() {
                 Step-by-Step Reorder Mathematical Audit
               </h4>
               <div className="space-y-1.5 text-slate-300 font-mono text-[11px]">
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                   <span>Target Stock = {selectedSKU.is_zero_sales && selectedSKU.available_stock === 0 ? 'MOQ (Zero sales & zero stock)' : `Daily Sales (${selectedSKU.daily_sales}) × Target Days (${selectedSKU.target_days})`}</span>
                   <strong className="text-white">= {selectedSKU.target_stock} units</strong>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                   <span>Reorder Qty = MAX(0, Target Stock ({selectedSKU.target_stock}) − Available ({selectedSKU.available_stock}))</span>
                   <strong className="text-white">= {selectedSKU.reorder_qty} units</strong>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                   <span>Existing PO Qty (Outstanding in pipeline)</span>
                   <strong className="text-blue-400">= {selectedSKU.existing_po_qty} units</strong>
                 </div>
-                <div className="flex justify-between border-t border-white/10 pt-1">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2 border-t border-white/10 pt-1">
                   <span>Remaining Reorder Qty = MAX(0, Reorder Qty − Existing PO Qty)</span>
                   <strong className="text-orange-400">= {selectedSKU.remaining_reorder_qty} units</strong>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                   <span>MOQ ({selectedSKU.moq}) & Case Pack Multiples ({selectedSKU.case_pack})</span>
                   <strong className="text-cyan-400">Suggested: {selectedSKU.suggested_order_qty} units</strong>
                 </div>
-                <div className="flex justify-between border-t border-white/10 pt-1 text-xs">
-                  <span className="font-sans font-bold text-white">Total Investment = Suggested ({selectedSKU.suggested_order_qty}) × Unit Cost ({formatCurrency(selectedSKU.unit_cost)})</span>
-                  <strong className="text-emerald-400 font-bold">{formatCurrency(selectedSKU.total_reorder_cost)}</strong>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2 border-t border-white/10 pt-1 text-xs">
+                  <span className="font-sans font-bold text-slate-300">Suggested Cost = Suggested ({selectedSKU.suggested_order_qty}) × Unit Cost ({formatCurrency(selectedSKU.unit_cost)})</span>
+                  <strong className="text-blue-400 font-bold">{formatCurrency(selectedSKU.suggested_reorder_cost ?? (selectedSKU.suggested_order_qty * selectedSKU.unit_cost))}</strong>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2 pt-1 text-xs">
+                  <span className="font-sans font-bold text-white">Finalized Cost = Final Qty ({selectedSKU.final_qty ?? selectedSKU.suggested_order_qty}) × Unit Cost ({formatCurrency(selectedSKU.unit_cost)})</span>
+                  <strong className="text-emerald-400 font-bold">{formatCurrency(selectedSKU.final_reorder_cost ?? selectedSKU.total_reorder_cost)}</strong>
                 </div>
               </div>
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
               <span className="text-xs text-slate-400">
                 Supplier: <strong className="text-white">{selectedSKU.supplier}</strong> (Lead time: {selectedSKU.lead_time_days} days)
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-end sm:self-auto">
                 <button
                   onClick={() => setSelectedSKU(null)}
                   className="px-4 py-2 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 text-slate-300"
@@ -1535,10 +3000,10 @@ export default function ReorderRecommendationsPage() {
                     navigate('/purchase-orders')
                     setSelectedSKU(null)
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5"
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white flex items-center gap-1.5 shadow-lg shadow-blue-500/20"
                 >
                   <ShoppingCart className="w-3.5 h-3.5" />
-                  <span>Create Purchase Order</span>
+                  <span>Create PO</span>
                 </button>
               </div>
             </div>

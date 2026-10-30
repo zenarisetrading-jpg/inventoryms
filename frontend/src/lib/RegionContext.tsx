@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from './api';
 
 type RegionContextType = {
   region: string;
@@ -26,6 +27,11 @@ export const RegionProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [country, setCountryState] = useState(() => inferCountry(localStorage.getItem('selected_account') || 's2c_uae_test'));
 
   const setRegion = (accountId: string, countryCode: string) => {
+    try {
+      api.invalidateCache();
+    } catch (e) {
+      console.warn('Failed to invalidate cache on region change:', e);
+    }
     localStorage.setItem('selected_account', accountId);
     localStorage.setItem('selected_country', countryCode);
     setRegionState(accountId);

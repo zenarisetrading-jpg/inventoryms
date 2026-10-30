@@ -1,8 +1,10 @@
-import React from 'react'
-import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Check, X } from 'lucide-react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Check, X, Plus, List } from 'lucide-react'
 import { navigate } from '../../lib/router'
+import { api } from '../../lib/api'
 
 interface SKUTableProps {
+  allData?: any[]
   sortedAndFilteredData: any[]
   columns: string[]
   sortConfig: { key: string, direction: 'asc' | 'desc' } | null
@@ -16,10 +18,50 @@ interface SKUTableProps {
 }
 
 export function SKUTable({
+  allData,
   sortedAndFilteredData, columns, sortConfig, handleSort,
   updating, editingCell, setEditingCell, handleUpdateField,
   selectedSkus, setSelectedSkus
 }: SKUTableProps) {
+  const [isCustomMode, setIsCustomMode] = useState<boolean>(false)
+  const [apiCategories, setApiCategories] = useState<string[]>([])
+
+  useEffect(() => {
+    api.getProductCategories().then(cats => {
+      if (cats && cats.length > 0) {
+        setApiCategories(cats)
+      }
+    }).catch(() => {})
+  }, [])
+
+  const defaultProductCategories = useMemo(() => [
+    'Art Supplies',
+    'Baby and Toddlers',
+    'Health',
+    'Home and Kitchen',
+    'Lunch Box',
+    'Pet Supplies',
+    'Tumblr',
+    'Wander',
+    'Water Bottles'
+  ], [])
+
+  const existingProductCategories = useMemo(() => {
+    const pool = (allData && allData.length > 0) ? allData : sortedAndFilteredData
+    const fromData = pool.map((r: any) => r.product_category).filter(Boolean)
+    const set = new Set([...defaultProductCategories, ...apiCategories, ...fromData])
+    return Array.from(set).sort((a: string, b: string) => a.localeCompare(b))
+  }, [allData, sortedAndFilteredData, apiCategories, defaultProductCategories])
+
+  const getExistingSubCategories = useCallback((currentProductCategory?: string) => {
+    const pool = (allData && allData.length > 0) ? allData : sortedAndFilteredData
+    const matchingSubs = currentProductCategory
+      ? pool.filter((r: any) => r.product_category && r.product_category.toLowerCase() === currentProductCategory.toLowerCase()).map((r: any) => r.sub_category).filter(Boolean)
+      : []
+    const allSubs = pool.map((r: any) => r.sub_category).filter(Boolean)
+    const set = new Set(matchingSubs.length > 0 ? [...matchingSubs, ...allSubs] : allSubs)
+    return Array.from(set).sort((a: string, b: string) => a.localeCompare(b))
+  }, [allData, sortedAndFilteredData])
 
   const renderStatusToggle = (row: any, field: string) => {
     const isActive = row[field] === true
@@ -123,7 +165,167 @@ export function SKUTable({
                       <option value="B">B</option>
                       <option value="C">C</option>
                     </select>
-                  ) : ['cogs', 'shipping_cost', 'asin', 'fnsku', 'name', 'product_category', 'sub_category', 'moq', 'lead_time_days', 'units_per_box', 'dimensions', 'weight_kg', 'cbm'].includes(col) ? (
+                  ) : col === 'product_category' || col === 'sub_category' ? (
+                    <div className="flex items-center gap-2 min-w-[120px]" onClick={e => e.stopPropagation()}>
+                      {editingCell && editingCell.sku === row.sku && editingCell.field === col ? (
+                        (() => {
+                          const options = col === 'product_category'
+                            ? existingProductCategories
+                            : getExistingSubCategories(row.product_category)
+
+                          return !isCustomMode ? (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={options.find(opt => opt.toLowerCase() === (editingCell.value || '').trim().toLowerCase()) || ''}
+                                onChange={(e) => {
+                                  if (e.target.value === '__NEW__') {
+                                    setIsCustomMode(true)
+                                    setEditingCell({ ...editingCell, value: '' })
+                                  } else {
+                                    setEditingCell({ ...editingCell, value: e.target.value })
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = editingCell.value ? editingCell.value.trim() : null
+                                    handleUpdateField(row.sku, col, val)
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingCell(null)
+                                    setIsCustomMode(false)
+                                  }
+                                }}
+                                autoFocus
+                                className="w-40 sm:w-48 p-1 text-[11px] border border-brand-blue rounded bg-[#111827] text-white font-bold focus:outline-none uppercase cursor-pointer"
+                              >
+                                <option value="" style={{ backgroundColor: '#18181b', color: '#9ca3af' }}>
+                                  -- SELECT {col === 'product_category' ? 'CATEGORY' : 'SUB-CAT'} --
+                                </option>
+                                {options.map(opt => (
+                                  <option key={opt} value={opt} style={{ backgroundColor: '#18181b', color: 'white' }}>
+                                    {opt.toUpperCase()}
+                                  </option>
+                                ))}
+                                <option value="__NEW__" style={{ backgroundColor: '#18181b', color: '#60a5fa', fontWeight: 'bold' }}>
+                                  + ENTER NEW {col === 'product_category' ? 'CATEGORY' : 'SUB-CAT'}...
+                                </option>
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCustomMode(true)
+                                  setEditingCell({ ...editingCell, value: '' })
+                                }}
+                                title={`Enter new ${col === 'product_category' ? 'category' : 'sub-category'}`}
+                                className="p-1 text-brand-blue hover:text-white hover:bg-brand-blue/30 rounded border border-brand-blue/40 transition-colors shrink-0"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const val = editingCell.value ? editingCell.value.trim() : null
+                                  handleUpdateField(row.sku, col, val)
+                                }}
+                                disabled={updating === `${row.sku}-${col}`}
+                                className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 rounded transition-colors shrink-0"
+                                title="Save"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCell(null)
+                                  setIsCustomMode(false)
+                                }}
+                                className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded transition-colors shrink-0"
+                                title="Cancel"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                className="w-36 sm:w-44 p-1 text-[11px] border border-brand-blue rounded bg-white text-zinc-900 font-bold focus:outline-none uppercase"
+                                placeholder={`NEW ${col === 'product_category' ? 'CATEGORY' : 'SUB-CAT'}...`}
+                                value={editingCell.value}
+                                onChange={e => setEditingCell({ ...editingCell, value: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const val = editingCell.value ? editingCell.value.trim() : null
+                                    handleUpdateField(row.sku, col, val)
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingCell(null)
+                                    setIsCustomMode(false)
+                                  }
+                                }}
+                                autoFocus
+                              />
+
+                              <button
+                                type="button"
+                                onClick={() => setIsCustomMode(false)}
+                                title="Choose from existing list"
+                                className="p-1 text-zinc-400 hover:text-white hover:bg-white/10 rounded border border-white/20 transition-colors shrink-0"
+                              >
+                                <List className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const val = editingCell.value ? editingCell.value.trim() : null
+                                  handleUpdateField(row.sku, col, val)
+                                }}
+                                disabled={updating === `${row.sku}-${col}`}
+                                className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 rounded transition-colors shrink-0"
+                                title="Save"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCell(null)
+                                  setIsCustomMode(false)
+                                }}
+                                className="p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 rounded transition-colors shrink-0"
+                                title="Cancel"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <div 
+                          className="flex items-center gap-2 group/cell cursor-pointer"
+                          onClick={() => {
+                            const currentVal = String(row[col] ?? '')
+                            setEditingCell({ sku: row.sku, field: col, value: currentVal })
+                            const options = col === 'product_category' 
+                              ? existingProductCategories 
+                              : getExistingSubCategories(row.product_category)
+                            const exists = options.some(opt => (opt ? String(opt).toLowerCase() : '') === currentVal.trim().toLowerCase())
+                            setIsCustomMode(!exists && currentVal.trim() !== '')
+                          }}
+                        >
+                          <span className="text-[13px] font-semibold text-zinc-300">
+                            {row[col] === null || row[col] === undefined || row[col] === '' ? '-' : String(row[col])}
+                          </span>
+                          <Edit2 className="w-3 h-3 text-zinc-600 opacity-0 group-hover/cell:opacity-100 transition-all" />
+                        </div>
+                      )}
+                    </div>
+                  ) : ['cogs', 'shipping_cost', 'asin', 'fnsku', 'name', 'moq', 'lead_time_days', 'units_per_box', 'dimensions', 'weight_kg', 'cbm'].includes(col) ? (
                     <div className="flex items-center gap-2 min-w-[80px]" onClick={e => e.stopPropagation()}>
                       {editingCell && editingCell.sku === row.sku && editingCell.field === col ? (
                         <div className="flex items-center gap-1">

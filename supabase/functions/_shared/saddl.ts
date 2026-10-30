@@ -145,7 +145,7 @@ export async function fetchAmazonSales(
       FROM sc_raw.sales_traffic
       WHERE account_id = $1
         AND report_date >= $2
-        AND (units_ordered > 0 OR COALESCE(ordered_revenue, 0) > 0 OR sessions > 0 OR page_views > 0)
+        AND (units_ordered > 0 OR COALESCE(ordered_revenue, 0) > 0)
         AND child_asin IS NOT NULL
         AND child_asin <> ''
       GROUP BY child_asin, report_date

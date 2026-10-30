@@ -93,29 +93,29 @@ export default function PerformancePage() {
             <SalesPerformanceCard
               title="THIS MONTH FORECAST"
               dateRange="Projected"
-              sales={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_sales || 0}
-              orders={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0}
-              units={mtdForecast?.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0}
+              sales={Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_sales || 0) : 0}
+              orders={Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0) : 0}
+              units={Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'TOTAL')?.projected_month_end_units || 0) : 0}
               refunds={0}
               headerColor="bg-emerald-900/50"
               breakdown={[
-                { label: 'AMAZON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_sales || 0, units: mtdForecast?.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_units || 0, color: 'bg-purple-500' }
+                { label: 'AMAZON', sales: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_sales || 0) : 0, units: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Amazon')?.projected_month_end_units || 0) : 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_sales || 0) : 0, units: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Noon')?.projected_month_end_units || 0) : 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_sales || 0) : 0, units: Array.isArray(mtdForecast) ? (mtdForecast.find((r: any) => r.sales_channel === 'Minutes')?.projected_month_end_units || 0) : 0, color: 'bg-purple-500' }
               ]}
             />
             <SalesPerformanceCard
               title="LAST MONTH"
               dateRange="Previous Full Month"
-              sales={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_sales || 0}
-              orders={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0}
-              units={lastMonthSales?.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0}
+              sales={Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'TOTAL')?.total_sales || 0) : 0}
+              orders={Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0) : 0}
+              units={Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'TOTAL')?.total_units || 0) : 0}
               refunds={0}
               headerColor="bg-indigo-900/50"
               breakdown={[
-                { label: 'AMAZON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Amazon')?.total_units || 0, color: 'bg-amber-500' },
-                { label: 'NOON', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Noon')?.total_units || 0, color: 'bg-blue-500' },
-                { label: 'MINUTES', sales: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_sales || 0, units: lastMonthSales?.find((r: any) => r.sales_channel === 'Minutes')?.total_units || 0, color: 'bg-purple-500' }
+                { label: 'AMAZON', sales: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Amazon')?.total_sales || 0) : 0, units: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Amazon')?.total_units || 0) : 0, color: 'bg-amber-500' },
+                { label: 'NOON', sales: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Noon')?.total_sales || 0) : 0, units: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Noon')?.total_units || 0) : 0, color: 'bg-blue-500' },
+                { label: 'MINUTES', sales: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Minutes')?.total_sales || 0) : 0, units: Array.isArray(lastMonthSales) ? (lastMonthSales.find((r: any) => r.sales_channel === 'Minutes')?.total_units || 0) : 0, color: 'bg-purple-500' }
               ]}
             />
           </>
