@@ -302,17 +302,17 @@ export default function App() {
               </button>
               
               {isRegionDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 w-36 bg-slate-900 border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full right-0 mt-2 w-max min-w-[280px] bg-slate-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-1">
                     {locations.map((loc) => (
                       <div key={loc.saddl_account_id} className="flex items-center w-full relative group">
                         <button 
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => { setRegion(loc.saddl_account_id, loc.country); setIsRegionDropdownOpen(false) }}
-                          className={`flex-1 flex items-center gap-2 pl-3 pr-2 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors overflow-hidden ${region === loc.saddl_account_id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                          className={`flex-1 flex items-center justify-between gap-3 px-3 py-2 text-left rounded-lg text-xs font-bold tracking-wider transition-colors ${region === loc.saddl_account_id ? 'bg-blue-500/15 text-blue-400 font-black' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
                         >
-                          <span className="uppercase truncate">{loc.display_name || loc.country}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 text-slate-500 ml-auto uppercase shrink-0 group-hover:opacity-0 transition-opacity">{loc.country}</span>
+                          <span className="uppercase whitespace-nowrap">{loc.display_name || loc.country}</span>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white/5 text-slate-400 uppercase shrink-0 group-hover:opacity-0 transition-opacity">{loc.country}</span>
                         </button>
                         <button 
                           onMouseDown={(e) => { 

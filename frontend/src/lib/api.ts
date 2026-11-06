@@ -467,8 +467,20 @@ export const api = {
     }
   },
 
-  triggerSync: async (source: 'amazon' | 'locad' | 'all'): Promise<SyncResponse> => {
+  triggerSync: async (source: 'amazon' | 'locad' | 'noon' | 'all'): Promise<SyncResponse> => {
     const res = await fetch(`${BASE}/sync/${source}?country=${getCountry()}&account_id=${getAccountId()}`, {
+      method: 'POST',
+      headers: await getHeaders(),
+    })
+      .then(r => handleResponse<SyncResponse>(r))
+      .catch(err => ({ error: err.message } as unknown as SyncResponse))
+
+    invalidateApiCache()
+    return res
+  },
+
+  syncNoonInventory: async (): Promise<SyncResponse> => {
+    const res = await fetch(`${BASE}/sync/noon?country=${getCountry()}&account_id=${getAccountId()}`, {
       method: 'POST',
       headers: await getHeaders(),
     })

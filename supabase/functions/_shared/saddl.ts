@@ -238,3 +238,160 @@ export async function getSaddlConnectionStatus(): Promise<{
     await pool.end()
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// Noon API Integration (Database: saddlos, Schema: noon_api)
+// Source of truth: noon_api.v_fbn_inventory_current
+// Daily automated pull: fbn_saleable, darkstore_saleable, partner_sku_latest
+// ---------------------------------------------------------------------------
+
+export interface NoonInventoryItem {
+  client_id: string
+  country: string
+  sku: string
+  partner_sku: string | null
+  close_date: string
+  fbn_saleable: number
+  darkstore_saleable: number
+  non_saleable: number
+}
+
+export async function fetchNoonInventory(
+  clientId: string = DEFAULT_CLIENT_ID
+): Promise<NoonInventoryItem[]> {
+  const pool = getPool()
+  const conn = await pool.connect()
+  try {
+    const { rows } = await conn.queryObject<{
+      client_id: string
+      country: string
+      sku: string
+      close_date: string
+      fbn_saleable: number | string
+      darkstore_saleable: number | string
+      non_saleable: number | string
+      partner_sku_latest: string | null
+      partner_sku_on_date: string | null
+    }>(
+      'SELECT client_id, country, sku, close_date::text AS close_date, ' +
+      'COALESCE(fbn_saleable, 0) AS fbn_saleable, ' +
+      'COALESCE(darkstore_saleable, 0) AS darkstore_saleable, ' +
+      'COALESCE(non_saleable, 0) AS non_saleable, ' +
+      'partner_sku_latest, partner_sku_on_date ' +
+      'FROM noon_api.v_fbn_inventory_current ' +
+      'WHERE client_id = $1 ' +
+      'ORDER BY close_date DESC, sku ASC',
+      [clientId]
+    )
+
+    console.log('[saddl] fetchNoonInventory (client=' + clientId + '): ' + rows.length + ' Noon SKUs')
+    return rows.map(r => ({
+      client_id: String(r.client_id),
+      country: String(r.country),
+      sku: String(r.sku || '').trim(),
+      partner_sku: r.partner_sku_latest
+        ? String(r.partner_sku_latest).trim()
+        : (r.partner_sku_on_date ? String(r.partner_sku_on_date).trim() : null),
+      close_date: String(r.close_date || '').slice(0, 10),
+      fbn_saleable: Number(r.fbn_saleable) || 0,
+      darkstore_saleable: Number(r.darkstore_saleable) || 0,
+      non_saleable: Number(r.non_saleable) || 0,
+    }))
+  } catch (err) {
+    console.error('[saddl] fetchNoonInventory error:', err)
+    throw err
+  } finally {
+    conn.release()
+    await pool.end()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// fetchNoonReconciliation
+// Compares Detail total vs Aging report saleable (alert if variance > 3%)
+// ---------------------------------------------------------------------------
+export async function fetchNoonReconciliation(
+  clientId: string = DEFAULT_CLIENT_ID
+): Promise<{
+  client_id: string
+  detail_close_date: string
+  detail_fbn_total: number
+  aging_saleable_gross_total: number
+  abs_variance: number
+  pct_variance: number
+  alert: boolean
+  sku_count: number
+  sku_mismatch_count: number
+} | null> {
+  const pool = getPool()
+  const conn = await pool.connect()
+  try {
+    const { rows } = await conn.queryObject<{
+      client_id: string
+      detail_close_date: string
+      detail_fbn_total: number | string
+      aging_saleable_gross_total: number | string
+      abs_variance: number | string
+      pct_variance: number | string
+      alert: boolean
+      sku_count: number | string
+      sku_mismatch_count: number | string
+    }>(
+      'SELECT client_id, detail_close_date::text AS detail_close_date, ' +
+      'COALESCE(detail_fbn_total, 0) AS detail_fbn_total, ' +
+      'COALESCE(aging_saleable_gross_total, 0) AS aging_saleable_gross_total, ' +
+      'COALESCE(abs_variance, 0) AS abs_variance, ' +
+      'COALESCE(pct_variance, 0) AS pct_variance, ' +
+      'alert, ' +
+      'COALESCE(sku_count, 0) AS sku_count, ' +
+      'COALESCE(sku_mismatch_count, 0) AS sku_mismatch_count ' +
+      'FROM noon_api.fbn_inventory_reconciliation ' +
+      'WHERE client_id = $1 ' +
+      'ORDER BY detail_close_date DESC ' +
+      'LIMIT 1',
+      [clientId]
+    )
+
+    if (!rows || rows.length === 0) return null
+    const r = rows[0]
+    return {
+      client_id: String(r.client_id),
+      detail_close_date: String(r.detail_close_date || '').slice(0, 10),
+      detail_fbn_total: Number(r.detail_fbn_total) || 0,
+      aging_saleable_gross_total: Number(r.aging_saleable_gross_total) || 0,
+      abs_variance: Number(r.abs_variance) || 0,
+      pct_variance: Number(r.pct_variance) || 0,
+      alert: Boolean(r.alert),
+      sku_count: Number(r.sku_count) || 0,
+      sku_mismatch_count: Number(r.sku_mismatch_count) || 0,
+    }
+  } catch (err) {
+    console.error('[saddl] fetchNoonReconciliation error:', err)
+    return null
+  } finally {
+    conn.release()
+    await pool.end()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// getNoonConnectionStatus
+// ---------------------------------------------------------------------------
+export async function getNoonConnectionStatus(): Promise<{
+  status: 'connected' | 'error'
+  last_synced: string | null
+}> {
+  const pool = getPool()
+  const conn = await pool.connect()
+  try {
+    await conn.queryObject('SELECT 1 FROM noon_api.v_fbn_inventory_current LIMIT 1')
+    return { status: 'connected', last_synced: new Date().toISOString() }
+  } catch (err) {
+    console.error('[saddl] noon connection check failed:', err)
+    return { status: 'error', last_synced: null }
+  } finally {
+    conn.release()
+    await pool.end()
+  }
+}

@@ -2,21 +2,34 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { getSupabaseAdmin } from '../_shared/supabase.ts'
 import { parseMinutesOrderCSV, type ParsedMinutesData } from '../_shared/noon-csv.ts'
-import { refreshAllMetrics } from '../_shared/velocity.ts'
 
-interface NoonSaleRow {
-  sku: string
-  date: string
-  channel: 'noon' | 'noon_minutes'
-  units_sold: number
-  country?: string
-}
+// ---------------------------------------------------------------------------
+// upload-noon-minutes
+//
+// Loads the Noon Minutes order export into minutes_sales (one row per item_nr, SCD2),
+// then rebuilds the derived tables from that raw table:
+//   * sales_snapshot (channel 'noon_minutes')  <- sync_sales_snapshot_from_raw()
+//   * fact_sales (sales_channel 'Minutes')     <- trg_refresh_minutes_sales trigger
+//   * fact_inventory_planning (minutes_sv)     <- refresh_fact_inventory_planning()
+//
+// The Noon API (Saddl noon_api) has no Minutes orders feed, so this export is the only
+// source of Minutes sales.
+// ---------------------------------------------------------------------------
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
+}
+
+const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
+
+function toCountry(countryCode: string | undefined, fallback: string): string {
+  const cc = (countryCode || '').trim().toUpperCase()
+  if (cc === 'AE' || cc === 'UAE') return 'UAE'
+  if (cc === 'SA' || cc === 'KSA') return 'KSA'
+  return fallback
 }
 
 serve(async (req: Request) => {
@@ -27,181 +40,144 @@ serve(async (req: Request) => {
     const form = await req.formData()
     const file = form.get('file') as File | null
     const country = (form.get('country') as string) || 'UAE'
-    const saddl_id = (form.get('saddl_id') as string) || 'none'
+    const saddl_id = (form.get('saddl_id') as string) || ''
     if (!file) return jsonResponse({ error: 'No file uploaded' }, 400)
+    if (!saddl_id || saddl_id === 'none') return jsonResponse({ error: 'saddl_id (account) is required' }, 400)
 
     const csvText = await file.text()
     const parseResult = parseMinutesOrderCSV(csvText) as ParsedMinutesData
-    const { sales, errors: parseErrors } = parseResult
+    const { raw_rows, errors: parseErrors } = parseResult
 
-    if (sales.length === 0 && parseErrors.length > 0) {
+    if ((!raw_rows || raw_rows.length === 0) && parseErrors.length > 0) {
       return jsonResponse({ error: 'No valid rows parsed', errors: parseErrors }, 422)
     }
 
     const supabase = getSupabaseAdmin()
-    
-    // Build internal SKU mapping (handling 's' suffix case-insensitively)
-    const { data: skuMasterRows } = await supabase
-      .from('sku_master')
-      .select('sku')
-      .eq('is_active', true)
-    
-    const validSkus = (skuMasterRows ?? []).map((r: { sku: string }) => r.sku)
-    const noonToInternal = new Map<string, string>()
-    for (const internalSku of validSkus) {
-      if (/s$/i.test(internalSku)) noonToInternal.set(internalSku.slice(0, -1).toUpperCase(), internalSku)
-      noonToInternal.set(internalSku.toUpperCase(), internalSku)
+
+    // -----------------------------------------------------------------------
+    // 1. Normalise rows. One Noon item (item_nr) = one unit. Keep the last
+    //    occurrence of each item_nr in the file.
+    // -----------------------------------------------------------------------
+    const itemKey = (r: { item_nr?: string; order_nr?: string; sku?: string }) =>
+      r.item_nr ? `I:${r.item_nr}` : `O:${r.order_nr}|${r.sku}`
+
+    const csvRows = new Map<string, any>()
+    let countryMismatch = 0
+    for (const r of raw_rows || []) {
+      if (!r.order_nr || !r.sku) continue
+      const rowCountry = toCountry(r.country_code, country)
+      if (rowCountry !== country) countryMismatch++
+      csvRows.set(itemKey(r), {
+        country_code: r.country_code,
+        country: rowCountry,
+        order_nr: r.order_nr,
+        item_nr: r.item_nr || null,
+        order_date: r.order_date,
+        sku: r.sku,
+        title_en: r.title_en,
+        title_ar: r.title_ar,
+        brand_en: r.brand_en,
+        brand_ar: r.brand_ar,
+        currency_code: r.currency_code,
+        price: r.price,
+        partner_sku: (r.partner_sku || '').trim(),
+        item_status: (r.item_status || '').trim(),
+        return_date: r.return_date || null,
+        saddl_id,
+      })
     }
 
     // -----------------------------------------------------------------------
-    // Step 3: Upsert into sales_snapshot (Aggregated)
+    // 2. Load current versions of these items for this account
     // -----------------------------------------------------------------------
-    const deduped = new Map<string, NoonSaleRow>()
-    for (const r of sales) {
-      const internalSku = noonToInternal.get(r.sku.trim().toUpperCase())
-      if (internalSku) {
-        const key = `${internalSku}|${r.date}|${country}`
-        const ex = deduped.get(key)
-        if (ex) {
-          ex.units_sold += r.units_sold
-        } else {
-          deduped.set(key, { sku: internalSku, date: r.date, channel: 'noon_minutes', units_sold: r.units_sold, country })
-        }
+    const orderNrs = Array.from(new Set(Array.from(csvRows.values()).map(r => r.order_nr)))
+    const existingMap = new Map<string, any>()
+    for (let i = 0; i < orderNrs.length; i += 100) {
+      const { data: existingRows, error: fetchErr } = await supabase
+        .from('minutes_sales')
+        .select('id, order_nr, item_nr, sku, item_status, price')
+        .in('order_nr', orderNrs.slice(i, i + 100))
+        .eq('saddl_id', saddl_id)
+        .eq('is_current', true)
+      if (fetchErr) {
+        console.error('[upload-noon-minutes] fetch existing error:', fetchErr)
+        return jsonResponse({ error: `Fetch existing failed: ${fetchErr.message}` }, 500)
       }
-    }
-
-    const upsertRows = Array.from(deduped.values()).map(r => ({
-      ...r,
-      country,
-      saddl_id: saddl_id,
-      synced_at: new Date().toISOString()
-    }))
-
-    if (upsertRows.length > 0) {
-      const { error } = await supabase.from('sales_snapshot').upsert(upsertRows, { onConflict: 'sku,date,channel,country,saddl_id' })
-      if (error) return jsonResponse({ error: error.message }, 500)
+      for (const row of existingRows || []) existingMap.set(itemKey(row), row)
     }
 
     // -----------------------------------------------------------------------
-    // Step 4: Load Raw Detailed Data into minutes_sales (Chunked for Memory)
+    // 3. SCD2 diff
+    //    - new confirmed item            -> insert
+    //    - confirmed item changed        -> retire old, insert new
+    //    - item now cancelled / returned -> retire old (stops counting it)
     // -----------------------------------------------------------------------
-    const { raw_rows } = parseResult
-    let rawInserted = 0
-    
-    if (raw_rows && raw_rows.length > 0) {
-      const CONFIRMED_STATUSES = new Set(['processing', 'shipped', 'delivered'])
-      
-      // Filter and map in one pass
-      const dbRows = []
-      for (const r of raw_rows) {
-        if (r.item_status && CONFIRMED_STATUSES.has(r.item_status.toLowerCase())) {
-          dbRows.push({
-            country_code: r.country_code,
-            order_nr: r.order_nr,
-            item_nr: r.item_nr,
-            order_date: r.order_date,
-            sku: r.sku,
-            title_en: r.title_en,
-            title_ar: r.title_ar,
-            brand_en: r.brand_en,
-            brand_ar: r.brand_ar,
-            currency_code: r.currency_code,
-            price: r.price,
-            partner_sku: r.partner_sku,
-            item_status: r.item_status,
-            return_date: r.return_date || null,
-            saddl_id: saddl_id
-          })
-        }
-      }
+    const idsToRetire: number[] = []
+    const rowsToInsert: any[] = []
+    let skippedUnconfirmed = 0
 
-      const validDbRows = dbRows.filter(r => r.order_nr && r.sku)
-      
-      // Deduplicate rows from CSV by order_nr + sku (keep the last one)
-      const dedupedCsvRows = new Map<string, any>()
-      for (const r of validDbRows) {
-        dedupedCsvRows.set(`${r.order_nr}|${r.sku}`, r)
-      }
-      const finalDbRows = Array.from(dedupedCsvRows.values())
-      
-      const orderNrs = Array.from(new Set(finalDbRows.map(r => r.order_nr)))
-      
-      const existingMap = new Map<string, any>()
-      const QUERY_CHUNK_SIZE = 100 // Lower to avoid PostgREST 1000-row limit
-      const INSERT_CHUNK_SIZE = 500
-      
-      for (let i = 0; i < orderNrs.length; i += QUERY_CHUNK_SIZE) {
-        const chunk = orderNrs.slice(i, i + QUERY_CHUNK_SIZE)
-        const { data: existingRows, error: fetchErr } = await supabase
-          .from('minutes_sales')
-          .select('id, order_nr, sku, item_status, price')
-          .in('order_nr', chunk)
-          .eq('is_current', true)
-        
-        if (fetchErr) {
-          console.error(`[upload-noon-minutes] fetch existing error:`, fetchErr)
-          return jsonResponse({ error: `Fetch existing failed: ${fetchErr.message}` }, 500)
-        }
-        for (const row of (existingRows || [])) {
-          existingMap.set(`${row.order_nr}|${row.sku}`, row)
-        }
-      }
+    for (const [key, newRow] of csvRows.entries()) {
+      const confirmed = CONFIRMED_STATUSES.has(newRow.item_status.toLowerCase())
+      const existing = existingMap.get(key)
 
-      const idsToRetire: number[] = []
-      const rowsToInsert: any[] = []
-
-      for (const newRow of finalDbRows) {
-        const key = `${newRow.order_nr}|${newRow.sku}`
-        const existing = existingMap.get(key)
-        
-        if (existing) {
-          let changed = false
-          if (existing.item_status !== newRow.item_status) changed = true
-          else if (Number(existing.price) !== Number(newRow.price)) changed = true
-          
-          if (changed) {
-            idsToRetire.push(existing.id)
-            rowsToInsert.push(newRow)
-            existingMap.delete(key)
-          }
-        } else {
-          rowsToInsert.push(newRow)
-        }
+      if (existing) {
+        const changed = existing.item_status !== newRow.item_status || Number(existing.price) !== Number(newRow.price)
+        if (!changed) continue
+        idsToRetire.push(existing.id)
+        if (confirmed) rowsToInsert.push(newRow)
+      } else if (confirmed) {
+        rowsToInsert.push(newRow)
+      } else {
+        skippedUnconfirmed++
       }
-
-      // Retire old rows
-      for (let i = 0; i < idsToRetire.length; i += INSERT_CHUNK_SIZE) {
-        const chunk = idsToRetire.slice(i, i + INSERT_CHUNK_SIZE)
-        const { error: updateErr } = await supabase.from('minutes_sales')
-          .update({ is_current: false, valid_to: new Date().toISOString() })
-          .in('id', chunk)
-        if (updateErr) {
-          console.error(`[upload-noon-minutes] update error:`, updateErr)
-          return jsonResponse({ error: `Update failed: ${updateErr.message}` }, 500)
-        }
-      }
-
-      // Insert new rows
-      for (let i = 0; i < rowsToInsert.length; i += INSERT_CHUNK_SIZE) {
-        const chunk = rowsToInsert.slice(i, i + INSERT_CHUNK_SIZE)
-        const { error: minutesError } = await supabase.from('minutes_sales').insert(chunk)
-        if (minutesError) {
-          console.error(`[upload-noon-minutes] minutes_sales insert error at chunk ${i}:`, minutesError)
-          return jsonResponse({ error: `minutes_sales insert failed: ${minutesError.message}` }, 500)
-        }
-      }
-      
-      rawInserted = rowsToInsert.length
     }
 
-    // await refreshAllMetrics(supabase)
+    const now = new Date().toISOString()
+    for (let i = 0; i < idsToRetire.length; i += 500) {
+      const { error: updateErr } = await supabase.from('minutes_sales')
+        .update({ is_current: false, valid_to: now })
+        .in('id', idsToRetire.slice(i, i + 500))
+      if (updateErr) {
+        console.error('[upload-noon-minutes] update error:', updateErr)
+        return jsonResponse({ error: `Update failed: ${updateErr.message}` }, 500)
+      }
+    }
+
+    for (let i = 0; i < rowsToInsert.length; i += 500) {
+      const { error: insertErr } = await supabase.from('minutes_sales').insert(rowsToInsert.slice(i, i + 500))
+      if (insertErr) {
+        console.error(`[upload-noon-minutes] minutes_sales insert error at chunk ${i}:`, insertErr)
+        return jsonResponse({ error: `minutes_sales insert failed: ${insertErr.message}` }, 500)
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. Rebuild derived tables from minutes_sales (single source of truth).
+    //    fact_sales is refreshed by the trg_refresh_minutes_sales trigger.
+    // -----------------------------------------------------------------------
+    const refreshErrors: string[] = []
+    if (idsToRetire.length > 0 || rowsToInsert.length > 0) {
+      const { error: snapErr } = await supabase.rpc('sync_sales_snapshot_from_raw')
+      if (snapErr) refreshErrors.push(`sync_sales_snapshot_from_raw: ${snapErr.message}`)
+      const { error: planErr } = await supabase.rpc('refresh_fact_inventory_planning')
+      if (planErr) refreshErrors.push(`refresh_fact_inventory_planning: ${planErr.message}`)
+    }
+
+    const confirmedRows = Array.from(csvRows.values()).filter(r => CONFIRMED_STATUSES.has(r.item_status.toLowerCase()))
+    const dates = confirmedRows.map(r => String(r.order_date).slice(0, 10)).filter(Boolean).sort()
 
     return jsonResponse({
-      rows_processed: sales.length,
-      raw_rows_inserted: rawInserted,
-      skus_updated: Array.from(new Set(upsertRows.map(r => r.sku))).sort(),
-      errors: parseErrors,
-      message: rawInserted === 0 ? "No new changes detected" : undefined,
+      rows_processed: raw_rows?.length ?? 0,
+      items_in_file: csvRows.size,
+      confirmed_units_in_file: confirmedRows.length,
+      raw_rows_inserted: rowsToInsert.length,
+      raw_rows_retired: idsToRetire.length,
+      unconfirmed_skipped: skippedUnconfirmed,
+      country_mismatch_rows: countryMismatch,
+      date_range: dates.length ? { from: dates[0], to: dates[dates.length - 1] } : null,
+      skus_updated: Array.from(new Set(confirmedRows.map(r => r.partner_sku))).sort(),
+      errors: [...parseErrors, ...refreshErrors.map(message => ({ row: 0, message }))],
+      message: rowsToInsert.length === 0 && idsToRetire.length === 0 ? 'No new changes detected' : undefined,
     })
   } catch (err) {
     return jsonResponse({ error: String(err) }, 500)

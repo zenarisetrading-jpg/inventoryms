@@ -294,6 +294,7 @@ export interface SyncStatus {
   locad_xlsx: { last_uploaded: string | null; rows_matched: number | null; rows_unmatched: number | null }
   noon_csv: { last_uploaded: string | null }
   noon_inventory?: { last_uploaded: string | null }
+  noon_api?: { status: 'connected' | 'error'; last_synced: string | null }
 }
 
 export interface SyncResponse {

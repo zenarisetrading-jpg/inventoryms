@@ -252,6 +252,14 @@ export default function ReorderRecommendationsPage() {
   // Track persisted/saved quantities to know exactly when a row has been modified
   const [persistedFinalQty, setPersistedFinalQty] = useState<Record<string, number>>({})
 
+  // Reset all account-scoped state on account/region switch so old account data never leaks
+  useEffect(() => {
+    setRawData([])
+    setDiscontinuedSkus({})
+    setFinalQtyOverrides({})
+    setPersistedFinalQty({})
+  }, [region])
+
   // Load saved final_qty from DB on mount / region change
   useEffect(() => {
     let isMounted = true
@@ -409,9 +417,8 @@ export default function ReorderRecommendationsPage() {
         fetchReorderRawData(country, accountId, force),
         fetchSavedDiscontinuedFlags(country, accountId),
       ])
-      if (Object.keys(savedFlags).length > 0) {
-        setDiscontinuedSkus((prev) => ({ ...savedFlags, ...prev }))
-      }
+      // Replace discontinued flags with this account's saved flags (do not merge with previous account)
+      setDiscontinuedSkus(savedFlags || {})
       setRawData(data)
     } catch (err: any) {
       console.error('Error fetching reorder data:', err)
@@ -487,8 +494,8 @@ export default function ReorderRecommendationsPage() {
   }, [rawData, config, discontinuedSkus, finalQtyOverrides])
 
   // Automatically sync calculated reorder recommendations table to public.sku_reorder_recommendations
-  const handleSaveToDB = useCallback(async (itemsToSave = allRecommendations) => {
-    if (!itemsToSave.length) return
+  const handleSaveToDB = useCallback(async (itemsToSave: SKUReorderRecommendation[]) => {
+    if (!itemsToSave || !itemsToSave.length) return
     setSavingToDB(true)
     try {
       const country = localStorage.getItem('selected_country') || (region === 's2c_test' ? 'KSA' : 'UAE')
@@ -500,13 +507,13 @@ export default function ReorderRecommendationsPage() {
     } finally {
       setSavingToDB(false)
     }
-  }, [allRecommendations, region])
+  }, [region])
 
   useEffect(() => {
-    if (allRecommendations.length > 0) {
+    if (allRecommendations.length > 0 && rawData.length > 0) {
       handleSaveToDB(allRecommendations)
     }
-  }, [allRecommendations, handleSaveToDB])
+  }, [allRecommendations, rawData.length, handleSaveToDB])
 
   // Apply filters consistently across table, summary cards, and category analysis
   const filteredData = useMemo(() => {

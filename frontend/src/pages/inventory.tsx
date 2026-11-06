@@ -77,6 +77,7 @@ export default function InventoryPage() {
 
   const [syncStatus, setSyncStatus] = useState<AmazonSyncLogStatus | null>(null)
   const [syncingAmazon, setSyncingAmazon] = useState(false)
+  const [syncingNoon, setSyncingNoon] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   const fetchSyncStatus = async () => {
@@ -149,6 +150,30 @@ export default function InventoryPage() {
       setTimeout(() => setSyncMessage(null), 8000)
     }
   }
+
+  const handleSyncNoon = async () => {
+    setSyncingNoon(true)
+    setSyncMessage('Connecting to Noon API (saddlos.noon_api)...')
+    setError(null)
+    try {
+      const res = await api.syncNoonInventory()
+      if ((res as any).errors?.length) {
+        setSyncMessage(`Noon sync completed with notices: ${(res as any).errors[0]}`)
+      } else {
+        setSyncMessage(`Noon inventory successfully refreshed! ${(res as any).skus_processed ?? ''} SKUs processed.`)
+      }
+      await fetchSyncStatus()
+      const planningRes = await api.getPlanning(true)
+      setData(planningRes)
+    } catch (e: any) {
+      setError(`Noon sync failed: ${e.message || 'Unknown error'}. Existing valid inventory retained.`)
+      await fetchSyncStatus()
+    } finally {
+      setSyncingNoon(false)
+      setTimeout(() => setSyncMessage(null), 8000)
+    }
+  }
+
 
   const isStale = useMemo(() => {
     if (!syncStatus?.last_success_at) return true
@@ -455,6 +480,15 @@ export default function InventoryPage() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${syncingAmazon ? 'animate-spin text-amber-400' : ''}`} />
               {syncingAmazon ? 'SYNCING AMAZON...' : 'SYNC AMAZON'}
+            </button>
+<button
+              onClick={handleSyncNoon}
+              disabled={syncingNoon || syncingAmazon || refreshing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20 transition-all rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
+              title="Sync latest inventory directly from Noon API (Saddl)"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncingNoon ? 'animate-spin text-yellow-400' : ''}`} />
+              {syncingNoon ? 'SYNCING NOON...' : 'SYNC NOON'}
             </button>
 
             <button

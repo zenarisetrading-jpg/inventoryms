@@ -126,6 +126,8 @@ serve(async (req: Request) => {
         factQuery = factQuery.eq('saddl_id', accountId)
       }
 
+      factQuery = factQuery.order('sku', { ascending: true })
+
       const { data: page, error: pErr } = await factQuery.range(from, from + 999)
       if (pErr) throw pErr
       if (!page || page.length === 0) break

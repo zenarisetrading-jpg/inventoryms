@@ -89,6 +89,7 @@ export async function fetchReorderRawData(
           .eq('country', country)
           .eq('saddl_id', saddlId)
           .eq('is_active', true)
+          .order('sku', { ascending: true })
           .range(from, to)
       ),
       fetchAllRows((from, to) =>
@@ -98,6 +99,7 @@ export async function fetchReorderRawData(
           .eq('country', country)
           .eq('saddl_id', saddlId)
           .eq('is_active', true)
+          .order('sku', { ascending: true })
           .range(from, to)
       ),
       fetchAllRows((from, to) =>
@@ -107,6 +109,7 @@ export async function fetchReorderRawData(
           .eq('country', country)
           .eq('saddl_id', saddlId)
           .order('order_date', { ascending: false })
+          .order('sku', { ascending: true })
           .range(from, to)
       ),
     ])
@@ -765,6 +768,7 @@ export async function fetchSavedDiscontinuedFlags(
       .eq('country', country)
       .eq('saddl_id', saddlId)
       .eq('planning_to_discontinue', true)
+      .order('sku', { ascending: true })
 
     if (error || !data) return {}
 
@@ -798,6 +802,7 @@ export async function fetchSavedFinalQty(
         .eq('country', country)
         .eq('saddl_id', saddlId)
         .not('final_qty', 'is', null)
+        .order('sku', { ascending: true })
         .range(from, from + 999)
 
       if (error || !data || data.length === 0) break

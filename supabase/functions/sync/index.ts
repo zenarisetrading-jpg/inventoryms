@@ -19,6 +19,9 @@ import {
   fetchAmazonInventory,
   fetchAmazonSales,
   getSaddlConnectionStatus,
+  fetchNoonInventory,
+  fetchNoonReconciliation,
+  getNoonConnectionStatus,
 } from '../_shared/saddl.ts'
 import { LocadClient, isLocadConfigured } from '../_shared/locad.ts'
 
@@ -56,6 +59,7 @@ serve(async (req: Request) => {
 
     if (req.method === 'POST') {
       if (action === 'amazon') return await handleSync(req, 'amazon', clear, days, countryParam, accountParam)
+      if (action === 'noon') return await handleSync(req, 'noon', clear, days, countryParam, accountParam)
       if (action === 'amazon-fdw') return await handleAmazonFDW(req)
       if (action === 'locad') return await handleSync(req, 'locad', clear, days, countryParam, accountParam)
       if (action === 'all') return await handleSync(req, 'all', clear, days, countryParam, accountParam)
@@ -85,7 +89,7 @@ serve(async (req: Request) => {
 
 async function handleSync(
   req: Request,
-  source: 'amazon' | 'locad' | 'all',
+  source: 'amazon' | 'locad' | 'noon' | 'all',
   clear = false,
   days = 90,
   countryParam: string | null = null,
@@ -221,7 +225,7 @@ async function handleSync(
         // Only update inventory if we fetched records — never overwrite valid data with zero on empty fetch
         if (inventory.length > 0) {
           const snapshotDate = new Date().toISOString().split('T')[0]
-          const snapRows: any[] = []
+          const snapMap = new Map<string, any>()
 
           for (const item of inventory) {
             let resolvedSku: string | null = null
@@ -236,21 +240,30 @@ async function handleSync(
             }
 
             if (resolvedSku) {
-              snapRows.push({
-                sku: resolvedSku,
-                node: 'amazon_fba',
-                warehouse_name: null,
-                available: item.available,
-                inbound: item.inbound,
-                reserved: item.reserved,
-                snapshot_date: snapshotDate,
-                country: loc.country,
-                saddl_id: loc.saddl_account_id
-              })
+              const key = `${resolvedSku}_amazon_fba_${snapshotDate}_${loc.country}_${loc.saddl_account_id}`
+              if (!snapMap.has(key)) {
+                snapMap.set(key, {
+                  sku: resolvedSku,
+                  node: 'amazon_fba',
+                  warehouse_name: null,
+                  available: Number(item.available) || 0,
+                  inbound: Number(item.inbound) || 0,
+                  reserved: Number(item.reserved) || 0,
+                  snapshot_date: snapshotDate,
+                  country: loc.country,
+                  saddl_id: loc.saddl_account_id
+                })
+              } else {
+                const existing = snapMap.get(key)
+                existing.available += (Number(item.available) || 0)
+                existing.inbound += (Number(item.inbound) || 0)
+                existing.reserved += (Number(item.reserved) || 0)
+              }
             }
           }
 
-          console.log(`[sync] [${loc.country}] inventory: ${inventory.length} items from Saddl, ${snapRows.length} matched to sku_master`)
+          const snapRows = Array.from(snapMap.values())
+          console.log(`[sync] [${loc.country}] inventory: ${inventory.length} items from Saddl, ${snapRows.length} unique SKUs matched to sku_master`)
 
           if (snapRows.length > 0) {
             // Upsert in chunks of 100 to avoid payload limits and timeouts
@@ -275,23 +288,31 @@ async function handleSync(
         }
 
         if (sales.length > 0) {
-          const salesRows: any[] = []
+          const salesMap = new Map<string, any>()
           for (const s of sales) {
             const resolvedSku = asinToSku[s.asin.trim()]
             if (resolvedSku) {
-              salesRows.push({
-                sku: resolvedSku,
-                date: s.date,
-                channel: 'amazon' as const,
-                units_sold: s.units_sold,
-                revenue: s.revenue,
-                country: loc.country,
-                saddl_id: loc.saddl_account_id
-              })
+              const key = `${resolvedSku}_${s.date}_amazon_${loc.country}_${loc.saddl_account_id}`
+              if (!salesMap.has(key)) {
+                salesMap.set(key, {
+                  sku: resolvedSku,
+                  date: s.date,
+                  channel: 'amazon' as const,
+                  units_sold: Number(s.units_sold) || 0,
+                  revenue: Number(s.revenue) || 0,
+                  country: loc.country,
+                  saddl_id: loc.saddl_account_id
+                })
+              } else {
+                const existing = salesMap.get(key)
+                existing.units_sold += (Number(s.units_sold) || 0)
+                existing.revenue += (Number(s.revenue) || 0)
+              }
             }
           }
 
-          console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} matched to sku_master`)
+          const salesRows = Array.from(salesMap.values())
+          console.log(`[sync] [${loc.country}] sales: ${sales.length} ASIN-rows from Saddl, ${salesRows.length} unique SKU-date rows matched to sku_master`)
 
           if (salesRows.length > 0) {
             const CHUNK_SIZE = 500
@@ -431,30 +452,57 @@ async function handleSync(
             if (key) fnskuToSku.set(key, row.sku)
           }
 
-          // Helper to get SKU from UPC, handling trailing 'S'
-          const findSku = (upc: string): string | null => {
-            const cleanUpc = upc.trim()
-            if (!cleanUpc) return null
-            // Direct match
-            if (fnskuToSku.has(cleanUpc)) return fnskuToSku.get(cleanUpc) ?? null
-            // Try stripping 'S'
-            if (cleanUpc.endsWith('S') && fnskuToSku.has(cleanUpc.slice(0, -1))) {
-              return fnskuToSku.get(cleanUpc.slice(0, -1)) ?? null
+          // Fallback: Locad SKU code == internal SKU (case-insensitive) for the account
+          // Locad stock is booked to. Needed when sku_master has no FNSKU, or a different
+          // FNSKU than the UPC Locad holds (e.g. new SKUs whose UAE FNSKU isn't filled in).
+          const LOCAD_COUNTRY = 'UAE'
+          const LOCAD_ACCOUNT = 's2c_uae_test'
+          const codeToSku = new Map<string, string>()
+          for (let from = 0; ; from += 1000) {
+            const { data: page, error: codeErr } = await supabase
+              .from('sku_master')
+              .select('sku')
+              .eq('country', LOCAD_COUNTRY)
+              .eq('saddl_id', LOCAD_ACCOUNT)
+              .range(from, from + 999)
+            if (codeErr) {
+              errors.push(`sku_master code lookup for Locad: ${codeErr.message}`)
+              break
             }
+            for (const row of page ?? []) {
+              const raw = String(row.sku ?? '').trim()
+              if (raw) codeToSku.set(raw.toUpperCase(), raw)
+            }
+            if (!page || page.length < 1000) break
+          }
+
+          // Helper: UPC -> FNSKU match (handling trailing 'S'), then Locad SKU code -> SKU
+          const findMatch = (upc: string, locadSku: string): { sku: string; method: 'fnsku' | 'sku_code' } | null => {
+            const cleanUpc = upc.trim()
+            if (cleanUpc) {
+              // Direct match
+              if (fnskuToSku.has(cleanUpc)) return { sku: fnskuToSku.get(cleanUpc)!, method: 'fnsku' }
+              // Try stripping 'S'
+              if (cleanUpc.endsWith('S') && fnskuToSku.has(cleanUpc.slice(0, -1))) {
+                return { sku: fnskuToSku.get(cleanUpc.slice(0, -1))!, method: 'fnsku' }
+              }
+            }
+            const code = locadSku.trim().toUpperCase()
+            if (code && codeToSku.has(code)) return { sku: codeToSku.get(code)!, method: 'sku_code' }
             return null
           }
 
           // ── Step 3: Write ALL raw rows to staging (before matching) ─────────
           const stagingRows = locadInventory.map((item) => {
             const upc = String(item.upc ?? '').trim()
-            const matchedSku = findSku(upc)
+            const match = findMatch(upc, String(item.sku ?? ''))
             return {
               sync_run_id: syncRunId,
               locad_sku: String(item.sku ?? '').trim(),
               locad_upc: upc || null,
               available: item.available ?? 0,
-              matched_sku: matchedSku,
-              match_method: matchedSku ? 'fnsku' : 'unmatched',
+              matched_sku: match?.sku ?? null,
+              match_method: match?.method ?? 'unmatched',
             }
           })
 
@@ -475,12 +523,14 @@ async function handleSync(
 
           // ── Step 3.5: Auto-populate locad_sku_map for future manual uploads ─
           const mappedRows = stagingRows
-            .filter((r) => r.match_method === 'fnsku' && r.matched_sku)
+            .filter((r) => r.match_method !== 'unmatched' && r.matched_sku)
             .map((r) => ({
               locad_sku: r.locad_sku,
               internal_sku: r.matched_sku,
-              matched_by: 'api_fnsku',
-              notes: `Auto-mapped via Locad API UPC match (normalized) on ${snapshotDate}`,
+              matched_by: r.match_method === 'fnsku' ? 'api_fnsku' : 'api_sku_code',
+              notes: r.match_method === 'fnsku'
+                ? `Auto-mapped via Locad API UPC match (normalized) on ${snapshotDate}`
+                : `Auto-mapped via Locad SKU code = internal SKU on ${snapshotDate}`,
             }))
 
           if (mappedRows.length > 0) {
@@ -497,10 +547,9 @@ async function handleSync(
 
           // ── Step 4: Upsert only matched rows into inventory_snapshot ─────────
           const availableByInternalSku: Record<string, number> = {}
-          for (const item of locadInventory) {
-            const internalSku = findSku(String(item.upc ?? '').trim())
-            if (!internalSku) continue
-            availableByInternalSku[internalSku] = (availableByInternalSku[internalSku] ?? 0) + (item.available ?? 0)
+          for (const row of stagingRows) {
+            if (!row.matched_sku) continue
+            availableByInternalSku[row.matched_sku] = (availableByInternalSku[row.matched_sku] ?? 0) + (row.available ?? 0)
           }
 
           const snapRows = Object.entries(availableByInternalSku).map(([sku, available]) => ({
@@ -535,6 +584,217 @@ async function handleSync(
         }
       } catch (err) {
         errors.push(`Locad sync error: ${(err as Error).message}`)
+      }
+    }
+  }
+
+  
+  // =========================================================================
+  // NOON FBN INVENTORY SYNC (Database: saddlos, Schema: noon_api)
+  // Source of truth: noon_api.v_fbn_inventory_current
+  // =========================================================================
+  if (source === 'noon' || source === 'all') {
+    for (const loc of locations) {
+      const locErrors: string[] = []
+      let locFetched = 0
+      let locUpdated = 0
+
+      try {
+        console.log(`[sync] Syncing Noon FBN Inventory for ${loc.country} (client=${loc.saddl_client_id})`)
+
+        // 1. Fetch live curated inventory from noon_api.v_fbn_inventory_current
+        const noonInventory = await fetchNoonInventory(loc.saddl_client_id).catch(err => {
+          const msg = `[${loc.country}] Noon fetch error: ${err.message}`
+          locErrors.push(msg)
+          errors.push(msg)
+          return []
+        })
+        locFetched = noonInventory.length
+
+        // 2. Fetch reconciliation status (Detail vs Aging report cross-check)
+        const noonRecon = await fetchNoonReconciliation(loc.saddl_client_id).catch(() => null)
+        if (noonRecon?.alert) {
+          const warnMsg = `[${loc.country}] Noon FBN reconciliation variance is ${noonRecon.pct_variance}% (Detail=${noonRecon.detail_fbn_total}, Aging=${noonRecon.aging_saleable_gross_total}). Threshold is 3%.`
+          console.warn(`[sync] ${warnMsg}`)
+          errors.push(warnMsg)
+        }
+
+        if (noonInventory.length > 0) {
+          // 3. Load catalog for matching
+          const skuMasterRows: any[] = []
+          let smFrom = 0
+          const SM_STEP = 1000
+          while (true) {
+            const { data: page, error: smErr } = await supabase
+              .from('sku_master')
+              .select('sku')
+              .eq('country', loc.country)
+              .eq('saddl_id', loc.saddl_account_id)
+              .range(smFrom, smFrom + SM_STEP - 1)
+
+            if (smErr) {
+              const msg = `[${loc.country}] sku_master lookup for Noon: ${smErr.message}`
+              locErrors.push(msg)
+              errors.push(msg)
+              break
+            }
+            if (!page || page.length === 0) break
+            skuMasterRows.push(...page)
+            if (page.length < SM_STEP) break
+            smFrom += SM_STEP
+          }
+
+          // Build resolution dictionaries: exact, clean alphanumeric, trailing 's'
+          const exactMap = new Map<string, string>()
+          const cleanMap = new Map<string, string>()
+          for (const row of skuMasterRows) {
+            if (!row.sku) continue
+            const raw = String(row.sku).trim()
+            exactMap.set(raw.toUpperCase(), raw)
+            const clean = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+            if (!cleanMap.has(clean)) cleanMap.set(clean, raw)
+          }
+
+          const resolvePartnerSku = (rawCandidate: string | null): string | null => {
+            if (!rawCandidate) return null
+            const trimmed = rawCandidate.trim()
+            if (!trimmed) return null
+            const upper = trimmed.toUpperCase()
+            if (exactMap.has(upper)) return exactMap.get(upper)!
+            const clean = trimmed.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+            if (cleanMap.has(clean)) return cleanMap.get(clean)!
+            // Fallback for trailing 'S'
+            if (upper.endsWith('S') && exactMap.has(upper.slice(0, -1))) {
+              return exactMap.get(upper.slice(0, -1))!
+            }
+            if (clean.endsWith('S') && cleanMap.has(clean.slice(0, -1))) {
+              return cleanMap.get(clean.slice(0, -1))!
+            }
+            return null
+          }
+
+          const today = new Date().toISOString().slice(0, 10)
+          const snapRows: any[] = []
+
+          // Group by resolved SKU so each SKU is counted once.
+          // NOTE: Noon FBN stock (node 'noon_fbn') is NOT written here. The Saddl inventory
+          // push writes it once a day (~02:10 UTC, one row per warehouse code, same Detail
+          // data). Writing it here too created a second set of FBN rows on the same date.
+          const minutesBySku = new Map<string, { darkstore_saleable: number; date: string }>()
+
+          for (const item of noonInventory) {
+            const resolvedSku = resolvePartnerSku(item.partner_sku) || resolvePartnerSku(item.sku)
+            if (!resolvedSku) continue
+
+            const date = item.close_date || today
+
+            // Darkstore (Minutes) stock
+            if (item.darkstore_saleable > 0) {
+              const existingMin = minutesBySku.get(resolvedSku)
+              if (existingMin) {
+                existingMin.darkstore_saleable += item.darkstore_saleable
+              } else {
+                minutesBySku.set(resolvedSku, {
+                  darkstore_saleable: item.darkstore_saleable,
+                  date,
+                })
+              }
+            }
+          }
+
+          // Remove FBN rows previously written by this function (warehouse_name 'FBN_WAREHOUSE')
+          // so only the per-warehouse push remains as the FBN source.
+          const { error: legacyFbnErr } = await supabase
+            .from('inventory_snapshot')
+            .delete()
+            .eq('node', 'noon_fbn')
+            .eq('warehouse_name', 'FBN_WAREHOUSE')
+            .eq('country', loc.country)
+            .eq('saddl_id', loc.saddl_account_id)
+          if (legacyFbnErr) {
+            const msg = `[${loc.country}] cleanup of duplicate FBN_WAREHOUSE rows: ${legacyFbnErr.message}`
+            locErrors.push(msg)
+            errors.push(msg)
+          }
+
+          // Build inventory_snapshot rows for Minutes.
+          // Minutes = all Darkstore warehouses (DS and ID codes). The API feed currently
+          // reports ID hubs (e.g. DXBID02) only as 'Researching' qty 0, so a portal export
+          // loaded via upload-noon-inventory (per warehouse code) is more complete.
+          // If such an export exists for a date >= the API close_date, keep it and skip
+          // the API 'DARKSTORE' rows to avoid double counting / undercounting.
+          const apiMinutesDate = [...minutesBySku.values()].map(d => d.date).sort().pop() || today
+          const { data: exportMinutes } = await supabase
+            .from('inventory_snapshot')
+            .select('snapshot_date')
+            .eq('node', 'Minutes')
+            .eq('country', loc.country)
+            .eq('saddl_id', loc.saddl_account_id)
+            .neq('warehouse_name', 'DARKSTORE')
+            .gte('snapshot_date', apiMinutesDate)
+            .limit(1)
+          const skipApiMinutes = (exportMinutes?.length ?? 0) > 0
+          if (skipApiMinutes) {
+            console.log(`[sync] [${loc.country}] Minutes: newer portal export (DS+ID) present on/after ${apiMinutesDate}; skipping API darkstore rows`)
+          }
+
+          for (const [sku, data] of (skipApiMinutes ? [] : minutesBySku.entries())) {
+            snapRows.push({
+              sku,
+              node: 'Minutes',
+              warehouse_name: 'DARKSTORE',
+              available: data.darkstore_saleable,
+              inbound: 0,
+              reserved: 0,
+              snapshot_date: data.date,
+              country: loc.country,
+              saddl_id: loc.saddl_account_id,
+              synced_at: new Date().toISOString(),
+            })
+          }
+
+          console.log(`[sync] [${loc.country}] Noon: ${noonInventory.length} fetched from Saddl, ${snapRows.length} snapshot rows ready`)
+
+          if (snapRows.length > 0) {
+            const CHUNK_SIZE = 100
+            for (let i = 0; i < snapRows.length; i += CHUNK_SIZE) {
+              const chunk = snapRows.slice(i, i + CHUNK_SIZE)
+              const { error: invErr } = await supabase
+                .from('inventory_snapshot')
+                .upsert(chunk, {
+                  onConflict: 'sku,node,warehouse_name,snapshot_date,country,saddl_id',
+                })
+              if (invErr) {
+                const msg = `[${loc.country}] Noon inventory_snapshot upsert: ${invErr.message}`
+                locErrors.push(msg)
+                errors.push(msg)
+              } else {
+                locUpdated += chunk.length
+                skus_processed += chunk.length
+              }
+            }
+          }
+        }
+
+        locationSyncResults.push({
+          country: loc.country,
+          saddl_id: loc.saddl_account_id,
+          channel: 'noon',
+          noon_items_fetched: locFetched,
+          noon_items_updated: locUpdated,
+          reconciliation: noonRecon ? {
+            detail_fbn_total: noonRecon.detail_fbn_total,
+            aging_saleable_gross_total: noonRecon.aging_saleable_gross_total,
+            abs_variance: noonRecon.abs_variance,
+            pct_variance: noonRecon.pct_variance,
+            alert: noonRecon.alert,
+          } : null,
+          errors: locErrors,
+        })
+      } catch (err: any) {
+        const msg = `[${loc.country}] Noon sync unhandled error: ${err.message}`
+        locErrors.push(msg)
+        errors.push(msg)
       }
     }
   }
@@ -680,6 +940,9 @@ async function handleStatus(
     console.warn('[sync] failed to fetch latest amazon sync status:', err)
   }
 
+  // Noon API status
+  const noonStatus = await getNoonConnectionStatus()
+
   // Locad API status
   const locadConfigured = isLocadConfigured()
   let locadApiStatus: 'connected' | 'not_connected' = locadConfigured
@@ -746,6 +1009,10 @@ async function handleStatus(
     },
     noon_inventory: {
       last_uploaded: latestNoonInventorySynced,
+    },
+    noon_api: {
+      status: noonStatus.status,
+      last_synced: latestNoonInventorySynced,
     },
   })
 }

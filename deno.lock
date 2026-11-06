@@ -140,7 +140,8 @@
         "npm:@supabase/supabase-js@^2.108.2",
         "npm:dotenv@^17.4.2",
         "npm:serve@^14.2.4",
-        "npm:supabase@^2.84.4"
+        "npm:supabase@^2.84.4",
+        "npm:xlsx@~0.18.5"
       ]
     }
   }
