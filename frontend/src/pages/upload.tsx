@@ -7,7 +7,6 @@ import { OperationsHeader } from '../components/upload/OperationsHeader'
 import { ConnectivityStatus } from '../components/upload/ConnectivityStatus'
 import { LocadSync } from '../components/upload/LocadSync'
 import { NoonSync } from '../components/upload/NoonSync'
-import { MinutesSync } from '../components/upload/MinutesSync'
 import { MappingModal } from '../components/upload/MappingModal'
 
 export default function OperationsHub() {
@@ -15,9 +14,9 @@ export default function OperationsHub() {
     syncStatus, loading, loadData,
     showMappingModal, setShowMappingModal,
     triggerLoading, masterStep, handleMasterRefresh,
-    showGuide, setShowGuide,
     locadState, noonSalesState, noonInvState, minutesState,
-    handleUpload, handleLocadApiSync
+    handleUpload, handleLocadApiSync,
+    amazonSyncing, amazonSyncSuccess, amazonSyncError, handleAmazonSync
   } = useOperationsHub()
 
   if (loading && !syncStatus) return <LoadingScreen message="Initializing Operations Hub..." fullScreen />
@@ -36,32 +35,38 @@ export default function OperationsHub() {
         triggerLoading={triggerLoading}
         masterStep={masterStep}
         handleMasterRefresh={handleMasterRefresh}
-        showGuide={showGuide}
-        setShowGuide={setShowGuide}
+        handleAmazonSync={handleAmazonSync}
+        amazonSyncing={amazonSyncing}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <ConnectivityStatus healthRows={healthRows} loading={loading} loadData={loadData} />
-        
-        <div className="xl:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <LocadSync 
-            locadState={locadState}
-            syncStatus={syncStatus}
-            handleUpload={handleUpload}
-            handleLocadApiSync={handleLocadApiSync}
-            setShowMappingModal={setShowMappingModal}
-          />
-          <MinutesSync 
-            minutesState={minutesState}
-            handleUpload={handleUpload}
+        <div className="xl:col-span-2">
+          <ConnectivityStatus 
+            healthRows={healthRows} 
+            loading={loading} 
+            loadData={loadData}
+            onAmazonSync={handleAmazonSync}
+            amazonSyncing={amazonSyncing}
+            amazonSyncSuccess={amazonSyncSuccess}
+            amazonSyncError={amazonSyncError}
           />
         </div>
+
+        <LocadSync 
+          locadState={locadState}
+          syncStatus={syncStatus}
+          handleUpload={handleUpload}
+          handleLocadApiSync={handleLocadApiSync}
+          setShowMappingModal={setShowMappingModal}
+        />
       </div>
 
       <NoonSync 
         noonSalesState={noonSalesState}
+        minutesState={minutesState}
         noonInvState={noonInvState}
         handleUpload={handleUpload}
+        onApiSyncComplete={loadData}
       />
 
       {showMappingModal && (

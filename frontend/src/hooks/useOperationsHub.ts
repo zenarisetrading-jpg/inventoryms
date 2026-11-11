@@ -9,7 +9,6 @@ export function useOperationsHub() {
   const [loading, setLoading] = useState(true)
   const [showMappingModal, setShowMappingModal] = useState(false)
   const [triggerLoading, setTriggerLoading] = useState(false)
-  const [showGuide, setShowGuide] = useState(true)
   const [masterStep, setMasterStep] = useState<'amazon-saddl' | 'amazon-fdw' | 'fact-tables' | null>(null)
 
   // Upload States
@@ -17,6 +16,11 @@ export function useOperationsHub() {
   const [noonSalesState, setNoonSalesState] = useState<{loading: boolean, error: string|null, result: UploadNoonResponse|null}>({loading: false, error: null, result: null})
   const [noonInvState, setNoonInvState] = useState<{loading: boolean, error: string|null, result: UploadNoonInventoryResponse|null}>({loading: false, error: null, result: null})
   const [minutesState, setMinutesState] = useState<{loading: boolean, error: string|null, result: UploadNoonResponse|null}>({loading: false, error: null, result: null})
+
+  // Amazon API Sync State
+  const [amazonSyncing, setAmazonSyncing] = useState(false)
+  const [amazonSyncSuccess, setAmazonSyncSuccess] = useState<string | null>(null)
+  const [amazonSyncError, setAmazonSyncError] = useState<string | null>(null)
 
   const loadData = () => {
     setLoading(true)
@@ -50,6 +54,27 @@ export function useOperationsHub() {
       const res = await api.uploadNoonMinutesSales(file) as any
       setMinutesState({loading: false, error: res.error || null, result: res.error ? null : res})
       if (!res.error) loadData()
+    }
+  }
+
+  const handleAmazonSync = async () => {
+    setAmazonSyncing(true)
+    setAmazonSyncSuccess(null)
+    setAmazonSyncError(null)
+    try {
+      const res = await api.triggerSync('amazon') as any
+      if (res?.errors?.length && !res?.skus_processed) {
+        setAmazonSyncError(res.errors[0])
+      } else {
+        const count = res?.skus_processed ?? 0
+        const notice = res?.errors?.length ? ` (${res.errors[0]})` : ''
+        setAmazonSyncSuccess(`Synced ${count} SKUs from Amazon API${notice}`)
+        loadData()
+      }
+    } catch (err: any) {
+      setAmazonSyncError(err.message || 'Failed to sync from Amazon API')
+    } finally {
+      setAmazonSyncing(false)
     }
   }
 
@@ -90,8 +115,8 @@ export function useOperationsHub() {
     syncStatus, loading, loadData,
     showMappingModal, setShowMappingModal,
     triggerLoading, masterStep, handleMasterRefresh,
-    showGuide, setShowGuide,
     locadState, noonSalesState, noonInvState, minutesState,
-    handleUpload, handleLocadApiSync
+    handleUpload, handleLocadApiSync,
+    amazonSyncing, amazonSyncSuccess, amazonSyncError, handleAmazonSync
   }
 }

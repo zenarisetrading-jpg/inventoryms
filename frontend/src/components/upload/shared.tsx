@@ -62,8 +62,13 @@ export function buildHealthRows(syncStatus: SyncStatus): HealthRow[] {
   const noonTs = syncStatus.noon_csv?.last_uploaded ?? null
   rows.push({ source: 'Noon Sales', type: 'Manual CSV', lastUpdated: noonTs, status: staleness(noonTs) })
 
-  const noonInvTs = syncStatus.noon_inventory?.last_uploaded ?? null
-  rows.push({ source: 'Noon Inventory', type: 'Manual CSV', lastUpdated: noonInvTs, status: staleness(noonInvTs) })
+  const noonInvTs = syncStatus.noon_api?.last_synced ?? syncStatus.noon_inventory?.last_uploaded ?? null
+  rows.push({
+    source: 'Noon Inventory',
+    type: syncStatus.noon_api?.status === 'connected' ? 'API / File' : 'Manual CSV',
+    lastUpdated: noonInvTs,
+    status: staleness(noonInvTs)
+  })
 
   return rows
 }
@@ -74,7 +79,7 @@ export function DropZone({ accept, label, hint, onFile, disabled }: { accept: st
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) onFile(file) }
   return (
     <div
-      className={`border-2 border-dashed rounded-2xl px-4 py-6 text-center cursor-pointer transition-all ${
+      className={`flex-1 flex flex-col items-center justify-center min-h-[148px] border-2 border-dashed rounded-2xl px-4 py-6 text-center cursor-pointer transition-all ${
         disabled ? 'border-white/5 bg-white/5 cursor-not-allowed opacity-50' :
         dragging ? 'border-brand-amber bg-brand-amber/10' : 'border-white/10 bg-white/5 hover:border-brand-amber/50 hover:bg-white/10'
       }`}
@@ -93,7 +98,7 @@ export function DropZone({ accept, label, hint, onFile, disabled }: { accept: st
 
 export function UploadingState({ label = "Processing Payload..." }: { label?: string }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 min-h-[140px]">
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10 min-h-[148px]">
       <RefreshCw className="h-8 w-8 text-brand-blue animate-spin" />
       <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{label}</span>
     </div>
@@ -102,7 +107,7 @@ export function UploadingState({ label = "Processing Payload..." }: { label?: st
 
 export function SectionTile({ icon: Icon, title, subtitle, accent, headerAction, children }: { icon: any, title: string, subtitle: string, accent: string, headerAction?: React.ReactNode, children: React.ReactNode }) {
   return (
-    <div className={`bg-card border border-white/5 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-t-4 ${accent}`}>
+    <div className={`h-full bg-card border border-white/5 rounded-2xl shadow-2xl overflow-hidden flex flex-col border-t-4 ${accent}`}>
       <div className="px-6 py-5 border-b border-white/5 bg-white/5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="p-2.5 bg-white/5 rounded-2xl shadow-inner text-zinc-300"><Icon className="h-5 w-5" /></div>
